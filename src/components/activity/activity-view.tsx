@@ -190,7 +190,7 @@ export function ActivityView() {
           ) : (
             <ul className="divide-y divide-line text-sm">
               {recent.map((r) => (
-                <li key={r.id} className="flex justify-between gap-3 py-2">
+                <li key={r.id} className="flex justify-between gap-3 py-2.5">
                   <span className="text-white/60">{weekdayShort(r.date)}</span>
                   <span className="tabular-nums text-white">
                     {r.sleepHours != null ? `${r.sleepHours} h` : "—"} · {r.restingHr != null ? `${r.restingHr} bpm` : "—"} · stress {r.stress ?? "—"}

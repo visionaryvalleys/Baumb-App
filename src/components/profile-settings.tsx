@@ -99,7 +99,7 @@ function Editor({ notice, onSaved }: { notice: Notice | null; onSaved: (n: Notic
         <CardTitle>Training setup</CardTitle>
         <TrainingFields g={g} set={setGoal} d={d} setProfile={setProfile} />
       </Card>
-      <div className="glass sticky bottom-4 z-20 flex flex-wrap items-center justify-between gap-3 p-4">
+      <div className="glass sticky bottom-4 z-20 flex flex-wrap items-center justify-between gap-3 rounded-card p-4 shadow-lift sm:px-5">
         <p className="text-sm text-white/60" role="status">
           {notice?.message ?? "Goal, schedule or body changes take effect when you regenerate your plan."}
         </p>

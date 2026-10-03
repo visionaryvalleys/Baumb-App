@@ -56,10 +56,10 @@ export function VacationView() {
   return (
     <div className="space-y-4">
       {active && (
-        <Card className="border-sky-300/30">
+        <Card className="border-cyan/25">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <Palmtree className="size-6 text-sky-200" aria-hidden />
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-cyan/10 text-cyan ring-1 ring-inset ring-cyan/20"><Palmtree className="size-5" aria-hidden /></span>
               <div>
                 <div className="text-lg font-semibold text-white">On vacation until {formatDate(active.end, { weekday: "short", month: "short", day: "numeric" })}</div>
                 <div className="text-sm text-white/55">{active.pauseWorkouts ? "Workouts paused." : "Workouts optional."} Meals, steps and weigh-ins you log still count toward your real progress.</div>
@@ -102,10 +102,10 @@ export function VacationView() {
         <Card className="lg:col-span-2">
           <CardTitle>How vacation mode works</CardTitle>
           <ul className="grid gap-3 text-sm text-white/70 sm:grid-cols-2">
-            <li className="bg-white/5 p-3">Nothing is deleted. Every meal, workout, step and weigh-in during a vacation stays in your history.</li>
-            <li className="bg-white/5 p-3">Missed planned sessions are shown as vacation, never as failures, and are excluded from adherence.</li>
-            <li className="bg-white/5 p-3">Your weight trend and transformation estimate use what actually happened, so they update automatically when you&apos;re back.</li>
-            <li className="bg-white/5 p-3">You can still log a workout on vacation — it counts like any other session.</li>
+            <li className="panel p-4 leading-relaxed">Nothing is deleted. Every meal, workout, step and weigh-in during a vacation stays in your history.</li>
+            <li className="panel p-4 leading-relaxed">Missed planned sessions are shown as vacation, never as failures, and are excluded from adherence.</li>
+            <li className="panel p-4 leading-relaxed">Your weight trend and transformation estimate use what actually happened, so they update automatically when you&apos;re back.</li>
+            <li className="panel p-4 leading-relaxed">You can still log a workout on vacation — it counts like any other session.</li>
           </ul>
         </Card>
       </div>
@@ -129,7 +129,7 @@ export function VacationView() {
                       {v.note ? ` · ${v.note}` : ""}
                     </div>
                   </div>
-                  <span className={cn("px-2 py-0.5 text-[11px] font-semibold uppercase", upcoming ? "bg-white/10 text-white/70" : v === active ? "bg-sky-400/20 text-sky-200" : "bg-white/5 text-white/45")}>
+                  <span className={cn("rounded-md px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider", upcoming ? "bg-white/10 text-white/70" : v === active ? "bg-cyan/15 text-cyan" : "bg-white/5 text-white/45")}>
                     {upcoming ? "Upcoming" : v === active ? "Active" : "Past"}
                   </span>
                 </div>
@@ -158,7 +158,7 @@ export function VacationView() {
                 <div className="mt-4 flex justify-end">
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 text-xs text-white/45 hover:text-red-300"
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs text-white/45 hover:bg-white/[0.04] hover:text-red-300"
                     onClick={() => {
                       if (window.confirm("Remove this vacation label? Everything you logged during it is kept.")) actions.removeVacation(v.id);
                     }}

@@ -3,14 +3,15 @@
 import { type ChangeEvent, useRef, useState } from "react";
 import { Bell, Check, Download, Palette, RotateCcw, Sparkles, Upload } from "lucide-react";
 import { buildSampleState } from "@/lib/sample";
-import { DEFAULT_ACCENT, actions, migrateLegacy, useAppState } from "@/lib/store";
+import { DEFAULT_ACCENT, actions, migrateLegacy, resolveAccent, useAppState } from "@/lib/store";
 import type { AppState } from "@/lib/types";
 import { Card, CardTitle, Segmented, cn } from "../ui";
 import { AccountCard } from "./account-card";
 import { CalculationLog } from "./calculation-log";
 
 const ACCENTS = [
-  { value: DEFAULT_ACCENT, label: "BAUMB Gold" },
+  { value: DEFAULT_ACCENT, label: "BAUMB Blue" },
+  { value: "#f2b705", label: "BAUMB Gold" },
   { value: "#e10600", label: "Race Red" },
   { value: "#22d3ee", label: "Ice" },
   { value: "#a3e635", label: "Volt" },
@@ -61,12 +62,12 @@ export function SettingsView() {
 
       <Card>
         <CardTitle action={<Palette className="size-4 text-white/50" aria-hidden />}>Accent colour</CardTitle>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
           {ACCENTS.map((a) => {
-            const active = state.settings.accent.toLowerCase() === a.value;
+            const active = resolveAccent(state.settings.accent) === a.value;
             return (
-              <button key={a.value} type="button" onClick={() => actions.updateSettings({ accent: a.value })} aria-pressed={active} className={cn("flex flex-col items-center gap-2 p-2 text-[11px] transition", active ? "bg-white/10 text-white" : "text-white/55 hover:bg-white/5")}>
-                <span className="grid size-10 place-items-center" style={{ background: a.value }}>
+              <button key={a.value} type="button" onClick={() => actions.updateSettings({ accent: a.value })} aria-pressed={active} className={cn("flex flex-col items-center gap-2 rounded-control p-2 text-[11px] transition", active ? "bg-white/[0.08] text-white ring-1 ring-white/15" : "text-white/55 hover:bg-white/[0.04]")}>
+                <span className="grid size-9 place-items-center rounded-full ring-1 ring-white/10" style={{ background: a.value }}>
                   {active && <Check className="size-4 text-black" aria-hidden />}
                 </span>
                 {a.label}
@@ -74,9 +75,9 @@ export function SettingsView() {
             );
           })}
         </div>
-        <label className="mt-4 flex items-center gap-3 text-sm text-white/70">
+        <label className="mt-5 flex items-center gap-3 text-sm text-white/70">
           Custom
-          <input type="color" value={state.settings.accent} onChange={(e) => actions.updateSettings({ accent: e.target.value })} className="h-9 w-14 cursor-pointer border border-line bg-transparent" />
+          <input type="color" value={resolveAccent(state.settings.accent)} onChange={(e) => actions.updateSettings({ accent: e.target.value })} className="h-9 w-14 cursor-pointer rounded-lg border border-line bg-transparent" />
         </label>
       </Card>
 

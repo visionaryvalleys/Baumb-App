@@ -11,9 +11,9 @@ import { toDisplayLength, lengthUnit, toDisplayWeight } from "@/lib/units";
 import { BigNumber, Card, CardTitle, KindTag, SectionLabel, cn } from "../ui";
 
 const STATUS: Record<RowStatus, { label: string; cls: string }> = {
-  good: { label: "On target", cls: "bg-brand text-black" },
-  close: { label: "Close", cls: "bg-white/15 text-white" },
-  off: { label: "Off target", cls: "bg-bm-red/80 text-white" },
+  good: { label: "On target", cls: "bg-mint/15 text-mint" },
+  close: { label: "Close", cls: "bg-white/[0.1] text-white" },
+  off: { label: "Off target", cls: "bg-danger/15 text-red-200" },
   missing: { label: "No data", cls: "text-white/40 ring-1 ring-inset ring-white/15" },
 };
 
@@ -32,13 +32,13 @@ export function ReviewView() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => setWeekStart(addDays(weekStart, -7))} className="glass-button grid size-10 place-items-center hover:bg-white/25" aria-label="Previous week">
+        <button type="button" onClick={() => setWeekStart(addDays(weekStart, -7))} className="glass-button grid size-10 place-items-center hover:bg-white/10" aria-label="Previous week">
           <ChevronLeft className="size-4" aria-hidden />
         </button>
         <span className="min-w-52 px-2 text-center text-sm font-semibold text-white">
           {formatDate(review.weekStart, { month: "short", day: "numeric" })} – {formatDate(review.weekEnd, { month: "short", day: "numeric", year: "numeric" })}
         </span>
-        <button type="button" onClick={() => setWeekStart(addDays(weekStart, 7))} disabled={isCurrent} className="glass-button grid size-10 place-items-center hover:bg-white/25 disabled:opacity-30" aria-label="Next week">
+        <button type="button" onClick={() => setWeekStart(addDays(weekStart, 7))} disabled={isCurrent} className="glass-button grid size-10 place-items-center hover:bg-white/10 disabled:opacity-30" aria-label="Next week">
           <ChevronRight className="size-4" aria-hidden />
         </button>
         {!review.complete && <KindTag kind="estimated" label="Week in progress" />}
@@ -83,17 +83,17 @@ export function ReviewView() {
       </div>
 
       {review.vacationDays > 0 && (
-        <div className="flex items-center gap-3 bg-sky-400/10 px-5 py-3 text-sm text-sky-100">
+        <div className="flex items-center gap-3 rounded-card border border-cyan/20 bg-cyan/10 px-5 py-3.5 text-sm text-cyan">
           <Palmtree className="size-4" aria-hidden /> {review.vacationDays} vacation day{review.vacationDays === 1 ? "" : "s"} this week — excluded from adherence, included in real progress.
         </div>
       )}
 
       <Card>
         <CardTitle>Planned vs actual</CardTitle>
-        <div className="-mx-5 overflow-x-auto">
+        <div className="-mx-5 overflow-x-auto sm:-mx-6">
           <table className="w-full min-w-[520px] text-sm">
             <thead>
-              <tr className="border-b border-line text-left text-[11px] uppercase tracking-wider text-white/45">
+              <tr className="border-b border-line text-left text-[11px] uppercase tracking-[0.12em] text-white/45">
                 <th className="px-5 py-2 font-medium">Metric</th>
                 <th className="px-5 py-2 font-medium">Planned</th>
                 <th className="px-5 py-2 font-medium">Actual</th>
@@ -107,7 +107,7 @@ export function ReviewView() {
                   <td className="px-5 py-3 tabular-nums text-white/60">{r.planned}</td>
                   <td className="px-5 py-3 tabular-nums text-white">{r.actual}</td>
                   <td className="px-5 py-3 text-right">
-                    <span className={cn("inline-block px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider", STATUS[r.status].cls)}>{STATUS[r.status].label}</span>
+                    <span className={cn("inline-block rounded-md px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider", STATUS[r.status].cls)}>{STATUS[r.status].label}</span>
                   </td>
                 </tr>
               ))}
@@ -147,13 +147,13 @@ export function ReviewView() {
               const good = h.rows.filter((r) => r.status === "good").length;
               return (
                 <li key={h.id}>
-                  <button type="button" onClick={() => setWeekStart(h.weekStart)} aria-current={h.weekStart === weekStart ? "true" : undefined} className={cn("flex w-full flex-wrap items-center gap-x-4 gap-y-1 py-2.5 text-left text-sm transition hover:bg-white/[0.04]", h.weekStart === weekStart && "text-brand")}>
+                  <button type="button" onClick={() => setWeekStart(h.weekStart)} aria-current={h.weekStart === weekStart ? "true" : undefined} className={cn("-mx-2 flex w-[calc(100%+1rem)] flex-wrap items-center gap-x-4 gap-y-1 rounded-lg px-2 py-3 text-left text-sm transition hover:bg-white/[0.04]", h.weekStart === weekStart && "text-brand")}>
                     <span className="w-40 font-medium">
                       {formatDate(h.weekStart, { month: "short", day: "numeric" })} – {formatDate(h.weekEnd, { month: "short", day: "numeric" })}
                     </span>
                     <span className="flex gap-1" aria-hidden>
                       {h.rows.map((r) => (
-                        <span key={r.key} className={cn("size-2.5", r.status === "good" ? "bg-brand" : r.status === "close" ? "bg-white/40" : r.status === "off" ? "bg-bm-red" : "bg-white/10")} />
+                        <span key={r.key} className={cn("size-2.5 rounded-full", r.status === "good" ? "bg-mint" : r.status === "close" ? "bg-white/40" : r.status === "off" ? "bg-danger" : "bg-white/10")} />
                       ))}
                     </span>
                     <span className="text-white/60">

@@ -84,7 +84,12 @@ scripts/                  SQL Server setup scripts
 
 ## Design system
 
-- **Font:** Albert Sans 300–800 (`next/font/google`)
-- **Colors:** night `#0a0e1c`, brand accent (default gold `#EDB40B`, changeable in Settings), red `#E10600` menu gradient
-- **Glass:** `rgba(20,20,30,0.8)` + `blur(16px)` + `1px rgba(255,255,255,0.1)` border
-- **Motion:** fade/slide/scale/speed-reveal/draw-line animations with `anim-delay-{ms}` utilities in `src/app/globals.css`
+All tokens live in `@theme` in `src/app/globals.css`; shared primitives are in `src/components/ui.tsx` and `src/components/backdrop.tsx`.
+
+- **Font:** Inter (`next/font/google`): light hero headings and metrics, uppercase tracked section labels, muted supporting text
+- **Surfaces:** base `#08090C`, secondary `#0D1015`, card `#11151C`, elevated `#161B23`, hairline borders `rgb(255 255 255 / 0.08)`
+- **Accent:** electric blue `#4D8DFF` by default (BAUMB Gold and others selectable in Settings), with cyan, violet, mint and danger as supporting tones
+- **Backdrop:** the gym photograph fading into the base colour, lit by a static blue/violet/cyan aurora (`Backdrop`, `Aurora`)
+- **Glass:** `glass` utility (translucent gradient, hairline border, `blur(20px)`), used for primary cards; `panel` for quieter inset blocks
+- **Controls:** `btn-primary` (solid accent), `btn-ghost` (quiet glass), `btn-danger`, `field`; visible `:focus-visible` rings in the accent colour
+- **Motion:** short fade/slide/pop/reveal animations with `anim-delay-{ms}` utilities, disabled under `prefers-reduced-motion`

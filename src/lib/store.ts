@@ -31,7 +31,14 @@ const MAX_PROJECTIONS = 60;
 const MAX_AUDIT = 300;
 const MAX_ENERGY_RECORDS = 400;
 
-export const DEFAULT_ACCENT = "#edb40b";
+export const DEFAULT_ACCENT = "#4d8dff";
+/** The default accent before the redesign; accounts still on it get the current default. */
+const LEGACY_DEFAULT_ACCENT = "#edb40b";
+
+export function resolveAccent(accent: string | undefined): string {
+  const value = (accent ?? "").toLowerCase();
+  return !value || value === LEGACY_DEFAULT_ACCENT ? DEFAULT_ACCENT : value;
+}
 
 export const DEFAULT_PROFILE: Profile = {
   firstName: "",

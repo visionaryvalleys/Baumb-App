@@ -56,14 +56,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   return (
     <div>
-      <p className="text-sm text-white/60">{mode === "signin" ? "Welcome back" : "Train. Track. Transform."}</p>
-      <h1 className="mt-1 text-[44px] font-light leading-[0.95] tracking-[-0.06em] text-white">
+      <p className="eyebrow">{mode === "signin" ? "Welcome back" : "Train. Track. Transform."}</p>
+      <h1 className="mt-3 text-[40px] font-light leading-[1.02] tracking-[-0.035em] text-white sm:text-[46px]">
         {mode === "signin" ? "Sign " : "Create your"}
         {mode === "signup" && <br />}
         <span className="font-semibold">{mode === "signin" ? "in" : "account"}</span>
       </h1>
 
-      <form onSubmit={submit} noValidate className="glass mt-8 space-y-4 p-6">
+      <form onSubmit={submit} noValidate className="glass mt-8 space-y-5 rounded-card p-6 sm:p-7">
         {mode === "signup" && (
           <div>
             <label htmlFor="name" className="label">Name</label>
@@ -86,7 +86,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               onChange={(e) => setPassword(e.target.value)}
               aria-describedby={mode === "signup" ? "password-hint" : undefined}
             />
-            <button type="button" onClick={() => setShow((s) => !s)} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center text-white/50 hover:text-white" aria-label={show ? "Hide password" : "Show password"}>
+            <button type="button" onClick={() => setShow((s) => !s)} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-white/50 hover:bg-white/[0.06] hover:text-white" aria-label={show ? "Hide password" : "Show password"}>
               {show ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
             </button>
           </div>
@@ -98,12 +98,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </div>
 
         {error && (
-          <p role="alert" className="bg-bm-red/15 px-3 py-2 text-sm text-red-200">
+          <p role="alert" className="rounded-control border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-red-200">
             {error}
           </p>
         )}
 
-        <button type="submit" className="btn-primary w-full" disabled={busy}>
+        <button type="submit" className="btn-primary h-12 w-full" disabled={busy}>
           {busy ? (mode === "signin" ? "Signing in…" : "Creating account…") : mode === "signin" ? "Sign in" : "Create account"}
           {!busy && <ArrowRight className="size-4" aria-hidden />}
         </button>

@@ -70,9 +70,10 @@ export function WorkoutList() {
               key={t.value}
               type="button"
               onClick={() => setType(t.value)}
+              aria-pressed={type === t.value}
               className={cn(
-                "rounded-none border px-3.5 py-1.5 text-xs font-medium transition",
-                type === t.value ? "border-brand bg-brand/15 text-brand" : "border-line text-white/60 hover:text-white/90",
+                "rounded-full border px-3.5 py-1.5 text-xs font-medium transition",
+                type === t.value ? "border-brand/60 bg-brand/15 text-brand" : "border-line text-white/60 hover:border-white/20 hover:text-white/90",
               )}
             >
               {t.label}
@@ -87,7 +88,7 @@ export function WorkoutList() {
         <div className="space-y-8">
           {groups.map(([month, items]) => (
             <section key={month}>
-              <h2 className="mb-3 flex items-baseline justify-between text-xs font-semibold uppercase tracking-wider text-white/50">
+              <h2 className="mb-4 flex items-baseline justify-between text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
                 {month}
                 <span className="font-normal normal-case tracking-normal">
                   {items.length} workout{items.length === 1 ? "" : "s"}

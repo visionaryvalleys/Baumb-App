@@ -21,9 +21,9 @@ export function TransformationView() {
     <div className="space-y-4">
       <Card className="relative overflow-hidden p-6 sm:p-8">
         <div className="grid items-center gap-8 lg:grid-cols-[auto_1fr]">
-          <ProgressRing value={(p.progressPct ?? 0) * 100} max={100} size={190} stroke={14}>
+          <ProgressRing value={(p.progressPct ?? 0) * 100} max={100} size={190} stroke={12}>
             <div>
-              <div className="text-[46px] font-semibold leading-none tracking-[-0.07em] tabular-nums text-white">{p.progressPct != null ? `${Math.round(p.progressPct * 100)}%` : "—"}</div>
+              <div className="text-[46px] font-semibold leading-none tracking-[-0.04em] tabular-nums text-white">{p.progressPct != null ? `${Math.round(p.progressPct * 100)}%` : "—"}</div>
               <div className="text-xs text-white/50">of the way</div>
             </div>
           </ProgressRing>
@@ -65,7 +65,7 @@ export function TransformationView() {
                     <KindTag kind="estimated" label={`${p.confidence} confidence`} />
                   </div>
                   <div className="mt-2 overflow-hidden">
-                    <div key={p.windowLabel} className="animate-speed-reveal text-[56px] font-semibold leading-[0.85] tracking-[-0.07em] text-brand sm:text-[84px]">
+                    <div key={p.windowLabel} className="animate-speed-reveal text-[52px] font-semibold leading-[0.95] tracking-[-0.045em] text-brand sm:text-[76px]">
                       {p.windowLabel}
                     </div>
                   </div>
@@ -103,8 +103,8 @@ export function TransformationView() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardTitle>Rate of change</CardTitle>
-          <dl className="space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-2">
+          <dl className="-my-2 divide-y divide-line text-sm">
+            <div className="flex items-center justify-between gap-2 py-2.5">
               <dt className="flex items-center gap-2 text-white/60">
                 Plan expects <KindTag kind="calculated" />
               </dt>
@@ -112,7 +112,7 @@ export function TransformationView() {
                 {p.plannedRangeKg ? `${toDisplayWeight(p.plannedRangeKg[0], unit)} to ${toDisplayWeight(p.plannedRangeKg[1], unit)} ${unit}/wk` : "—"}
               </dd>
             </div>
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 py-2.5">
               <dt className="flex items-center gap-2 text-white/60">
                 You&apos;re trending <KindTag kind="calculated" />
               </dt>
@@ -120,7 +120,7 @@ export function TransformationView() {
                 {p.observedRateKg != null ? `${p.observedRateKg > 0 ? "+" : ""}${toDisplayWeight(p.observedRateKg, unit)} ${unit}/wk` : "—"}
               </dd>
             </div>
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 py-2.5">
               <dt className="text-white/60">Remaining</dt>
               <dd className="tabular-nums text-white">{p.remainingKg != null ? `${Math.abs(toDisplayWeight(p.remainingKg, unit))} ${unit}` : "—"}</dd>
             </div>
@@ -152,7 +152,7 @@ export function TransformationView() {
             <ul className="space-y-2 text-sm text-white/75">
               {p.factors.map((f) => (
                 <li key={f} className="flex gap-2">
-                  <span className="mt-2 size-1.5 shrink-0 bg-brand" aria-hidden />
+                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-brand" aria-hidden />
                   {f}
                 </li>
               ))}
@@ -193,7 +193,7 @@ export function TransformationView() {
           ) : (
             <ul className="divide-y divide-line text-sm">
               {history.map((s) => (
-                <li key={s.id} className="flex items-center justify-between gap-3 py-2">
+                <li key={s.id} className="flex items-center justify-between gap-3 py-2.5">
                   <span className="text-white/60">{formatDate(s.date, { month: "short", day: "numeric" })}</span>
                   <span className="text-white">{s.windowLabel ?? "—"}</span>
                   <span className="text-xs capitalize text-white/45">{s.confidence}</span>

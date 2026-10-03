@@ -51,7 +51,7 @@ export function PlanView() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <SectionLabel>Goal</SectionLabel>
-              <h2 className="mt-1 text-[36px] font-semibold leading-none tracking-[-0.06em] text-white">{cfg.label}</h2>
+              <h2 className="mt-3 text-[34px] font-semibold leading-[1.05] tracking-[-0.035em] text-white sm:text-[40px]">{cfg.label}</h2>
               <p className="mt-2 text-sm text-white/60">{cfg.tagline}</p>
             </div>
             <Link href="/profile" className="btn-ghost">
@@ -60,7 +60,7 @@ export function PlanView() {
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {cfg.priorities.map((p) => (
-              <span key={p} className="bg-white/10 px-2.5 py-1 text-xs font-medium text-white/80">
+              <span key={p} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-medium text-white/80 ring-1 ring-inset ring-white/10">
                 {p}
               </span>
             ))}
@@ -74,23 +74,23 @@ export function PlanView() {
           <BigNumber gold unit="kcal">
             {t.nutrition.calories.toLocaleString()}
           </BigNumber>
-          <dl className="mt-4 space-y-1.5 text-sm">
-            <div className="flex justify-between text-white/60">
+          <dl className="mt-5 divide-y divide-line text-sm">
+            <div className="flex justify-between py-2 text-white/60">
               <dt>Resting metabolism (BMR)</dt>
               <dd className="tabular-nums text-white">{t.bmr.toLocaleString()}</dd>
             </div>
-            <div className="flex justify-between text-white/60">
+            <div className="flex justify-between py-2 text-white/60">
               <dt>Expected daily expenditure</dt>
               <dd className="tabular-nums text-white">{t.tdee.toLocaleString()}</dd>
             </div>
-            <div className="flex justify-between text-white/60">
+            <div className="flex justify-between py-2 text-white/60">
               <dt>Goal adjustment</dt>
               <dd className="tabular-nums text-white">
                 {t.energyAdjustment > 0 ? "+" : ""}
                 {t.energyAdjustment.toLocaleString()}
               </dd>
             </div>
-            <div className="flex justify-between text-white/60">
+            <div className="flex justify-between py-2 text-white/60">
               <dt>Expected change</dt>
               <dd className="tabular-nums text-white">
                 {t.weeklyRateKg > 0 ? "+" : ""}
@@ -131,7 +131,7 @@ export function PlanView() {
           {WEEKDAY_SHORT.map((label, wd) => {
             const day = plan.workout.days.find((d) => d.weekday === wd);
             return (
-              <div key={label} className={cn("flex min-h-28 flex-col p-3", day ? "bg-white/[0.06]" : "bg-black/20")}>
+              <div key={label} className={cn("flex min-h-28 flex-col rounded-xl p-3.5", day ? "bg-white/[0.05] ring-1 ring-inset ring-white/[0.08]" : "bg-black/20")}>
                 <div className="text-[11px] font-semibold uppercase tracking-wider text-white/45">{label}</div>
                 {day ? (
                   <>
@@ -173,13 +173,13 @@ export function PlanView() {
           {evaluation.suggestions.length > 0 && (
             <ul className="mt-4 space-y-2">
               {evaluation.suggestions.map((s) => (
-                <li key={s.id} className="flex items-start justify-between gap-3 bg-white/5 p-3">
+                <li key={s.id} className="panel flex items-start justify-between gap-3 p-3.5">
                   <div>
                     <div className="text-sm font-semibold text-white">{s.title}</div>
                     <div className="text-xs text-white/55">{s.detail}</div>
                   </div>
                   {s.kind !== "recovery" && (
-                    <button type="button" className="btn-primary shrink-0 px-3 py-2 text-xs" onClick={() => apply(s.id)}>
+                    <button type="button" className="btn-primary min-h-9 shrink-0 px-3.5 py-2 text-xs" onClick={() => apply(s.id)}>
                       Apply
                     </button>
                   )}
@@ -198,11 +198,11 @@ export function PlanView() {
           <CardTitle action={<GitBranch className="size-4 text-white/50" aria-hidden />}>Plan versions</CardTitle>
           <ol className="divide-y divide-line">
             {versions.map((v) => (
-              <li key={v.id} className="flex items-start justify-between gap-3 py-2.5">
+              <li key={v.id} className="flex items-start justify-between gap-3 py-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-sm font-semibold text-white">
                     V{v.version}
-                    {v.id === plan.id && <span className="bg-brand px-1.5 text-[10px] uppercase text-black">Active</span>}
+                    {v.id === plan.id && <span className="rounded-md bg-brand/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand">Active</span>}
                   </div>
                   <div className="truncate text-xs text-white/50">
                     {formatDate(v.effectiveFrom, { month: "short", day: "numeric" })} · {v.reason}

@@ -1,15 +1,14 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowRight, DatabaseZap, LogOut, Plus, Sparkles } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
-import bgImage from "@/assets/baumb/baumb-bg.jpg";
 import { buildSampleState } from "@/lib/sample";
 import { ensureSession, retrySession, signOut, useSession } from "@/lib/session";
-import { DEFAULT_ACCENT, actions, useAppState, useHydrated } from "@/lib/store";
+import { DEFAULT_ACCENT, actions, resolveAccent, useAppState, useHydrated } from "@/lib/store";
 import { useRecordKeeper } from "@/lib/use-records";
+import { Backdrop } from "./backdrop";
 import { BaumbLogo, MenuButton, MenuOverlay, ProfileButton } from "./brand";
 import { NotificationBell } from "./notifications";
 import { EmptyState, PageSkeleton, cn } from "./ui";
@@ -52,7 +51,8 @@ function useAccent() {
   const { settings } = useAppState();
   useEffect(() => {
     const root = document.documentElement;
-    if (settings.accent && settings.accent.toLowerCase() !== DEFAULT_ACCENT) root.style.setProperty("--color-brand", settings.accent);
+    const accent = resolveAccent(settings.accent);
+    if (accent !== DEFAULT_ACCENT) root.style.setProperty("--color-brand", accent);
     else root.style.removeProperty("--color-brand");
   }, [settings.accent]);
 }
@@ -107,30 +107,29 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="relative min-h-dvh">
-      <div className="fixed inset-0 z-0" aria-hidden>
-        <Image src={bgImage} alt="" fill priority sizes="100vw" placeholder="blur" className="object-cover" />
-        <div className="absolute inset-0 bg-black/75" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0a0e1c]/40 to-[#0a0e1c]" />
-      </div>
+      <Backdrop />
 
-      <header className="sticky top-0 z-40 bg-gradient-to-b from-[#0a0e1c] via-[#0a0e1c]/85 to-transparent pb-4 pt-[20px]">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 sm:px-8">
+      <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-base/70 backdrop-blur-xl backdrop-saturate-150">
+        <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
           <BaumbLogo />
-          <nav className="hidden items-center gap-6 xl:flex" aria-label="Primary">
+          <nav className="hidden items-center gap-1 rounded-full bg-white/[0.03] p-1 ring-1 ring-inset ring-white/[0.06] xl:flex" aria-label="Primary">
             {NAV.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
                 aria-current={current === n.href ? "page" : undefined}
-                className={cn("text-[15px] tracking-tight transition hover:text-white", current === n.href ? "font-semibold text-brand" : "text-white/60")}
+                className={cn(
+                  "rounded-full px-3.5 py-2 text-[14px] font-medium transition duration-200",
+                  current === n.href ? "bg-white/[0.1] text-white shadow-[inset_0_1px_0_0_rgb(255_255_255/0.08)]" : "text-white/55 hover:text-white",
+                )}
               >
                 {n.label}
               </Link>
             ))}
           </nav>
           <div className="flex items-center">
-            <Link href="/nutrition" className="mr-2 hidden h-14 items-center gap-2 bg-brand px-5 text-sm font-semibold text-black transition hover:bg-brand-strong sm:flex">
-              <Plus className="h-4 w-4" aria-hidden /> Log meal
+            <Link href="/nutrition" className="btn-primary mr-3 hidden min-h-10 rounded-full px-4 sm:inline-flex">
+              <Plus className="size-4" aria-hidden /> Log meal
             </Link>
             {ready && onboarded && <NotificationBell />}
             <ProfileButton />
@@ -139,7 +138,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main key={pathname} className="relative z-10 mx-auto w-full max-w-6xl px-5 pb-20 pt-6 animate-fade-slide-up sm:px-8">
+      <main key={pathname} className="relative z-10 mx-auto w-full max-w-6xl px-5 pb-24 pt-8 animate-fade-slide-up sm:px-8 sm:pt-12">
         {session.auth === "error" ? <SessionProblem message={session.message} /> : !ready ? <PageSkeleton /> : gated ? <OnboardingGate /> : children}
       </main>
 
@@ -159,7 +158,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 await signOut();
                 router.replace("/signin");
               }}
-              className="mt-3 flex h-12 w-full items-center justify-center gap-2 text-sm font-semibold text-white/80 transition hover:text-white"
+              className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-control text-sm font-semibold text-white/70 transition hover:bg-white/[0.04] hover:text-white"
             >
               <LogOut className="size-4" aria-hidden /> Sign out {session.user.name}
             </button>

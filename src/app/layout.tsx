@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Albert_Sans, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
-const albertSans = Albert_Sans({
-  variable: "--font-albert-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 const geistMono = Geist_Mono({
@@ -22,13 +21,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0e1c",
+  themeColor: "#08090c",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${albertSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full bg-bm-night font-sans">{children}</body>
+    <html lang="en" className={`${inter.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="min-h-full bg-base font-sans">{children}</body>
     </html>
   );
 }

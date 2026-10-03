@@ -79,7 +79,7 @@ function AddFood({ date, today, onDone }: { date: LocalDate; today: LocalDate; o
           <ul className="max-h-80 divide-y divide-line overflow-y-auto">
             {results.map((f) => (
               <li key={f.id}>
-                <button type="button" onClick={() => choose(f)} className="flex w-full items-center justify-between gap-3 px-1 py-2.5 text-left transition hover:bg-white/5">
+                <button type="button" onClick={() => choose(f)} className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-3 text-left transition hover:bg-white/[0.04]">
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium text-white">{f.name}</span>
                     <span className="text-xs text-white/45">
@@ -104,7 +104,7 @@ function AddFood({ date, today, onDone }: { date: LocalDate; today: LocalDate; o
               <div className="text-lg font-semibold text-white">{food.name}</div>
               <div className="text-xs text-white/45">{food.category}</div>
             </div>
-            <button type="button" onClick={() => setFood(null)} className="text-white/50 hover:text-white" aria-label="Choose a different food">
+            <button type="button" onClick={() => setFood(null)} className="rounded-lg p-1.5 text-white/50 hover:bg-white/[0.06] hover:text-white" aria-label="Choose a different food">
               <X className="size-5" aria-hidden />
             </button>
           </div>
@@ -140,7 +140,7 @@ function AddFood({ date, today, onDone }: { date: LocalDate; today: LocalDate; o
             </div>
           </div>
           {preview && (
-            <div className="grid grid-cols-5 gap-2 bg-white/5 p-3 text-center">
+            <div className="panel grid grid-cols-5 gap-2 p-3.5 text-center">
               {[
                 ["kcal", preview.calories],
                 ["Protein", `${preview.proteinG} g`],
@@ -239,20 +239,24 @@ export function NutritionView() {
 
           <Card>
             <CardTitle action={day.totals ? <KindTag kind="recorded" /> : <KindTag kind="missing" />}>Daily totals</CardTitle>
-            <div className="flex flex-col items-center gap-6 sm:flex-row">
-              <ProgressRing value={cal?.value ?? 0} max={cal?.target ?? 1} size={150}>
+            <div className="flex flex-col items-center gap-8 sm:flex-row">
+              <ProgressRing value={cal?.value ?? 0} max={cal?.target ?? 1} size={150} stroke={10}>
                 <div>
-                  <div className="text-[34px] font-semibold leading-none tracking-[-0.06em] tabular-nums text-white">{day.totals ? day.totals.calories.toLocaleString() : "—"}</div>
+                  <div className="text-[34px] font-semibold leading-none tracking-[-0.04em] tabular-nums text-white">{day.totals ? day.totals.calories.toLocaleString() : "—"}</div>
                   <div className="text-[11px] text-white/50">{cal ? `of ${cal.target.toLocaleString()} kcal` : "kcal"}</div>
                 </div>
               </ProgressRing>
-              <div className="w-full flex-1 space-y-3">
+              <div className="w-full flex-1 space-y-4">
                 {progress?.slice(1).map((m) => (
                   <div key={m.key}>
-                    <div className="mb-1 flex justify-between text-xs">
-                      <span className="text-white/60">{m.label}</span>
-                      <span className="tabular-nums text-white">
-                        {day.totals ? Math.round(m.value) : "—"} / {m.target} {m.unit}
+                    <div className="mb-2 flex items-baseline justify-between gap-3">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55">{m.label}</span>
+                      <span className="tabular-nums">
+                        <span className="text-[15px] font-semibold text-white">{day.totals ? Math.round(m.value) : "—"}</span>
+                        <span className="text-xs text-white/45">
+                          {" "}
+                          / {m.target} {m.unit}
+                        </span>
                       </span>
                     </div>
                     <Meter value={m.value} max={m.target} tone={m.key === "proteinG" ? "brand" : "white"} />
@@ -271,7 +275,7 @@ export function NutritionView() {
                 <CardTitle action={<span className="text-sm font-semibold tabular-nums text-white">{group.totals.calories.toLocaleString()} kcal</span>}>{m.label}</CardTitle>
                 <ul className="divide-y divide-line">
                   {group.items.map((item) => (
-                    <li key={item.id} className="group flex items-center justify-between gap-3 py-2.5">
+                    <li key={item.id} className="group flex items-center justify-between gap-3 py-3">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium text-white">
                           {item.foodName}
@@ -282,8 +286,8 @@ export function NutritionView() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-sm tabular-nums text-white">{item.nutrition.calories}</span>
-                        <button type="button" onClick={() => actions.deleteMealItem(item.id)} className={cn("text-white/30 transition hover:text-red-300")} aria-label={`Remove ${item.foodName}`}>
+                        <span className="text-sm font-semibold tabular-nums text-white">{item.nutrition.calories}</span>
+                        <button type="button" onClick={() => actions.deleteMealItem(item.id)} className={cn("rounded-lg p-2 text-white/30 transition hover:bg-white/[0.06] hover:text-red-300")} aria-label={`Remove ${item.foodName}`}>
                           <Trash2 className="size-4" aria-hidden />
                         </button>
                       </div>

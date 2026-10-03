@@ -43,9 +43,10 @@ export function ExerciseLibrary() {
               key={m}
               type="button"
               onClick={() => setMuscle(m)}
+              aria-pressed={muscle === m}
               className={cn(
-                "rounded-none border px-3.5 py-1.5 text-xs font-medium capitalize transition",
-                muscle === m ? "border-brand bg-brand/15 text-brand" : "border-line text-white/60 hover:text-white/90",
+                "rounded-full border px-3.5 py-1.5 text-xs font-medium capitalize transition",
+                muscle === m ? "border-brand/60 bg-brand/15 text-brand" : "border-line text-white/60 hover:border-white/20 hover:text-white/90",
               )}
             >
               {m}
@@ -62,7 +63,7 @@ export function ExerciseLibrary() {
             const pr = hydrated ? prs.get(e.id) : undefined;
             const count = hydrated ? (usage.get(e.id) ?? 0) : 0;
             return (
-              <article key={e.id} className="flex flex-col rounded-2xl border border-line bg-surface/80 p-4 transition hover:border-white/30">
+              <article key={e.id} className="glass flex flex-col rounded-card p-5 transition duration-200 hover:border-white/20">
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="font-semibold text-white">{e.name}</h3>
                   {count > 0 && <span className="shrink-0 text-xs text-white/50">{count}× logged</span>}
@@ -73,7 +74,7 @@ export function ExerciseLibrary() {
                 </div>
                 <p className="mt-3 flex-1 text-sm leading-relaxed text-white/60">{e.cue}</p>
                 {pr && (
-                  <div className="mt-4 flex items-center gap-2 rounded-none bg-brand/10 px-3 py-2 text-xs text-brand">
+                  <div className="mt-4 flex items-center gap-2 rounded-lg bg-brand/10 px-3 py-2 text-xs font-medium text-brand">
                     <Trophy className="size-3.5" aria-hidden />
                     Best: {formatWeight(pr.bestWeightKg, unit)} × {pr.bestReps}
                   </div>

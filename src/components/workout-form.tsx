@@ -67,7 +67,7 @@ function ExercisePicker({ onPick, onClose }: { onPick: (id: string) => void; onC
             <button
               type="button"
               onClick={() => onPick(e.id)}
-              className="flex w-full items-center justify-between rounded-none px-3 py-2 text-left text-sm hover:bg-surface"
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm hover:bg-white/[0.05]"
             >
               <span className="text-white/90">{e.name}</span>
               <span className="text-xs capitalize text-white/50">
@@ -190,7 +190,7 @@ function WorkoutFormInner() {
           <CardTitle
             action={
               lastWorkout && (
-                <button type="button" onClick={repeatLast} className="inline-flex items-center gap-1.5 text-xs font-medium text-brand hover:underline">
+                <button type="button" onClick={repeatLast} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-brand hover:bg-brand/10">
                   <Copy className="size-3.5" aria-hidden /> Repeat “{lastWorkout.name}”
                 </button>
               )
@@ -207,8 +207,8 @@ function WorkoutFormInner() {
                 aria-checked={type === t.value}
                 onClick={() => setType(t.value)}
                 className={cn(
-                  "rounded-none border px-4 py-1.5 text-sm font-medium transition",
-                  type === t.value ? "border-brand bg-brand/15 text-brand" : "border-line text-white/60 hover:border-white/30 hover:text-white/90",
+                  "rounded-full border px-4 py-1.5 text-sm font-medium transition",
+                  type === t.value ? "border-brand/60 bg-brand/15 text-brand" : "border-line text-white/60 hover:border-white/20 hover:text-white/90",
                 )}
               >
                 {t.label}
@@ -244,7 +244,7 @@ function WorkoutFormInner() {
             {exercises.map((x) => {
               const info = getExercise(x.exerciseId);
               return (
-                <div key={x.key} className="rounded-none border border-line bg-surface-raised/50 p-4">
+                <div key={x.key} className="panel p-4 animate-fade-in">
                   <div className="mb-3 flex items-center justify-between">
                     <div>
                       <div className="font-medium text-white">{info?.name}</div>
@@ -253,29 +253,29 @@ function WorkoutFormInner() {
                     <button
                       type="button"
                       onClick={() => setExercises((xs) => xs.filter((e) => e.key !== x.key))}
-                      className="rounded-none p-2 text-white/50 hover:bg-surface hover:text-red-300"
+                      className="rounded-lg p-2 text-white/50 hover:bg-white/[0.06] hover:text-red-300"
                       aria-label={`Remove ${info?.name}`}
                     >
                       <Trash2 className="size-4" aria-hidden />
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-[2rem_1fr_1fr_2rem] items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-white/50">
+                  <div className="grid grid-cols-[2.25rem_1fr_1fr_2.25rem] items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-white/50">
                     <span>Set</span>
                     <span>{info?.tracksWeight ? `Weight (${unit})` : ""}</span>
                     <span>{x.exerciseId === "plank" ? "Seconds" : info?.muscle === "cardio" ? "Minutes" : "Reps"}</span>
                     <span />
                   </div>
                   {x.sets.map((s, i) => (
-                    <div key={i} className="mt-2 grid grid-cols-[2rem_1fr_1fr_2rem] items-center gap-2">
-                      <span className="text-sm font-semibold tabular-nums text-white/60">{i + 1}</span>
+                    <div key={i} className="mt-2 grid grid-cols-[2.25rem_1fr_1fr_2.25rem] items-center gap-2">
+                      <span className="grid size-8 place-items-center rounded-full bg-white/[0.05] text-sm font-semibold tabular-nums text-white/70">{i + 1}</span>
                       {info?.tracksWeight ? (
                         <input
                           type="number"
                           inputMode="decimal"
                           min={0}
                           step="0.5"
-                          className="field py-2"
+                          className="field h-11 py-2 text-[15px] tabular-nums"
                           value={s.weight}
                           placeholder="0"
                           aria-label={`Set ${i + 1} weight`}
@@ -288,7 +288,7 @@ function WorkoutFormInner() {
                         type="number"
                         inputMode="numeric"
                         min={0}
-                        className="field py-2"
+                        className="field h-11 py-2 text-[15px] tabular-nums"
                         value={s.reps}
                         aria-label={`Set ${i + 1} reps`}
                         onChange={(e) => updateSet(x.key, i, { reps: e.target.value })}
@@ -296,14 +296,14 @@ function WorkoutFormInner() {
                       <button
                         type="button"
                         onClick={() => removeSet(x.key, i)}
-                        className="grid size-8 place-items-center rounded-none text-white/40 hover:bg-surface hover:text-white/80"
+                        className="grid size-9 place-items-center rounded-lg text-white/40 hover:bg-white/[0.06] hover:text-white/80"
                         aria-label={`Remove set ${i + 1}`}
                       >
                         <X className="size-4" aria-hidden />
                       </button>
                     </div>
                   ))}
-                  <button type="button" onClick={() => addSet(x.key)} className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brand hover:underline">
+                  <button type="button" onClick={() => addSet(x.key)} className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-brand hover:bg-brand/10">
                     <Plus className="size-3.5" aria-hidden /> Add set
                   </button>
                 </div>
@@ -316,7 +316,7 @@ function WorkoutFormInner() {
               <button
                 type="button"
                 onClick={() => setPicking(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-none border border-dashed border-line py-4 text-sm font-medium text-white/60 transition hover:border-brand/50 hover:text-brand"
+                className="flex w-full items-center justify-center gap-2 rounded-control border border-dashed border-line-strong py-4 text-sm font-medium text-white/60 transition hover:border-brand/50 hover:bg-brand/5 hover:text-brand"
               >
                 <Plus className="size-4" aria-hidden /> Add exercise
               </button>
@@ -325,7 +325,7 @@ function WorkoutFormInner() {
         </Card>
       </div>
 
-      <div className="space-y-4 lg:sticky lg:top-10 lg:self-start">
+      <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
         <Card>
           <CardTitle>Notes</CardTitle>
           <textarea
@@ -337,11 +337,11 @@ function WorkoutFormInner() {
           />
         </Card>
         {error && (
-          <p role="alert" className="rounded-none border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <p role="alert" className="rounded-control border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-red-200">
             {error}
           </p>
         )}
-        <button type="submit" className="btn-primary w-full py-3">
+        <button type="submit" className="btn-primary h-14 w-full text-sm">
           <Check className="size-4" aria-hidden /> Save workout
         </button>
         <button type="button" onClick={() => router.back()} className="btn-ghost w-full">

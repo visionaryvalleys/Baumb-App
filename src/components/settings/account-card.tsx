@@ -9,7 +9,7 @@ import { Card, CardTitle } from "../ui";
 const STATUS: Record<SyncStatus, { icon: typeof Database; label: string; cls: string }> = {
   idle: { icon: Database, label: "Connected", cls: "text-white/60" },
   saving: { icon: LoaderCircle, label: "Saving…", cls: "text-white/70" },
-  saved: { icon: CloudCheck, label: "All changes saved", cls: "text-brand" },
+  saved: { icon: CloudCheck, label: "All changes saved", cls: "text-mint" },
   offline: { icon: CloudOff, label: "Offline — will save when reconnected", cls: "text-amber-300" },
   error: { icon: TriangleAlert, label: "Couldn't save", cls: "text-red-300" },
 };
@@ -25,7 +25,11 @@ export function AccountCard() {
     <Card className="lg:col-span-2">
       <CardTitle action={<Database className="size-4 text-white/50" aria-hidden />}>Account</CardTitle>
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
+        <div className="flex items-start gap-4">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand/15 text-lg font-semibold text-brand ring-1 ring-inset ring-brand/30" aria-hidden>
+            {session.user.name.charAt(0).toUpperCase()}
+          </span>
+          <div>
           <div className="text-lg font-semibold tracking-tight text-white">{session.user.name}</div>
           <div className="text-sm text-white/55">{session.user.email}</div>
           <p className={`mt-2 flex items-center gap-1.5 text-xs ${s.cls}`} role="status">
@@ -34,6 +38,7 @@ export function AccountCard() {
             {session.lastSavedAt && session.sync === "saved" && <span className="text-white/40">· {new Date(session.lastSavedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</span>}
           </p>
           {session.message && <p className="mt-1 text-xs text-white/50">{session.message}</p>}
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {(session.sync === "error" || session.sync === "offline") && (

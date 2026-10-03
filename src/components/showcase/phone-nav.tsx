@@ -15,7 +15,8 @@ export function ScreenBackground() {
   return (
     <>
       <Image src={bgImage} alt="" fill sizes="430px" className="object-cover" placeholder="blur" />
-      <div className="absolute inset-0 bg-black/60" />
+      <div className="absolute inset-0 bg-base/60" />
+      <div className="absolute inset-0 bg-[radial-gradient(90%_55%_at_15%_0%,rgb(77_141_255/0.18),transparent_70%)]" />
     </>
   );
 }

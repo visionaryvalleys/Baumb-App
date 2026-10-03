@@ -20,7 +20,7 @@ export function ProgressRing({
   return (
     <div className="relative grid place-items-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-zinc-800" />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-white/[0.07]" />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -59,13 +59,13 @@ export function BarChart({
             <div className="relative flex h-36 w-full items-end">
               <div
                 className={cn(
-                  "w-full rounded-none transition-all duration-500",
-                  d.value === 0 ? "bg-white/10" : isLast ? "bg-brand" : "bg-brand/35 group-hover:bg-brand/60",
+                  "w-full rounded-t-md transition-all duration-500",
+                  d.value === 0 ? "bg-white/[0.07]" : isLast ? "bg-brand" : "bg-brand/30 group-hover:bg-brand/55",
                 )}
                 style={{ height: `${height}%` }}
               />
               {d.value > 0 && (
-                <span className="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-none bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-white/90 opacity-0 transition group-hover:opacity-100">
+                <span className="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-elevated px-1.5 py-0.5 text-[10px] ring-1 ring-white/10 font-medium text-white/90 opacity-0 transition group-hover:opacity-100">
                   {d.value}
                   {unit}
                 </span>
@@ -109,7 +109,7 @@ export function TrendChart({
     <div>
       <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full overflow-visible" role="img" aria-label="Weight trend chart">
         {[0.25, 0.5, 0.75].map((t) => (
-          <line key={t} x1={0} x2={width} y1={height * t} y2={height * t} stroke="#232733" strokeDasharray="4 6" />
+          <line key={t} x1={0} x2={width} y1={height * t} y2={height * t} stroke="rgb(255 255 255 / 0.06)" strokeDasharray="3 6" />
         ))}
         {target != null && (
           <>
@@ -124,7 +124,7 @@ export function TrendChart({
             <title>{`${p.label}: ${format(p.value)}`}</title>
           </circle>
         ))}
-        <path d={line} fill="none" stroke="var(--color-brand)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={line} fill="none" stroke="var(--color-brand)" strokeWidth={2.25} strokeLinejoin="round" strokeLinecap="round" />
       </svg>
       <div className="mt-2 flex justify-between text-[11px] text-white/50">
         <span>{points[0].label}</span>
@@ -177,12 +177,12 @@ export function LineChart({
           </linearGradient>
         </defs>
         {[0.25, 0.5, 0.75].map((t) => (
-          <line key={t} x1={0} x2={width} y1={height * t} y2={height * t} stroke="#232733" strokeDasharray="4 6" />
+          <line key={t} x1={0} x2={width} y1={height * t} y2={height * t} stroke="rgb(255 255 255 / 0.06)" strokeDasharray="3 6" />
         ))}
         <path d={area} fill="url(#line-fill)" />
-        <path d={line} fill="none" stroke="var(--color-brand)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={line} fill="none" stroke="var(--color-brand)" strokeWidth={2.25} strokeLinejoin="round" strokeLinecap="round" />
         {points.map((p, i) => (
-          <circle key={i} cx={x(i)} cy={y(p.value)} r={i === points.length - 1 ? 5 : 3} fill={i === points.length - 1 ? "var(--color-brand)" : "#0f1115"} stroke="var(--color-brand)" strokeWidth={2}>
+          <circle key={i} cx={x(i)} cy={y(p.value)} r={i === points.length - 1 ? 5 : 3} fill={i === points.length - 1 ? "var(--color-brand)" : "#0d1015"} stroke="var(--color-brand)" strokeWidth={2}>
             <title>{`${p.label}: ${format(p.value)}`}</title>
           </circle>
         ))}

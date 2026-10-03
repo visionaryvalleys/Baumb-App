@@ -82,9 +82,9 @@ export function CalculationLog() {
           {rows.slice(0, shown).map((a) => (
             <li key={a.id}>
               <details className="group">
-                <summary className="flex cursor-pointer list-none items-center gap-3 py-2.5 text-sm [&::-webkit-details-marker]:hidden">
+                <summary className="-mx-2 flex cursor-pointer list-none items-center gap-3 rounded-lg px-2 py-3 text-sm transition hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
                   <ChevronRight className="size-3.5 shrink-0 text-white/40 transition group-open:rotate-90" aria-hidden />
-                  <span className="w-24 shrink-0 text-[11px] uppercase tracking-wider text-brand">{KIND_LABEL[a.kind]}</span>
+                  <span className="w-24 shrink-0 text-[11px] font-semibold uppercase tracking-wider text-brand">{KIND_LABEL[a.kind]}</span>
                   <span className="min-w-0 flex-1 truncate text-white/85">{a.summary}</span>
                   <time className="shrink-0 text-xs tabular-nums text-white/40" dateTime={new Date(a.at).toISOString()}>
                     {new Date(a.at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}

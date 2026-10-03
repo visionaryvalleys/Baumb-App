@@ -82,7 +82,7 @@ export function ProgressView() {
       <div className="grid gap-4 sm:grid-cols-3">
         {trends.map((t) => (
           <Card key={t.windowDays}>
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between">
               <SectionLabel>{t.windowDays}-day trend</SectionLabel>
               <KindTag kind={t.sufficient ? "calculated" : "missing"} label={t.sufficient ? "Calculated" : "Not enough data"} />
             </div>
@@ -112,11 +112,11 @@ export function ProgressView() {
           {weights.length > 0 && (
             <ul className="mt-5 max-h-44 space-y-1 overflow-y-auto border-t border-line pt-3">
               {[...weights].sort((a, b) => b.date.localeCompare(a.date)).map((w) => (
-                <li key={w.id} className="group flex items-center justify-between px-2 py-1.5 text-sm hover:bg-surface-raised">
+                <li key={w.id} className="group flex items-center justify-between rounded-lg px-2.5 py-2 text-sm hover:bg-white/[0.04]">
                   <span className="text-white/60">{formatDate(w.date, { weekday: "short", month: "short", day: "numeric" })}</span>
                   <span className="flex items-center gap-2">
                     <span className="tabular-nums text-white/90">{formatWeight(w.weightKg, unit)}</span>
-                    <button type="button" onClick={() => actions.deleteWeight(w.id)} className="p-1 text-white/40 opacity-0 transition hover:text-red-300 focus:opacity-100 group-hover:opacity-100" aria-label={`Delete entry from ${formatDate(w.date)}`}>
+                    <button type="button" onClick={() => actions.deleteWeight(w.id)} className="rounded-md p-1 text-white/40 opacity-0 transition hover:text-red-300 focus:opacity-100 group-hover:opacity-100" aria-label={`Delete entry from ${formatDate(w.date)}`}>
                       <Trash2 className="size-3.5" aria-hidden />
                     </button>
                   </span>
@@ -129,7 +129,7 @@ export function ProgressView() {
 
       <Card>
         <CardTitle action={<span className="text-xs text-white/50">Last 28 days · vacation & injury days excluded</span>}>Consistency</CardTitle>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[
             ["Workouts completed", adherence.workouts.rate, `${adherence.workouts.completed} of ${adherence.workouts.planned} planned`],
             ["Days with food logged", adherence.nutrition.loggingRate, `${adherence.nutrition.loggedDays} of ${adherence.nutrition.eligibleDays} days`],
@@ -137,12 +137,12 @@ export function ProgressView() {
             ["Step target hit", adherence.steps.rate, adherence.steps.average != null ? `Avg ${adherence.steps.average.toLocaleString()} steps` : "No step data"],
           ].map(([label, rate, hint]) => (
             <div key={label as string}>
-              <div className="mb-1 flex items-baseline justify-between">
-                <span className="text-sm text-white/70">{label}</span>
-                <span className="text-lg font-semibold tabular-nums text-white">{pct(rate as number | null)}</span>
+              <div className="mb-2 flex items-baseline justify-between gap-3">
+                <span className="text-sm text-white/65">{label}</span>
+                <span className="text-xl font-semibold tracking-tight tabular-nums text-white">{pct(rate as number | null)}</span>
               </div>
               <Meter value={(rate as number | null) ?? 0} max={1} />
-              <div className="mt-1 text-xs text-white/45">{hint}</div>
+              <div className="mt-2 text-xs text-white/45">{hint}</div>
             </div>
           ))}
         </div>
@@ -169,10 +169,10 @@ export function ProgressView() {
         {prs.length === 0 ? (
           <p className="py-6 text-center text-sm text-white/50">Log weighted sets to see your personal records here.</p>
         ) : (
-          <div className="-mx-5 overflow-x-auto">
+          <div className="-mx-5 overflow-x-auto sm:-mx-6">
             <table className="w-full min-w-[520px] text-sm">
               <thead>
-                <tr className="border-b border-line text-left text-[11px] uppercase tracking-wider text-white/50">
+                <tr className="border-b border-line text-left text-[11px] uppercase tracking-[0.12em] text-white/45">
                   <th className="px-5 py-2 font-medium">Exercise</th>
                   <th className="px-5 py-2 font-medium">Best set</th>
                   <th className="px-5 py-2 font-medium">Est. 1RM</th>
@@ -181,10 +181,10 @@ export function ProgressView() {
               </thead>
               <tbody>
                 {prs.slice(0, 10).map((pr, i) => (
-                  <tr key={pr.exerciseId} className="border-b border-line/60 last:border-0">
+                  <tr key={pr.exerciseId} className="border-b border-line/60 transition last:border-0 hover:bg-white/[0.02]">
                     <td className="px-5 py-3 font-medium text-white/90">
                       <span className="inline-flex items-center gap-2">
-                        {i < 3 && <Trophy className={`size-3.5 ${["text-brand", "text-white/80", "text-orange-400"][i]}`} aria-hidden />}
+                        {i < 3 && <Trophy className={`size-3.5 ${["text-brand", "text-white/80", "text-violet"][i]}`} aria-hidden />}
                         {getExercise(pr.exerciseId)?.name}
                       </span>
                     </td>

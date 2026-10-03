@@ -7,7 +7,7 @@ import type { LocalDate } from "@/lib/types";
 export function DateNav({ date, today, onChange }: { date: LocalDate; today: LocalDate; onChange: (d: LocalDate) => void }) {
   return (
     <div className="flex items-center gap-1">
-      <button type="button" onClick={() => onChange(addDays(date, -1))} className="glass-button grid size-10 place-items-center hover:bg-white/25" aria-label="Previous day">
+      <button type="button" onClick={() => onChange(addDays(date, -1))} className="glass-button grid size-10 place-items-center hover:bg-white/10" aria-label="Previous day">
         <ChevronLeft className="size-4" aria-hidden />
       </button>
       <input
@@ -25,7 +25,7 @@ export function DateNav({ date, today, onChange }: { date: LocalDate; today: Loc
         type="button"
         onClick={() => onChange(addDays(date, 1))}
         disabled={date >= today}
-        className="glass-button grid size-10 place-items-center hover:bg-white/25 disabled:opacity-30"
+        className="glass-button grid size-10 place-items-center hover:bg-white/10 disabled:opacity-30"
         aria-label="Next day"
       >
         <ChevronRight className="size-4" aria-hidden />

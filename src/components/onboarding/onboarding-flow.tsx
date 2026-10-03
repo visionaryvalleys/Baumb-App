@@ -91,11 +91,11 @@ export function OnboardingFlow() {
               disabled={i > step}
               onClick={() => setStep(i)}
               className={cn(
-                "flex w-full items-center gap-3 whitespace-nowrap px-3 py-2.5 text-left text-sm transition",
-                i === step ? "bg-white/10 font-semibold text-white" : i < step ? "text-white/70 hover:bg-white/5" : "text-white/30",
+                "flex w-full items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-left text-sm transition",
+                i === step ? "bg-white/[0.08] font-semibold text-white ring-1 ring-inset ring-white/10" : i < step ? "text-white/70 hover:bg-white/[0.04]" : "text-white/30",
               )}
             >
-              <span className={cn("grid size-6 shrink-0 place-items-center text-[11px] font-bold", i < step ? "bg-brand text-black" : i === step ? "bg-white text-black" : "bg-white/10")}>
+              <span className={cn("grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold", i < step ? "bg-brand text-[#05070b]" : i === step ? "bg-white text-black" : "bg-white/10")}>
                 {i < step ? <Check className="size-3.5" aria-hidden /> : i + 1}
               </span>
               {label}
@@ -108,7 +108,7 @@ export function OnboardingFlow() {
         <SectionLabel>
           Step {step + 1} of {STEPS.length}
         </SectionLabel>
-        <h2 className="mb-6 mt-2 text-[34px] font-normal leading-none tracking-[-0.06em] text-white sm:text-[44px]">{STEPS[step]}</h2>
+        <h2 className="mb-8 mt-3 text-[30px] font-semibold leading-[1.05] tracking-[-0.03em] text-white sm:text-[38px]">{STEPS[step]}</h2>
 
         {step === 0 && <AboutFields d={d} set={setProfile} errors={errors} />}
         {step === 1 && <BodyFields d={d} set={setProfile} errors={errors} />}
@@ -146,7 +146,7 @@ function PlanPreview({ plan }: { plan: ReturnType<typeof buildPlanVersion> }) {
         {cfg.label}: {cfg.tagline} Here&apos;s what the engine calculated. You can change your goal any time and a new plan version will be created.
       </p>
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="bg-white/5 p-4">
+        <div className="panel p-4">
           <div className="mb-3 flex items-center justify-between">
             <SectionLabel>Daily calories</SectionLabel>
             <KindTag kind="calculated" />
@@ -156,7 +156,7 @@ function PlanPreview({ plan }: { plan: ReturnType<typeof buildPlanVersion> }) {
             Expenditure ≈ {t.tdee.toLocaleString()} · {t.energyAdjustment === 0 ? "maintenance" : `${t.energyAdjustment > 0 ? "+" : ""}${t.energyAdjustment} kcal/day`}
           </p>
         </div>
-        <div className="bg-white/5 p-4">
+        <div className="panel p-4">
           <div className="mb-3 flex items-center justify-between">
             <SectionLabel>Protein</SectionLabel>
             <KindTag kind="calculated" />
@@ -166,7 +166,7 @@ function PlanPreview({ plan }: { plan: ReturnType<typeof buildPlanVersion> }) {
             Carbs {t.nutrition.carbsG} g · Fat {t.nutrition.fatG} g · Fiber {t.nutrition.fiberG} g
           </p>
         </div>
-        <div className="bg-white/5 p-4">
+        <div className="panel p-4">
           <div className="mb-3 flex items-center justify-between">
             <SectionLabel>Daily steps</SectionLabel>
             <KindTag kind="calculated" />
@@ -185,7 +185,7 @@ function PlanPreview({ plan }: { plan: ReturnType<typeof buildPlanVersion> }) {
         </SectionLabel>
         <div className="grid gap-2 sm:grid-cols-2">
           {plan.workout.days.map((day) => (
-            <div key={day.id} className="bg-white/5 p-3">
+            <div key={day.id} className="panel p-3.5">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="font-semibold text-white">
                   {WEEKDAY_SHORT[day.weekday]} · {day.name}

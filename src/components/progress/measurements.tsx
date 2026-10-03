@@ -47,14 +47,14 @@ function FieldManager({ fields }: { fields: CustomMeasurementField[] }) {
   }
 
   return (
-    <div className="border border-line p-3">
+    <div className="panel p-4">
       <div className="label">Your own measurements</div>
       {fields.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-2">
           {fields.map((f) => (
-            <span key={f.id} className="inline-flex items-center gap-1.5 bg-white/[0.06] px-2.5 py-1 text-xs text-white/80">
+            <span key={f.id} className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] py-1 pl-3 pr-2 text-xs text-white/80 ring-1 ring-inset ring-white/10">
               {f.label}
-              <button type="button" onClick={() => actions.removeMeasurementField(f.id)} className="text-white/40 hover:text-white" aria-label={`Hide ${f.label}`}>
+              <button type="button" onClick={() => actions.removeMeasurementField(f.id)} className="rounded-full p-0.5 text-white/40 hover:bg-white/10 hover:text-white" aria-label={`Hide ${f.label}`}>
                 <X className="size-3" aria-hidden />
               </button>
             </span>
@@ -196,10 +196,10 @@ export function MeasurementTable() {
   };
 
   return (
-    <div className="-mx-5 mt-5 overflow-x-auto border-t border-line pt-3">
+    <div className="-mx-5 mt-6 overflow-x-auto border-t border-line pt-3 sm:-mx-6">
       <table className="w-full min-w-[640px] text-sm">
         <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wider text-white/45">
+          <tr className="text-left text-[11px] uppercase tracking-[0.12em] text-white/45">
             <th className="px-5 py-2 font-medium">Date</th>
             <th className="px-3 py-2 font-medium">Body fat</th>
             {MEASUREMENT_FIELDS.map((f) => (
@@ -229,7 +229,7 @@ export function MeasurementTable() {
                   </td>
                 ))}
                 <td className="pr-5 text-right">
-                  <button type="button" onClick={() => actions.deleteMeasurement(m.id)} className="p-1 text-white/30 hover:text-red-300" aria-label={`Delete measurement from ${formatDate(m.date)}`}>
+                  <button type="button" onClick={() => actions.deleteMeasurement(m.id)} className="rounded-md p-1.5 text-white/30 hover:bg-white/[0.06] hover:text-red-300" aria-label={`Delete measurement from ${formatDate(m.date)}`}>
                     <Trash2 className="size-3.5" aria-hidden />
                   </button>
                 </td>

@@ -1,33 +1,60 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-albert-sans), "Albert Sans", sans-serif;
+  --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
 @theme {
-  --color-bm-dark: rgb(41 41 41);
-  --color-bm-yellow: rgb(237 180 11);
-  --color-bm-red: #e10600;
-  --color-bm-night: #0a0e1c;
+  /* Surfaces, darkest to most elevated */
+  --color-base: #08090c;
+  --color-base-2: #0d1015;
+  --color-card: #11151c;
+  --color-elevated: #161b23;
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.14);
 
-  --color-brand: #edb40b;
-  --color-brand-strong: color-mix(in oklab, var(--color-brand) 86%, black);
-  --color-surface: rgb(20 20 30 / 0.8);
-  --color-surface-raised: rgb(255 255 255 / 0.07);
-  --color-line: rgb(255 255 255 / 0.1);
+  /* Text */
+  --color-fg: #f3f5f9;
+  --color-muted: #a1a9b8;
+  --color-subtle: #6b7383;
+
+  /* Accents. `brand` follows the user's accent setting. */
+  --color-brand: #4d8dff;
+  --color-brand-strong: color-mix(in oklab, var(--color-brand) 82%, white);
+  --color-cyan: #38d6ee;
+  --color-violet: #8b7cf6;
+  --color-mint: #3ddc97;
+  --color-danger: #f26d6d;
+
+  /* Legacy names kept so existing classes resolve to the new palette */
+  --color-bm-night: #08090c;
+  --color-bm-dark: #161b23;
+  --color-bm-yellow: var(--color-brand);
+  --color-bm-red: var(--color-danger);
+  --color-surface: rgb(17 21 28 / 0.72);
+  --color-surface-raised: rgb(255 255 255 / 0.05);
+
+  --radius-card: 1.25rem;
+  --radius-control: 0.75rem;
+
+  --shadow-card: inset 0 1px 0 0 rgb(255 255 255 / 0.05), 0 24px 48px -28px rgb(0 0 0 / 0.75);
+  --shadow-lift: inset 0 1px 0 0 rgb(255 255 255 / 0.07), 0 28px 60px -30px rgb(0 0 0 / 0.85);
+
+  --blur-glass: 20px;
 
   --ease-snap: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --animate-fade-slide-up: fadeSlideUp 0.9s var(--ease-snap) both;
-  --animate-fade-slide-down: fadeSlideDown 0.7s var(--ease-snap) both;
-  --animate-fade-slide-left: fadeSlideLeft 0.9s var(--ease-snap) both;
-  --animate-fade-slide-right: fadeSlideRight 0.9s var(--ease-snap) both;
-  --animate-scale-in: scaleIn 1s var(--ease-snap) both;
-  --animate-fade-in: fadeIn 0.8s ease-out both;
-  --animate-speed-reveal: speedReveal 0.8s var(--ease-snap) both;
-  --animate-race-line-left: raceLineLeft 0.9s var(--ease-snap) both;
-  --animate-draw-line: drawLine 2.2s var(--ease-snap) both;
+  --animate-fade-slide-up: fadeSlideUp 0.5s var(--ease-snap) both;
+  --animate-fade-slide-down: fadeSlideDown 0.45s var(--ease-snap) both;
+  --animate-fade-slide-left: fadeSlideLeft 0.6s var(--ease-snap) both;
+  --animate-fade-slide-right: fadeSlideRight 0.6s var(--ease-snap) both;
+  --animate-scale-in: scaleIn 0.7s var(--ease-snap) both;
+  --animate-fade-in: fadeIn 0.5s ease-out both;
+  --animate-speed-reveal: speedReveal 0.6s var(--ease-snap) both;
+  --animate-race-line-left: raceLineLeft 0.6s var(--ease-snap) both;
+  --animate-draw-line: drawLine 1.6s var(--ease-snap) both;
+  --animate-pop: pop 0.32s var(--ease-snap) both;
 
   @keyframes drawLine {
     from {
@@ -41,7 +68,7 @@
   @keyframes fadeSlideUp {
     from {
       opacity: 0;
-      transform: translateY(30px);
+      transform: translateY(12px);
     }
     to {
       opacity: 1;
@@ -51,7 +78,7 @@
   @keyframes fadeSlideDown {
     from {
       opacity: 0;
-      transform: translateY(-20px);
+      transform: translateY(-10px);
     }
     to {
       opacity: 1;
@@ -61,7 +88,7 @@
   @keyframes fadeSlideLeft {
     from {
       opacity: 0;
-      transform: translateX(40px);
+      transform: translateX(24px);
     }
     to {
       opacity: 1;
@@ -71,7 +98,7 @@
   @keyframes fadeSlideRight {
     from {
       opacity: 0;
-      transform: translateX(-40px);
+      transform: translateX(-24px);
     }
     to {
       opacity: 1;
@@ -81,7 +108,7 @@
   @keyframes scaleIn {
     from {
       opacity: 0;
-      transform: scale(0.92);
+      transform: scale(0.96);
     }
     to {
       opacity: 1;
@@ -99,32 +126,34 @@
   @keyframes speedReveal {
     0% {
       opacity: 0;
-      transform: translateX(-100%) skewX(-8deg);
-      filter: blur(8px);
-    }
-    60% {
-      opacity: 1;
-      transform: translateX(4%) skewX(-2deg);
-      filter: blur(0);
+      transform: translateY(16px);
+      filter: blur(6px);
     }
     100% {
       opacity: 1;
-      transform: translateX(0) skewX(0);
+      transform: translateY(0);
       filter: blur(0);
     }
   }
   @keyframes raceLineLeft {
-    0% {
+    from {
       transform: scaleX(0);
       transform-origin: left;
     }
-    70% {
-      transform: scaleX(1.1);
-      transform-origin: left;
-    }
-    100% {
+    to {
       transform: scaleX(1);
       transform-origin: left;
+    }
+  }
+  @keyframes pop {
+    0% {
+      transform: scale(0.85);
+    }
+    60% {
+      transform: scale(1.06);
+    }
+    100% {
+      transform: scale(1);
     }
   }
 }
@@ -139,8 +168,24 @@
 }
 
 body {
-  background: var(--color-bm-night);
+  background: var(--color-base);
+  color: var(--color-fg);
+  font-feature-settings: "cv11", "ss01";
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-brand) 40%, transparent);
   color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.14) transparent;
 }
 
 .phone-frame {
@@ -160,24 +205,39 @@ body {
   }
 }
 
+/* Translucent card surface: used for primary content cards over the aurora. */
 @utility glass {
-  background: rgb(20 20 30 / 0.8);
-  border: 1px solid rgb(255 255 255 / 0.1);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: linear-gradient(180deg, rgb(22 27 35 / 0.74), rgb(17 21 28 / 0.66));
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+}
+
+/* Quiet inset panel inside a card. */
+@utility panel {
+  background: rgb(255 255 255 / 0.03);
+  border: 1px solid rgb(255 255 255 / 0.06);
+  border-radius: var(--radius-control);
 }
 
 @utility glass-button {
-  background: rgb(255 255 255 / 0.15);
+  border-radius: var(--radius-control);
+  background: rgb(255 255 255 / 0.06);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.09);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 @utility text-fade-down {
-  background-image: linear-gradient(to bottom, white 0%, rgb(255 255 255 / 0.4) 50%, transparent 85%);
+  background-image: linear-gradient(to bottom, white 0%, rgb(255 255 255 / 0.55) 55%, rgb(255 255 255 / 0.15) 90%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+@utility eyebrow {
+  @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50;
 }
 
 input[type="number"]::-webkit-inner-spin-button,
@@ -201,25 +261,29 @@ input[type="number"] {
 }
 
 @utility field {
-  @apply w-full border border-line bg-black/40 px-3.5 py-2.5 text-sm text-white placeholder:text-white/40 outline-none transition focus:border-brand/70 focus:ring-2 focus:ring-brand/20;
+  @apply w-full rounded-control border border-line-strong bg-base-2/80 px-3.5 py-2.5 text-sm text-white placeholder:text-white/35 outline-none transition focus:border-brand/70 focus:bg-base-2 focus:ring-4 focus:ring-brand/15 disabled:opacity-50 aria-invalid:border-danger/70;
+}
+
+@utility btn-base {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-5 py-2.5 font-semibold transition duration-200 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40;
 }
 
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold tracking-tight transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  @apply btn-base text-sm tracking-tight;
 }
 
 @utility btn-primary {
-  @apply btn bg-brand text-black hover:bg-brand-strong;
+  @apply btn-base bg-brand text-[13px] uppercase tracking-[0.06em] text-[#05070b] shadow-[0_10px_30px_-14px_var(--color-brand)] hover:bg-brand-strong;
 }
 
 @utility btn-ghost {
-  @apply btn glass-button text-white hover:bg-white/25;
+  @apply btn glass-button text-white/90 hover:bg-white/10 hover:text-white;
 }
 
 @utility btn-danger {
-  @apply btn border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20;
+  @apply btn border border-danger/40 bg-danger/10 text-red-200 hover:bg-danger/20;
 }
 
 @utility label {
-  @apply mb-1.5 block text-[13px] font-normal text-white/60;
+  @apply mb-1.5 block text-[13px] font-medium text-white/60;
 }

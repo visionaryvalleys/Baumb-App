@@ -65,7 +65,7 @@ function TrendTrack({ series }: { series: number[] }) {
       <path d={`${d} L${end[0]},${h - 40} L${start[0]},${h - 40} Z`} fill="url(#track-fill)" className="animate-fade-in anim-delay-1400" />
       <path d={d} fill="none" stroke={GOLD} strokeWidth="8" opacity="0.45" filter="url(#track-glow)" pathLength={1} strokeDasharray="1" className="animate-draw-line anim-delay-700" />
       <path d={d} fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray="1" className="animate-draw-line anim-delay-700" />
-      <rect x={start[0] - 6} y={start[1] - 6} width="12" height="12" fill="#fff" />
+      <circle cx={start[0]} cy={start[1]} r="5" fill="#fff" />
       <circle cx={end[0]} cy={end[1]} r="14" fill={GOLD} opacity="0.25" className="animate-fade-in anim-delay-1600" />
       <circle cx={end[0]} cy={end[1]} r="7" fill={GOLD} className="animate-fade-in anim-delay-1600" />
       <text x="20" y={h - 12} fill="rgba(255,255,255,0.5)" fontSize="13">
@@ -87,7 +87,7 @@ function Sparkbars({ values }: { values: number[] }) {
       {values.map((v, i) => (
         <span
           key={i}
-          className={i === values.length - 1 ? "bg-brand" : "bg-white/40"}
+          className={cn("rounded-[2px]", i === values.length - 1 ? "bg-brand" : "bg-white/40")}
           style={{ width: 6, height: `${v === 0 ? 8 : 30 + ((v - min) / (max - min || 1)) * 70}%` }}
         />
       ))}
@@ -124,14 +124,14 @@ export function HeroScreen({ data }: { data: ShowcaseData }) {
           <span className="text-[16px] text-white/60">Your Transformation</span>
           <Flame className="h-6 w-6" color={GOLD} aria-hidden />
         </div>
-        <h2 className="text-[48px] font-normal leading-[0.95] tracking-[-0.05em] text-white">
+        <h2 className="text-[46px] font-light leading-[1] tracking-[-0.04em] text-white">
           {t.currentKg ?? "—"} {data.unit}
           <br />
-          <span className="text-brand">→ {t.targetKg ?? "—"}</span> {t.targetKg != null && data.unit}
+          <span className="font-semibold text-brand">→ {t.targetKg ?? "—"}</span> {t.targetKg != null && data.unit}
         </h2>
         {t.progressPct != null && (
-          <div className="mt-3 h-1.5 w-40 bg-white/15" aria-label={`${Math.round(t.progressPct * 100)}% of the way`}>
-            <div className="h-full bg-brand" style={{ width: `${Math.min(100, Math.max(0, t.progressPct * 100))}%` }} />
+          <div className="mt-4 h-1.5 w-40 overflow-hidden rounded-full bg-white/15" aria-label={`${Math.round(t.progressPct * 100)}% of the way`}>
+            <div className="h-full rounded-full bg-brand" style={{ width: `${Math.min(100, Math.max(0, t.progressPct * 100))}%` }} />
           </div>
         )}
       </div>
@@ -161,8 +161,8 @@ export function HeroScreen({ data }: { data: ShowcaseData }) {
             <span
               key={d.date}
               className={cn(
-                "grid h-12 w-10 place-items-center text-[13px] font-semibold",
-                d.done ? "bg-brand text-black" : "glass-button text-white/70",
+                "grid h-12 w-10 place-items-center rounded-xl text-[13px] font-semibold",
+                d.done ? "bg-brand text-[#05070b]" : "glass-button text-white/70",
                 d.today && !d.done && "ring-1 ring-inset ring-brand",
               )}
             >
@@ -171,7 +171,7 @@ export function HeroScreen({ data }: { data: ShowcaseData }) {
           ))}
         </div>
         <p className="mb-1 text-[14px] text-white/60 animate-fade-slide-up anim-delay-700">Estimated window</p>
-        <h1 className="text-[64px] font-semibold leading-[0.82] tracking-[-0.05em] text-white animate-speed-reveal anim-delay-800">
+        <h1 className="text-[62px] font-semibold leading-[0.9] tracking-[-0.045em] text-white animate-speed-reveal anim-delay-800">
           {top}
           <br />
           {bottom}
@@ -186,8 +186,8 @@ function StatNumber({ value, delay, label, gold = false }: { value: number | nul
   return (
     <div className="flex items-end justify-between gap-3">
       <span
-        className={cn("font-semibold tracking-[-0.06em]", gold ? "" : "text-fade-down")}
-        style={{ fontSize: 96, lineHeight: 0.72, color: gold ? GOLD : undefined }}
+        className={cn("font-semibold tracking-[-0.04em]", gold ? "" : "text-fade-down")}
+        style={{ fontSize: 92, lineHeight: 0.76, letterSpacing: "-0.05em", color: gold ? GOLD : undefined }}
       >
         {value == null ? "—" : compact(n)}
       </span>
@@ -209,7 +209,7 @@ export function StatsScreen({ data }: { data: ShowcaseData }) {
           <span className="text-[16px] text-white/60">Today&apos;s Performance</span>
           <Target className="h-6 w-6" color={GOLD} aria-hidden />
         </div>
-        <h2 className="text-[48px] font-normal leading-[0.95] tracking-[-0.05em] text-white">
+        <h2 className="text-[46px] font-light leading-[1] tracking-[-0.04em] text-white">
           {d.workoutDone ? "Workout" : "Keep"}
           <br />
           {d.workoutDone ? "Complete" : "Pushing"}
@@ -254,7 +254,7 @@ export function PlanScreen({ data }: { data: ShowcaseData }) {
           <span className="text-[15px] text-white/60">Today&apos;s Plan</span>
           <Dumbbell className="h-5 w-5" color={GOLD} aria-hidden />
         </div>
-        <h2 className="text-[52px] font-normal leading-[0.83] text-white" style={{ letterSpacing: "-0.08em" }}>
+        <h2 className="text-[50px] font-light leading-[0.95] tracking-[-0.045em] text-white">
           {titleTop}
           <br />
           {titleBottom}
@@ -271,7 +271,7 @@ export function PlanScreen({ data }: { data: ShowcaseData }) {
         {p.exercises.length > 0 && (
           <ul className="mt-3 space-y-1.5">
             {p.exercises.map((e) => (
-              <li key={e.name} className="flex justify-between gap-3 border-b border-white/10 pb-1.5 text-[15px]">
+              <li key={e.name} className="flex justify-between gap-3 border-b border-white/[0.08] pb-1.5 text-[15px]">
                 <span className="truncate text-white">{e.name}</span>
                 <span className="shrink-0 text-white/55">{e.scheme}</span>
               </li>
@@ -291,14 +291,7 @@ export function PlanScreen({ data }: { data: ShowcaseData }) {
         {data.targetCards.map((c) => (
           <div
             key={c.name}
-            className="flex h-[190px] w-1/2 flex-col rounded-t-2xl p-3"
-            style={{
-              background: "rgba(20,20,30,0.8)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderBottom: "none",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-            }}
+            className="glass flex h-[190px] w-1/2 flex-col rounded-t-[22px] border-b-0 p-3.5"
           >
             <div className="flex items-center justify-between gap-2">
               <span className="truncate text-[13px] text-white/60">{c.name}</span>
@@ -308,7 +301,7 @@ export function PlanScreen({ data }: { data: ShowcaseData }) {
               <Sparkbars values={c.history} />
               <span className="text-[11px] text-white/40">last 7 days · {c.unit}</span>
             </div>
-            <div className="mt-auto font-semibold leading-[0.79] text-white" style={{ fontSize: c.value >= 1000 ? 76 : 100, letterSpacing: "-0.08em" }}>
+            <div className="mt-auto font-semibold leading-[0.8] text-white" style={{ fontSize: c.value >= 1000 ? 72 : 94, letterSpacing: "-0.055em" }}>
               {c.value || "—"}
             </div>
           </div>

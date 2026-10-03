@@ -12,10 +12,10 @@ import { Card, CardTitle, KindTag, Segmented, cn } from "../ui";
 import { EventsPanel } from "./events-panel";
 
 const STATUS_STYLE: Record<DayStatus, string> = {
-  workout: "bg-brand text-black",
+  workout: "bg-brand text-[#05070b]",
   missed: "bg-transparent text-red-300 ring-1 ring-inset ring-red-400/50",
-  vacation: "bg-sky-400/15 text-sky-200",
-  injury: "bg-bm-red/25 text-red-100",
+  vacation: "bg-cyan/15 text-cyan",
+  injury: "bg-danger/20 text-red-100",
   rest: "bg-white/[0.03] text-white/45",
   planned: "bg-white/[0.06] text-white ring-1 ring-inset ring-brand/50",
   unplanned: "bg-white/[0.03] text-white/40",
@@ -54,16 +54,16 @@ export function CalendarView() {
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <Card className="lg:col-span-2">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold tracking-[-0.04em] text-white">{monthLabel}</h2>
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-2xl font-semibold tracking-[-0.03em] text-white">{monthLabel}</h2>
           <div className="flex gap-1">
-            <button type="button" onClick={() => setMonth(addMonths(month, -1))} className="glass-button grid size-10 place-items-center hover:bg-white/25" aria-label="Previous month">
+            <button type="button" onClick={() => setMonth(addMonths(month, -1))} className="glass-button grid size-10 place-items-center hover:bg-white/10" aria-label="Previous month">
               <ChevronLeft className="size-4" aria-hidden />
             </button>
-            <button type="button" onClick={() => setMonth(startOfMonth(today))} className="glass-button px-3 text-xs font-semibold hover:bg-white/25">
+            <button type="button" onClick={() => setMonth(startOfMonth(today))} className="glass-button px-3 text-xs font-semibold hover:bg-white/10">
               Today
             </button>
-            <button type="button" onClick={() => setMonth(addMonths(month, 1))} className="glass-button grid size-10 place-items-center hover:bg-white/25" aria-label="Next month">
+            <button type="button" onClick={() => setMonth(addMonths(month, 1))} className="glass-button grid size-10 place-items-center hover:bg-white/10" aria-label="Next month">
               <ChevronRight className="size-4" aria-hidden />
             </button>
           </div>
@@ -89,14 +89,14 @@ export function CalendarView() {
                 aria-pressed={selected === d}
                 aria-label={`${formatDate(d, { month: "long", day: "numeric" })}: ${STATUS_LABEL[status]}${evCount ? `, ${evCount} event${evCount > 1 ? "s" : ""}` : ""}`}
                 className={cn(
-                  "relative flex aspect-square flex-col items-start justify-between p-1.5 text-left transition sm:p-2",
+                  "relative flex aspect-square flex-col items-start justify-between rounded-lg p-1.5 text-left transition duration-200 hover:brightness-125 sm:rounded-xl sm:p-2",
                   STATUS_STYLE[status],
                   !inMonth && "opacity-35",
                   selected === d && "outline-2 outline-offset-2 outline-white",
                 )}
               >
                 <span className={cn("text-xs font-semibold tabular-nums sm:text-sm", d === today && "underline decoration-2 underline-offset-4")}>{Number(d.slice(8))}</span>
-                {evCount > 0 && <span className="absolute right-1.5 top-1.5 size-2 rotate-45 bg-violet-300" title={`${evCount} event${evCount > 1 ? "s" : ""}`} />}
+                {evCount > 0 && <span className="absolute right-1.5 top-1.5 size-2 rotate-45 rounded-[2px] bg-violet" title={`${evCount} event${evCount > 1 ? "s" : ""}`} />}
                 <span className="flex w-full items-end justify-between">
                   <span className="hidden sm:block">
                     {status === "workout" && <Dumbbell className="size-3.5" aria-hidden />}
@@ -105,8 +105,8 @@ export function CalendarView() {
                     {status === "rest" && s.info.override && <Moon className="size-3.5" aria-hidden />}
                   </span>
                   <span className="flex gap-0.5">
-                    {s.intake && <span className="size-1.5 rounded-full bg-emerald-300" title="Meals logged" />}
-                    {s.steps.value != null && <span className="size-1.5 rounded-full bg-sky-300" title="Steps recorded" />}
+                    {s.intake && <span className="size-1.5 rounded-full bg-mint" title="Meals logged" />}
+                    {s.steps.value != null && <span className="size-1.5 rounded-full bg-cyan" title="Steps recorded" />}
                     {s.weight.state === "recorded" && <span className="size-1.5 rounded-full bg-white" title="Weigh-in" />}
                   </span>
                 </span>
@@ -117,26 +117,26 @@ export function CalendarView() {
         <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-white/55">
           {(["workout", "planned", "missed", "rest", "vacation", "injury"] as DayStatus[]).map((s) => (
             <span key={s} className="flex items-center gap-1.5">
-              <span className={cn("size-3", STATUS_STYLE[s])} /> {STATUS_LABEL[s]}
+              <span className={cn("size-3 rounded-[4px]", STATUS_STYLE[s])} /> {STATUS_LABEL[s]}
             </span>
           ))}
           <span className="flex items-center gap-1.5">
-            <span className="size-1.5 rounded-full bg-emerald-300" /> Meals
+            <span className="size-1.5 rounded-full bg-mint" /> Meals
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="size-1.5 rounded-full bg-sky-300" /> Steps
+            <span className="size-1.5 rounded-full bg-cyan" /> Steps
           </span>
           <span className="flex items-center gap-1.5">
             <span className="size-1.5 rounded-full bg-white" /> Weigh-in
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="size-2 rotate-45 bg-violet-300" /> Event
+            <span className="size-2 rotate-45 rounded-[2px] bg-violet" /> Event
           </span>
         </div>
       </Card>
 
-      <Card className="lg:sticky lg:top-28 lg:self-start">
-        <CardTitle action={<span className={cn("px-2 py-0.5 text-[11px] font-semibold uppercase", STATUS_STYLE[sel.info.status])}>{STATUS_LABEL[sel.info.status]}</span>}>
+      <Card className="lg:sticky lg:top-24 lg:self-start">
+        <CardTitle action={<span className={cn("rounded-md px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider", STATUS_STYLE[sel.info.status])}>{STATUS_LABEL[sel.info.status]}</span>}>
           {formatDate(selected, { weekday: "long", month: "long", day: "numeric" })}
         </CardTitle>
         <dl className="divide-y divide-line text-sm">
@@ -167,7 +167,7 @@ export function CalendarView() {
             <dd className="text-white">{sel.weight.state === "recorded" && sel.weight.value != null ? formatWeight(sel.weight.value, unit) : <KindTag kind="missing" />}</dd>
           </div>
           {sel.info.vacation && (
-            <div className="py-2 text-xs text-sky-200">
+            <div className="py-2 text-xs text-cyan">
               Vacation: {formatDate(sel.info.vacation.start)} – {formatDate(sel.info.vacation.end)}
               {sel.info.vacation.note ? ` · ${sel.info.vacation.note}` : ""}
             </div>
@@ -187,7 +187,7 @@ export function CalendarView() {
               ]}
             />
             {sel.info.override && (
-              <button type="button" onClick={() => actions.setDayOverride(null, selected)} className="text-white/40 hover:text-white" aria-label="Clear marker">
+              <button type="button" onClick={() => actions.setDayOverride(null, selected)} className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.06] hover:text-white" aria-label="Clear marker">
                 <X className="size-4" aria-hidden />
               </button>
             )}

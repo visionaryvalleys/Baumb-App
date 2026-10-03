@@ -104,7 +104,7 @@ export function ProgressPhotos() {
       </p>
 
       {photos.length === 0 ? (
-        <div className="grid place-items-center border border-dashed border-line py-10 text-center">
+        <div className="grid place-items-center rounded-card border border-dashed border-line-strong py-12 text-center">
           <Camera className="size-6 text-white/30" aria-hidden />
           <p className="mt-2 text-sm text-white/50">Same pose, same light, every 2–4 weeks makes changes easy to see.</p>
         </div>
@@ -118,7 +118,7 @@ export function ProgressPhotos() {
             {before && after && before.id !== after.id ? (
               <div className="grid grid-cols-2 gap-2">
                 {[before, after].map((p, i) => (
-                  <figure key={p.id} className="relative aspect-[3/4] overflow-hidden bg-black">
+                  <figure key={p.id} className="relative aspect-[3/4] overflow-hidden rounded-xl bg-black ring-1 ring-white/10">
                     <Photo photo={p} />
                     <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-3 pb-2 pt-6 text-xs text-white">
                       <span className="font-semibold">{i === 0 ? "Before" : "Latest"}</span> · {formatDate(p.date, { month: "short", day: "numeric", year: "numeric" })}
@@ -132,7 +132,7 @@ export function ProgressPhotos() {
           </div>
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
             {sorted.map((p) => (
-              <li key={p.id} className="group relative aspect-[3/4] overflow-hidden bg-black">
+              <li key={p.id} className="group relative aspect-[3/4] overflow-hidden rounded-xl bg-black ring-1 ring-white/10">
                 <Photo photo={p} />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 pb-1.5 pt-5 text-[10px] text-white/85">
                   {formatDate(p.date, { month: "short", day: "numeric" })} · {p.pose}
@@ -140,7 +140,7 @@ export function ProgressPhotos() {
                 <button
                   type="button"
                   onClick={() => actions.deletePhoto(p.id)}
-                  className="absolute right-1 top-1 grid size-7 place-items-center bg-black/60 text-white/80 opacity-0 transition hover:text-red-300 focus:opacity-100 group-hover:opacity-100"
+                  className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-lg bg-black/60 text-white/80 backdrop-blur opacity-0 transition hover:text-red-300 focus:opacity-100 group-hover:opacity-100"
                   aria-label={`Delete ${p.pose} photo from ${formatDate(p.date)}`}
                 >
                   <Trash2 className="size-3.5" aria-hidden />

@@ -258,12 +258,12 @@ export function GoalPicker({ value, onChange }: { value: GoalType; onChange: (g:
             type="button"
             onClick={() => onChange(g.type)}
             aria-pressed={active}
-            className={cn("group relative flex flex-col items-start p-4 text-left transition", active ? "bg-brand text-black" : "glass hover:bg-white/10")}
+            className={cn("group relative flex flex-col items-start rounded-card p-5 text-left transition duration-200", active ? "bg-brand/12 text-white shadow-[inset_0_0_0_1.5px_var(--color-brand)]" : "glass hover:border-white/20 hover:bg-white/[0.04]")}
           >
             <span className="text-[19px] font-semibold tracking-[-0.03em]">{g.label}</span>
-            <span className={cn("mt-1 text-[13px]", active ? "text-black/70" : "text-white/55")}>{g.tagline}</span>
-            <span className={cn("mt-3 text-[11px] font-semibold uppercase tracking-wider", active ? "text-black/60" : "text-white/35")}>{g.priorities.slice(0, 3).join(" · ")}</span>
-            {active && <Check className="absolute right-3 top-3 size-4" aria-hidden />}
+            <span className={cn("mt-1 text-[13px]", active ? "text-white/75" : "text-white/55")}>{g.tagline}</span>
+            <span className={cn("mt-3 text-[11px] font-semibold uppercase tracking-wider", active ? "text-brand" : "text-white/35")}>{g.priorities.slice(0, 3).join(" · ")}</span>
+            {active && <Check className="absolute right-4 top-4 size-4 text-brand animate-pop" aria-hidden />}
           </button>
         );
       })}
