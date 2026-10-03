@@ -73,17 +73,28 @@ export interface StepExpenditureInput {
   durationMin?: number | null;
 }
 
-/** Net energy from steps, based on distance × body weight, adjusted for pace when duration is known. */
-export function calculateStepExpenditure(input: StepExpenditureInput): { kcal: number; distanceKm: number } {
+/** Net running cost: ACSM ≈ 0.2 mL O₂/kg/m, i.e. twice the walking cost per km. */
+export const NET_RUN_KCAL_PER_KG_KM = 1.0;
+const WALK_MAX_KMH = 6;
+const RUN_MIN_KMH = 8;
+
+/**
+ * Net kcal per kg per km at a given speed (ACSM metabolic equations). Walking costs about the same per km
+ * at normal speeds; running costs about double, with a linear blend through the 6–8 km/h walk/jog zone.
+ */
+export function netCostPerKgKm(kmh: number | null): number {
+  if (kmh == null || kmh <= WALK_MAX_KMH) return NET_WALK_KCAL_PER_KG_KM;
+  if (kmh >= RUN_MIN_KMH) return NET_RUN_KCAL_PER_KG_KM;
+  return NET_WALK_KCAL_PER_KG_KM + ((kmh - WALK_MAX_KMH) / (RUN_MIN_KMH - WALK_MAX_KMH)) * (NET_RUN_KCAL_PER_KG_KM - NET_WALK_KCAL_PER_KG_KM);
+}
+
+/** Net energy from steps: distance (recorded, else stride × steps) × body weight × the cost for the pace, when pace is known. */
+export function calculateStepExpenditure(input: StepExpenditureInput): { kcal: number; distanceKm: number; paceKmh: number | null } {
   const { steps, weightKg, heightCm, sex } = input;
-  if (steps <= 0 || weightKg <= 0) return { kcal: 0, distanceKm: input.distanceKm ?? 0 };
+  if (steps <= 0 || weightKg <= 0) return { kcal: 0, distanceKm: input.distanceKm ?? 0, paceKmh: null };
   const distanceKm = input.distanceKm && input.distanceKm > 0 ? input.distanceKm : (steps * strideLengthM(heightCm, sex)) / 1000;
-  let paceFactor = 1;
-  if (input.durationMin && input.durationMin > 0) {
-    const kmh = distanceKm / (input.durationMin / 60);
-    paceFactor = kmh < 4 ? 0.9 : kmh < 6 ? 1 : kmh < 8 ? 1.15 : 1.8;
-  }
-  return { kcal: Math.round(NET_WALK_KCAL_PER_KG_KM * weightKg * distanceKm * paceFactor), distanceKm };
+  const paceKmh = input.durationMin && input.durationMin > 0 ? Math.round((distanceKm / (input.durationMin / 60)) * 10) / 10 : null;
+  return { kcal: Math.round(netCostPerKgKm(paceKmh) * weightKg * distanceKm), distanceKm, paceKmh };
 }
 
 /** Net exercise energy: (MET − 1) × kg × hours. Resting energy is already in BMR. */
@@ -161,12 +172,13 @@ export function calculateEnergyExpenditure(input: EnergyInput): EnergyBreakdown 
         heightCm: profile.heightCm,
         sex: profile.sex,
         distanceKm: activity.distanceKm,
+        durationMin: activity.activeMinutes,
       });
       dailyActivity = {
         kcal: est.kcal,
         state: "estimated",
         source: activity.source,
-        method: `${activity.steps.toLocaleString()} steps ≈ ${est.distanceKm.toFixed(1)} km × body weight`,
+        method: `${activity.steps.toLocaleString()} steps ≈ ${est.distanceKm.toFixed(1)} km × body weight${est.paceKmh != null ? ` at ${est.paceKmh} km/h` : ""}`,
       };
     } else {
       const steps = LIFESTYLE_STEPS[profile.lifestyle];

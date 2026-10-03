@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDays } from "@/lib/date";
+import type { DailyActivity, VacationPeriod, Workout } from "@/lib/types";
 import { calculateTransformationProjection, explainProjectionChange, formatWindow, toProjectionSnapshot } from "./projection";
 import { linearWeights, testGoal, testPlan, testState } from "./test-helpers";
 
@@ -84,6 +85,66 @@ describe("calculateTransformationProjection", () => {
     const weights = linearWeights(START, 42, 85, -0.6);
     const early = calculateTransformationProjection(testState({ plans: [plan], weights }), addDays(START, 3));
     expect(early.inputs.weightEntries).toBe(4);
+  });
+});
+
+describe("projection under changing real-world data", () => {
+  const plan = testPlan(START);
+  const asOf = addDays(START, 20);
+
+  /** Logged sessions on every planned weekday in [0, days), skipping `skip` day offsets. */
+  function workouts(days: number, skip: (i: number) => boolean = () => false): Workout[] {
+    const out: Workout[] = [];
+    for (let i = 0; i < days; i++) {
+      const date = addDays(START, i);
+      if (!skip(i) && plan.workout.days.some((d) => d.weekday === i % 7))
+        out.push({ id: date, name: "S", type: "strength", date, durationMin: 60, exercises: [], notes: "", createdAt: 0 });
+    }
+    return out;
+  }
+
+  function steps(days: number, count: number): DailyActivity[] {
+    return Array.from({ length: days }, (_, i) => ({ id: `a${i}`, date: addDays(START, i), steps: count, distanceKm: null, activeCalories: null, source: "manual", timestamp: 0, timezone: "UTC" }));
+  }
+
+  const vacation: VacationPeriod = { id: "v", start: addDays(START, 7), end: addDays(START, 13), pauseWorkouts: true, note: "", createdAt: 0 };
+  const weights = linearWeights(START, 2, 85, 0);
+
+  it("does not push the window out for workouts skipped on vacation", () => {
+    const missedWeek = workouts(21, (i) => i >= 7 && i <= 13);
+    const onVacation = calculateTransformationProjection(testState({ plans: [plan], weights, workouts: missedWeek, vacations: [vacation] }), asOf);
+    const noVacation = calculateTransformationProjection(testState({ plans: [plan], weights, workouts: missedWeek }), asOf);
+    const full = calculateTransformationProjection(testState({ plans: [plan], weights, workouts: workouts(21) }), asOf);
+    expect(onVacation.inputs.workoutAdherence).toBe(1);
+    expect(onVacation.highWeeks).toBe(full.highWeeks);
+    expect(noVacation.highWeeks!).toBeGreaterThan(onVacation.highWeeks!);
+  });
+
+  it("still counts vacation weigh-ins as real progress", () => {
+    const during = linearWeights(START, 21, 85, -0.5);
+    const r = calculateTransformationProjection(testState({ plans: [plan], weights: during, vacations: [vacation] }), asOf);
+    expect(r.inputs.weightEntries).toBe(21);
+    expect(r.observedRateKg).toBeCloseTo(-0.5, 1);
+  });
+
+  it("moves the window later when adherence drops and earlier when it recovers", () => {
+    const good = calculateTransformationProjection(testState({ plans: [plan], weights, workouts: workouts(21) }), asOf);
+    const half = calculateTransformationProjection(testState({ plans: [plan], weights, workouts: workouts(21, (i) => i % 2 === 0) }), asOf);
+    expect(half.inputs.workoutAdherence!).toBeLessThan(good.inputs.workoutAdherence!);
+    expect(half.highWeeks!).toBeGreaterThan(good.highWeeks!);
+    const change = explainProjectionChange(toProjectionSnapshot(good, "s", 0), half, -1);
+    expect(change.direction).toBe("later");
+    expect(change.reasons.some((r) => !r.positive && r.text.includes("Workout completion dropped"))).toBe(true);
+  });
+
+  it("records activity changes but only lets them move the window through real weight change", () => {
+    const low = calculateTransformationProjection(testState({ plans: [plan], weights, workouts: workouts(21), activity: steps(21, 5000) }), asOf);
+    const high = calculateTransformationProjection(testState({ plans: [plan], weights, workouts: workouts(21), activity: steps(21, 11000) }), asOf);
+    expect(low.inputs.avgSteps).toBe(5000);
+    expect(high.inputs.avgSteps).toBe(11000);
+    expect(high.windowLabel).toBe(low.windowLabel);
+    const change = explainProjectionChange(toProjectionSnapshot(low, "s", 0), high, -1);
+    expect(change.reasons.some((r) => r.positive && r.text.includes("steps rose"))).toBe(true);
   });
 });
 

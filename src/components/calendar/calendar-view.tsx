@@ -9,6 +9,7 @@ import { actions, useAppState } from "@/lib/store";
 import type { DayStatus, LocalDate } from "@/lib/types";
 import { formatWeight } from "@/lib/units";
 import { Card, CardTitle, KindTag, Segmented, cn } from "../ui";
+import { EventsPanel } from "./events-panel";
 
 const STATUS_STYLE: Record<DayStatus, string> = {
   workout: "bg-brand text-black",
@@ -44,6 +45,11 @@ export function CalendarView() {
   const summaries = useMemo(() => new Map(cells.map((d) => [d, calculateDaySummary(state, d, today)])), [cells, state, today]);
   const sel = summaries.get(selected) ?? calculateDaySummary(state, selected, today);
   const monthLabel = fromDateKey(month).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const eventCount = useMemo(() => {
+    const m = new Map<LocalDate, number>();
+    for (const e of state.events) m.set(e.date, (m.get(e.date) ?? 0) + 1);
+    return m;
+  }, [state.events]);
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
@@ -74,13 +80,14 @@ export function CalendarView() {
             const s = summaries.get(d)!;
             const inMonth = d.slice(0, 7) === month.slice(0, 7);
             const status = s.info.status;
+            const evCount = eventCount.get(d) ?? 0;
             return (
               <button
                 key={d}
                 type="button"
                 onClick={() => setSelected(d)}
                 aria-pressed={selected === d}
-                aria-label={`${formatDate(d, { month: "long", day: "numeric" })}: ${STATUS_LABEL[status]}`}
+                aria-label={`${formatDate(d, { month: "long", day: "numeric" })}: ${STATUS_LABEL[status]}${evCount ? `, ${evCount} event${evCount > 1 ? "s" : ""}` : ""}`}
                 className={cn(
                   "relative flex aspect-square flex-col items-start justify-between p-1.5 text-left transition sm:p-2",
                   STATUS_STYLE[status],
@@ -89,6 +96,7 @@ export function CalendarView() {
                 )}
               >
                 <span className={cn("text-xs font-semibold tabular-nums sm:text-sm", d === today && "underline decoration-2 underline-offset-4")}>{Number(d.slice(8))}</span>
+                {evCount > 0 && <span className="absolute right-1.5 top-1.5 size-2 rotate-45 bg-violet-300" title={`${evCount} event${evCount > 1 ? "s" : ""}`} />}
                 <span className="flex w-full items-end justify-between">
                   <span className="hidden sm:block">
                     {status === "workout" && <Dumbbell className="size-3.5" aria-hidden />}
@@ -120,6 +128,9 @@ export function CalendarView() {
           </span>
           <span className="flex items-center gap-1.5">
             <span className="size-1.5 rounded-full bg-white" /> Weigh-in
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="size-2 rotate-45 bg-violet-300" /> Event
           </span>
         </div>
       </Card>
@@ -183,6 +194,7 @@ export function CalendarView() {
           </div>
           <p className="mt-2 text-xs text-white/40">Rest and injury days are excluded from adherence instead of counting as missed.</p>
         </div>
+        <EventsPanel key={selected} date={selected} />
       </Card>
     </div>
   );

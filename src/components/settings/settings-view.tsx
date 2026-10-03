@@ -1,11 +1,12 @@
 "use client";
 
 import { type ChangeEvent, useRef, useState } from "react";
-import { Check, Download, Palette, RotateCcw, Sparkles, Upload } from "lucide-react";
+import { Bell, Check, Download, Palette, RotateCcw, Sparkles, Upload } from "lucide-react";
 import { buildSampleState } from "@/lib/sample";
 import { DEFAULT_ACCENT, actions, migrateLegacy, useAppState } from "@/lib/store";
 import type { AppState } from "@/lib/types";
 import { Card, CardTitle, Segmented, cn } from "../ui";
+import { CalculationLog } from "./calculation-log";
 
 const ACCENTS = [
   { value: DEFAULT_ACCENT, label: "BAUMB Gold" },
@@ -46,6 +47,7 @@ export function SettingsView() {
       if (!looksLikeState(parsed)) throw new Error("invalid");
       const next = parsed.schemaVersion === 2 ? parsed : migrateLegacy(parsed as Parameters<typeof migrateLegacy>[0]);
       actions.replaceAll(next);
+      actions.logAudit("data_import", `Imported backup ${file.name}`, { file: file.name, schemaVersion: parsed.schemaVersion ?? 1 }, { workouts: parsed.workouts?.length ?? 0, weighIns: parsed.weights?.length ?? 0, mealItems: (parsed.meals ?? []).length });
       setMessage({ tone: "ok", text: `Imported ${parsed.workouts?.length ?? 0} workouts, ${parsed.weights?.length ?? 0} weigh-ins and ${(parsed.meals ?? []).length} meal items.` });
     } catch {
       setMessage({ tone: "error", text: "That file isn't a valid BAUMB backup." });
@@ -92,6 +94,21 @@ export function SettingsView() {
       </Card>
 
       <Card className="lg:col-span-2">
+        <CardTitle action={<Bell className="size-4 text-white/50" aria-hidden />}>Reminders</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <p className="max-w-xl text-sm text-white/60">In-app reminders for weigh-ins, unlogged food, planned workouts, calendar events, weekly reviews and plan check-ins. They appear under the bell and never leave this device.</p>
+          <Segmented
+            value={state.settings.notifications ? "on" : "off"}
+            onChange={(v) => actions.updateSettings({ notifications: v === "on" })}
+            options={[
+              { value: "on", label: "On" },
+              { value: "off", label: "Off" },
+            ]}
+          />
+        </div>
+      </Card>
+
+      <Card className="lg:col-span-2">
         <CardTitle>Your data</CardTitle>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <button type="button" onClick={exportData} className="btn-ghost justify-start">
@@ -132,9 +149,11 @@ export function SettingsView() {
           </p>
         )}
         <p className="mt-3 text-xs text-white/45">
-          {state.workouts.length} workouts · {state.meals.length} meal items · {state.weights.length} weigh-ins · {state.measurements.length} measurements · {state.plans.length} plan versions — stored only in this browser.
+          {state.workouts.length} workouts · {state.meals.length} meal items · {state.weights.length} weigh-ins · {state.measurements.length} measurements · {state.photos.length} photos · {state.events.length} events · {state.plans.length} plan versions · {state.energyRecords.length} saved energy days · {state.weeklyReviews.length} saved reviews — stored only in this browser.
         </p>
       </Card>
+
+      <CalculationLog />
     </div>
   );
 }

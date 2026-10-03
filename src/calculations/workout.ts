@@ -1,5 +1,6 @@
 import { goalConfig, type RepScheme } from "@/data/goals";
 import { getExercise } from "@/lib/exercises";
+import type { ReadinessResult } from "./recovery";
 import type {
   EquipmentAccess,
   Exercise,
@@ -284,11 +285,23 @@ export interface ProgressionSuggestion {
   weightKg: number | null;
   repsTarget: number;
   reason: string;
+  /** Change to the prescribed number of sets for this session (negative when recovery is low). */
+  setsDelta: number;
 }
+
+export interface ProgressionContext {
+  readiness?: ReadinessResult | null;
+  /** This week's working sets for the muscle ÷ the recent weekly average. */
+  volumeRatio?: number | null;
+  /** True when the active plan is a calorie deficit: load jumps stay small to protect strength. */
+  inDeficit?: boolean;
+}
+
+export const VOLUME_SPIKE_RATIO = 1.3;
 
 const roundTo = (v: number, step: number) => Math.round(v / step) * step;
 
-export function suggestNextLoad(prescription: ExercisePrescription, lastSets: WorkoutSet[] | null): ProgressionSuggestion {
+function baseSuggestion(prescription: ExercisePrescription, lastSets: WorkoutSet[] | null): Omit<ProgressionSuggestion, "setsDelta"> {
   const ex = getExercise(prescription.exerciseId);
   const tracksWeight = ex?.tracksWeight ?? true;
   const working = (lastSets ?? []).filter((s) => s.reps > 0);
@@ -337,4 +350,44 @@ export function suggestNextLoad(prescription: ExercisePrescription, lastSets: Wo
     repsTarget: Math.min(prescription.repsMax, Math.max(prescription.repsMin, minReps + 1)),
     reason: "Keep the load and add a rep to your weakest set.",
   };
+}
+
+/**
+ * Double progression with RPE, then adjusted for recovery, recent volume and the plan's energy balance:
+ * low readiness or a volume spike turns "add load" into "hold", poor readiness also trims a set,
+ * and in a deficit load jumps are capped so the goal stays strength retention.
+ */
+export function suggestNextLoad(prescription: ExercisePrescription, lastSets: WorkoutSet[] | null, ctx: ProgressionContext = {}): ProgressionSuggestion {
+  const base: ProgressionSuggestion = { ...baseSuggestion(prescription, lastSets), setsDelta: 0 };
+  const top = lastSets?.length ? Math.max(...lastSets.map((s) => s.weightKg)) : null;
+  const progressing = base.action === "increase_load" || base.action === "increase_reps";
+  const readiness = ctx.readiness?.status;
+
+  if (readiness === "poor" && base.action !== "start") {
+    return {
+      ...base,
+      action: base.action === "deload" ? "deload" : "hold",
+      weightKg: base.action === "deload" ? base.weightKg : base.weightKg != null && top != null ? Math.min(base.weightKg, top) : base.weightKg,
+      repsTarget: progressing ? Math.max(prescription.repsMin, base.repsTarget - 1) : base.repsTarget,
+      setsDelta: prescription.sets > 2 ? -1 : 0,
+      reason: `${ctx.readiness!.summary} One set fewer, same load as last time.`,
+    };
+  }
+  if (readiness === "reduced" && base.action === "increase_load") {
+    return { ...base, action: "hold", weightKg: top, repsTarget: Math.min(prescription.repsMax, base.repsTarget + 2), reason: `${ctx.readiness!.summary} Repeat last session's load.` };
+  }
+  if (ctx.volumeRatio != null && ctx.volumeRatio > VOLUME_SPIKE_RATIO && base.action === "increase_load") {
+    const muscle = getExercise(prescription.exerciseId)?.muscle ?? "this muscle";
+    return {
+      ...base,
+      action: "hold",
+      weightKg: top,
+      repsTarget: prescription.repsMax,
+      reason: `Your ${muscle} volume this week is ${Math.round((ctx.volumeRatio - 1) * 100)}% above your recent average — consolidate this load before adding more.`,
+    };
+  }
+  if (ctx.inDeficit && base.action === "increase_load" && top != null && base.weightKg != null && base.weightKg - top > 2.5) {
+    return { ...base, weightKg: roundTo(top + 2.5, 0.5), reason: `${base.reason.split(" — ")[0]} — add 2.5 kg; in a calorie deficit smaller jumps protect strength.` };
+  }
+  return base;
 }

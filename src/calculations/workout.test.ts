@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getExercise } from "@/lib/exercises";
 import type { ExercisePrescription, Goal } from "@/lib/types";
+import type { ReadinessResult } from "./recovery";
 import { estimateSessionMinutes, fitToDuration, generateWorkoutPlan, suggestNextLoad } from "./workout";
 
 function goal(partial: Partial<Goal> = {}): Goal {
@@ -112,5 +113,43 @@ describe("suggestNextLoad (progressive overload)", () => {
   it("uses bigger jumps for lower-body compounds", () => {
     const squat = { ...p, exerciseId: "back-squat" };
     expect(suggestNextLoad(squat, [10, 10, 10].map((reps) => ({ reps, weightKg: 100, rpe: 7.5 }))).weightKg).toBe(105);
+  });
+});
+
+describe("suggestNextLoad with recovery, volume and goal context", () => {
+  const p: ExercisePrescription = { exerciseId: "bench-press", sets: 3, repsMin: 6, repsMax: 10, restSec: 120, rpeTarget: 8 };
+  const topSets = [10, 10, 10].map((reps) => ({ reps, weightKg: 80, rpe: 8 }));
+  const readiness = (status: ReadinessResult["status"]): ReadinessResult => ({ status, date: "2026-06-15", factors: [], summary: `Recovery ${status}.` });
+
+  it("progresses normally when recovery is good or unknown", () => {
+    expect(suggestNextLoad(p, topSets, { readiness: readiness("good") }).action).toBe("increase_load");
+    expect(suggestNextLoad(p, topSets, { readiness: readiness("unknown") }).action).toBe("increase_load");
+  });
+
+  it("holds the load instead of adding weight when recovery is reduced", () => {
+    const s = suggestNextLoad(p, topSets, { readiness: readiness("reduced") });
+    expect(s.action).toBe("hold");
+    expect(s.weightKg).toBe(80);
+    expect(s.setsDelta).toBe(0);
+  });
+
+  it("holds the load and trims a set when recovery is poor", () => {
+    const s = suggestNextLoad(p, topSets, { readiness: readiness("poor") });
+    expect(s.action).toBe("hold");
+    expect(s.weightKg).toBe(80);
+    expect(s.setsDelta).toBe(-1);
+  });
+
+  it("holds when weekly volume has spiked", () => {
+    const s = suggestNextLoad(p, topSets, { volumeRatio: 1.5 });
+    expect(s.action).toBe("hold");
+    expect(s.reason).toMatch(/50% above/);
+  });
+
+  it("caps load jumps in a calorie deficit", () => {
+    const squat: ExercisePrescription = { ...p, exerciseId: "back-squat" };
+    const sets = [10, 10, 10].map((reps) => ({ reps, weightKg: 100, rpe: 7.5 }));
+    expect(suggestNextLoad(squat, sets).weightKg).toBe(105);
+    expect(suggestNextLoad(squat, sets, { inDeficit: true }).weightKg).toBe(102.5);
   });
 });

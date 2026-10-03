@@ -89,10 +89,33 @@ export interface BodyMeasurement extends Timestamped {
   hipsCm: number | null;
   neckCm: number | null;
   note: string;
+  /** Values for user-defined measurements, keyed by `CustomMeasurementField.id`. Absent or null = not measured. */
+  custom?: Record<string, number | null>;
 }
 
 export const MEASUREMENT_FIELDS = ["waistCm", "chestCm", "armsCm", "thighsCm", "hipsCm", "neckCm"] as const;
 export type MeasurementField = (typeof MEASUREMENT_FIELDS)[number];
+
+export type CustomMeasurementUnit = "length" | "percent" | "number";
+
+export interface CustomMeasurementField {
+  id: string;
+  label: string;
+  unit: CustomMeasurementUnit;
+  createdAt: number;
+}
+
+export type PhotoPose = "front" | "side" | "back" | "other";
+
+export interface ProgressPhoto extends Timestamped {
+  id: string;
+  pose: PhotoPose;
+  /** Downscaled JPEG data URL; photos never leave the device. */
+  dataUrl: string;
+  width: number;
+  height: number;
+  note: string;
+}
 
 /* ───────────── Module 05 — Nutrition ───────────── */
 
@@ -251,6 +274,8 @@ export interface DailyActivity extends Timestamped {
   id: string;
   steps: number | null;
   distanceKm: number | null;
+  /** Time spent walking/moving, used to derive pace. */
+  activeMinutes?: number | null;
   /** Device-reported active energy. When present it already includes walking and exercise. */
   activeCalories: number | null;
   source: DataSource;
@@ -284,6 +309,22 @@ export interface DayOverride {
 }
 
 export type DayStatus = "workout" | "rest" | "missed" | "vacation" | "injury" | "planned" | "unplanned";
+
+export type CalendarEventKind = "event" | "competition" | "appointment" | "check_in" | "travel" | "other";
+
+/** A user event. `date` is the local day in `timezone`; `timestamp` is the UTC instant when a time is set. */
+export interface CalendarEvent {
+  id: string;
+  date: LocalDate;
+  /** Minutes after local midnight, or null for all-day events. */
+  minutes: number | null;
+  timestamp: number | null;
+  timezone: string;
+  title: string;
+  kind: CalendarEventKind;
+  note: string;
+  createdAt: number;
+}
 
 /* ───────────── Module 04/15 — Plan & targets ───────────── */
 
@@ -343,10 +384,75 @@ export interface ProjectionSnapshot {
   inputs: ProjectionInputs;
 }
 
+/* ───────────── Records: energy, weekly review, audit, notifications ───────────── */
+
+export interface EnergyRecordComponent {
+  key: "bmr" | "daily_activity" | "exercise" | "other";
+  kcal: number;
+  state: DataState;
+  source: DataSource;
+  method: string;
+}
+
+/** A saved copy of one day's energy calculation, so past days stay reproducible after inputs change. */
+export interface EnergyRecord {
+  id: string;
+  date: LocalDate;
+  timezone: string;
+  computedAt: number;
+  components: EnergyRecordComponent[];
+  totalKcal: number;
+  intakeKcal: number | null;
+  balanceKcal: number | null;
+  planVersion: number | null;
+}
+
+export type ReviewStatus = "good" | "close" | "off" | "missing";
+
+export interface WeeklyReviewRecord {
+  id: string;
+  weekStart: LocalDate;
+  weekEnd: LocalDate;
+  computedAt: number;
+  planVersion: number | null;
+  rows: { key: string; label: string; planned: string; actual: string; status: ReviewStatus }[];
+  avgExpenditure: number | null;
+  avgBalance: number | null;
+  weightChangeKg: number | null;
+  waistChangeCm: number | null;
+  vacationDays: number;
+}
+
+export type AuditKind = "plan_created" | "plan_adjusted" | "projection_updated" | "energy_recorded" | "weekly_review" | "data_import";
+
+/** What was calculated, from which inputs, and what came out. */
+export interface CalculationAudit {
+  id: string;
+  at: number;
+  kind: AuditKind;
+  summary: string;
+  inputs: Record<string, string | number | null>;
+  outputs: Record<string, string | number | null>;
+}
+
+export type NotificationKind = "weigh_in" | "food_log" | "weekly_review" | "plan_check_in" | "estimate_updated" | "event" | "vacation" | "workout";
+
+export interface AppNotification {
+  /** Stable per occurrence (e.g. `weigh_in:2026-10-04`) so dismissals stick. */
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  href: string;
+  priority: "normal" | "high";
+}
+
 /* ───────────── Module 17 — Settings / root state ───────────── */
 
 export interface Settings {
   accent: string;
+  /** In-app reminders on/off. */
+  notifications: boolean;
 }
 
 export interface AppState {
@@ -366,5 +472,12 @@ export interface AppState {
   vacations: VacationPeriod[];
   dayOverrides: DayOverride[];
   projections: ProjectionSnapshot[];
+  measurementFields: CustomMeasurementField[];
+  photos: ProgressPhoto[];
+  events: CalendarEvent[];
+  energyRecords: EnergyRecord[];
+  weeklyReviews: WeeklyReviewRecord[];
+  audit: CalculationAudit[];
+  dismissedNotifications: string[];
   settings: Settings;
 }

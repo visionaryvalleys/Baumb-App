@@ -9,6 +9,7 @@ import {
   calculateStepExpenditure,
   currentAge,
   estimatePlannedTDEE,
+  netCostPerKgKm,
 } from "./energy";
 
 const profile = { heightCm: 178, sex: "male" as const, lifestyle: "light" as const };
@@ -58,6 +59,26 @@ describe("step expenditure", () => {
 
   it("returns zero for zero steps", () => {
     expect(calculateStepExpenditure({ steps: 0, weightKg: 80, heightCm: 178, sex: "male" }).kcal).toBe(0);
+  });
+
+  it("costs the same per km at normal walking speeds and about double when running", () => {
+    expect(netCostPerKgKm(null)).toBe(0.5);
+    expect(netCostPerKgKm(4.5)).toBe(0.5);
+    expect(netCostPerKgKm(7)).toBeCloseTo(0.75);
+    expect(netCostPerKgKm(10)).toBe(1);
+  });
+
+  it("derives pace from distance and active minutes", () => {
+    const walk = calculateStepExpenditure({ steps: 10000, weightKg: 80, heightCm: 178, sex: "male", distanceKm: 8, durationMin: 96 });
+    const run = calculateStepExpenditure({ steps: 10000, weightKg: 80, heightCm: 178, sex: "male", distanceKm: 8, durationMin: 48 });
+    expect(walk.paceKmh).toBe(5);
+    expect(walk.kcal).toBe(320);
+    expect(run.paceKmh).toBe(10);
+    expect(run.kcal).toBe(640);
+  });
+
+  it("has no pace without active minutes", () => {
+    expect(calculateStepExpenditure({ steps: 8000, weightKg: 80, heightCm: 178, sex: "male" }).paceKmh).toBeNull();
   });
 });
 

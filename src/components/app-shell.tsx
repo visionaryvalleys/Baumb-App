@@ -8,7 +8,9 @@ import { type ReactNode, useEffect, useState } from "react";
 import bgImage from "@/assets/baumb/baumb-bg.jpg";
 import { buildSampleState } from "@/lib/sample";
 import { DEFAULT_ACCENT, actions, useAppState, useHydrated } from "@/lib/store";
+import { useRecordKeeper } from "@/lib/use-records";
 import { BaumbLogo, MenuButton, MenuOverlay, ProfileButton } from "./brand";
+import { NotificationBell } from "./notifications";
 import { EmptyState, PageSkeleton, cn } from "./ui";
 
 const NAV = [
@@ -78,6 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const current = activeHref(pathname, NAV);
   useAccent();
+  useRecordKeeper();
 
   const gated = hydrated && !onboarded && !UNGATED.some((p) => pathname.startsWith(p));
 
@@ -108,6 +111,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/nutrition" className="mr-2 hidden h-14 items-center gap-2 bg-brand px-5 text-sm font-semibold text-black transition hover:bg-brand-strong sm:flex">
               <Plus className="h-4 w-4" aria-hidden /> Log meal
             </Link>
+            {hydrated && onboarded && <NotificationBell />}
             <ProfileButton />
             <MenuButton expanded={menuOpen} onClick={() => setMenuOpen(true)} />
           </div>

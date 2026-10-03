@@ -7,7 +7,7 @@ import athleteImage from "@/assets/baumb/baumb-athlete.jpg";
 import barbellImage from "@/assets/baumb/baumb-barbell.jpg";
 import { cn } from "../ui";
 import { PhoneNav, ScreenBackground } from "./phone-nav";
-import { useCountUp } from "./use-count-up";
+import { useCountUp } from "@/lib/use-count-up";
 import type { ShowcaseData } from "./use-showcase-data";
 
 const GOLD = "var(--color-brand)";
@@ -182,7 +182,7 @@ export function HeroScreen({ data }: { data: ShowcaseData }) {
 }
 
 function StatNumber({ value, delay, label, gold = false }: { value: number | null; delay: number; label: string; gold?: boolean }) {
-  const n = useCountUp(value ?? 0, delay);
+  const n = Math.round(useCountUp(value ?? 0, delay));
   return (
     <div className="flex items-end justify-between gap-3">
       <span

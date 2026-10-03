@@ -8,6 +8,7 @@ import { DEFAULT_PROFILE, DEFAULT_SETTINGS, newId, normalizeState } from "./stor
 import type {
   AppState,
   BodyMeasurement,
+  CustomMeasurementField,
   DailyActivity,
   Goal,
   LocalDate,
@@ -122,6 +123,8 @@ function mealItems(date: LocalDate, meal: MealType, template: MealTemplate, tz: 
 }
 
 /** Six weeks of a lean-phase athlete following a generated plan, including a vacation and a plan revision. */
+const CALVES_FIELD: CustomMeasurementField = { id: "sample-calves", label: "Calves", unit: "length", createdAt: 0 };
+
 export function buildSampleState(): AppState {
   const rand = rng(42);
   const tz = deviceTimezone();
@@ -243,7 +246,7 @@ export function buildSampleState(): AppState {
     if (i % 9 !== 4) {
       const target = plan.targets.steps;
       const steps = date === today ? 6420 : Math.round((vac ? 14500 : target * (0.82 + rand() * 0.3)) / 10) * 10;
-      activity.push({ id: newId(), date, steps, distanceKm: null, activeCalories: null, source: "phone", timestamp: at(date, 22 * 60), timezone: tz });
+      activity.push({ id: newId(), date, steps, distanceKm: null, activeMinutes: Math.round(steps / 105), activeCalories: null, source: "phone", timestamp: at(date, 22 * 60), timezone: tz });
     }
 
     if (date !== today)
@@ -274,6 +277,7 @@ export function buildSampleState(): AppState {
         hipsCm: null,
         neckCm: null,
         note: "",
+        custom: { [CALVES_FIELD.id]: Math.round((38 + p * 0.4) * 10) / 10 },
       });
     }
   }
@@ -291,6 +295,11 @@ export function buildSampleState(): AppState {
     activity,
     recovery,
     vacations: [vacation],
+    measurementFields: [CALVES_FIELD],
+    events: [
+      { id: newId(), date: addDays(today, 1), minutes: 8 * 60 + 30, timestamp: at(addDays(today, 1), 8 * 60 + 30), timezone: tz, title: "Body composition scan", kind: "appointment", note: "", createdAt: at(start, 9 * 60) },
+      { id: newId(), date: addDays(today, 19), minutes: null, timestamp: null, timezone: tz, title: "City 10K", kind: "competition", note: "Target sub-50", createdAt: at(start, 9 * 60) },
+    ],
     settings: DEFAULT_SETTINGS,
   });
 

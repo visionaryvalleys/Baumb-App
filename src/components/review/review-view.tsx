@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, Palmtree, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, History, Palmtree, Sparkles } from "lucide-react";
 import { calculateWeeklyReview, evaluateAdaptivePlan, type RowStatus } from "@/calculations/review";
 import { addDays, formatDate, startOfWeek } from "@/lib/date";
 import { useToday, useUnit } from "@/lib/hooks";
@@ -25,6 +25,9 @@ export function ReviewView() {
   const review = useMemo(() => calculateWeeklyReview(state, weekStart, today), [state, weekStart, today]);
   const adaptive = useMemo(() => evaluateAdaptivePlan(state, today), [state, today]);
   const isCurrent = weekStart === startOfWeek(today);
+  const saved = state.weeklyReviews.find((r) => r.weekStart === weekStart) ?? null;
+  const changedSinceSaved = !!saved && saved.rows.some((r) => review.rows.find((x) => x.key === r.key)?.actual !== r.actual);
+  const history = [...state.weeklyReviews].reverse().slice(0, 12);
 
   return (
     <div className="space-y-4">
@@ -40,6 +43,12 @@ export function ReviewView() {
         </button>
         {!review.complete && <KindTag kind="estimated" label="Week in progress" />}
         {review.plan && <span className="text-xs text-white/45">Plan V{review.plan.version}</span>}
+        {saved && (
+          <span className="text-xs text-white/45">
+            · Saved {new Date(saved.computedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            {changedSinceSaved && <span className="text-brand"> · data edited since — figures below are live</span>}
+          </span>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -128,6 +137,42 @@ export function ReviewView() {
           </Link>
         </div>
       </Card>
+
+      {history.length > 0 && (
+        <Card>
+          <CardTitle action={<History className="size-4 text-white/50" aria-hidden />}>Past reviews</CardTitle>
+          <p className="-mt-2 mb-3 text-xs text-white/45">Each finished week is saved as it was, so you can see how you were doing at the time.</p>
+          <ul className="divide-y divide-line">
+            {history.map((h) => {
+              const good = h.rows.filter((r) => r.status === "good").length;
+              return (
+                <li key={h.id}>
+                  <button type="button" onClick={() => setWeekStart(h.weekStart)} aria-current={h.weekStart === weekStart ? "true" : undefined} className={cn("flex w-full flex-wrap items-center gap-x-4 gap-y-1 py-2.5 text-left text-sm transition hover:bg-white/[0.04]", h.weekStart === weekStart && "text-brand")}>
+                    <span className="w-40 font-medium">
+                      {formatDate(h.weekStart, { month: "short", day: "numeric" })} – {formatDate(h.weekEnd, { month: "short", day: "numeric" })}
+                    </span>
+                    <span className="flex gap-1" aria-hidden>
+                      {h.rows.map((r) => (
+                        <span key={r.key} className={cn("size-2.5", r.status === "good" ? "bg-brand" : r.status === "close" ? "bg-white/40" : r.status === "off" ? "bg-bm-red" : "bg-white/10")} />
+                      ))}
+                    </span>
+                    <span className="text-white/60">
+                      {good} of {h.rows.length} on target
+                    </span>
+                    {h.weightChangeKg != null && (
+                      <span className="tabular-nums text-white/50">
+                        {h.weightChangeKg > 0 ? "+" : ""}
+                        {toDisplayWeight(h.weightChangeKg, unit)} {unit}
+                      </span>
+                    )}
+                    {h.planVersion != null && <span className="ml-auto text-xs text-white/40">Plan V{h.planVersion}</span>}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      )}
     </div>
   );
 }

@@ -30,6 +30,7 @@ function ActivityForm({ date }: { date: LocalDate }) {
   const [distance, setDistance] = useState(existing?.distanceKm != null ? String(Math.round((imperial ? existing.distanceKm / KM_PER_MI : existing.distanceKm) * 100) / 100) : "");
   const [source, setSource] = useState<DataSource>(existing?.source ?? "manual");
   const [active, setActive] = useState(existing?.activeCalories != null ? String(existing.activeCalories) : "");
+  const [minutes, setMinutes] = useState(existing?.activeMinutes != null ? String(existing.activeMinutes) : "");
   const [saved, setSaved] = useState(false);
   const device = source === "wearable" || source === "health_platform";
 
@@ -38,7 +39,8 @@ function ActivityForm({ date }: { date: LocalDate }) {
     const s = steps.trim() ? Math.max(0, Math.round(Number(steps))) : null;
     const d = distance.trim() ? Math.max(0, Number(distance) * (imperial ? KM_PER_MI : 1)) : null;
     const a = device && active.trim() ? Math.max(0, Math.round(Number(active))) : null;
-    actions.logActivity({ id: existing?.id ?? newId(), date, steps: s, distanceKm: d, activeCalories: a, source, timestamp: Date.now(), timezone: profile.timezone });
+    const m = minutes.trim() ? Math.max(1, Math.round(Number(minutes))) : null;
+    actions.logActivity({ id: existing?.id ?? newId(), date, steps: s, distanceKm: d, activeMinutes: m, activeCalories: a, source, timestamp: Date.now(), timezone: profile.timezone });
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1800);
   }
@@ -58,6 +60,11 @@ function ActivityForm({ date }: { date: LocalDate }) {
           <label htmlFor="dist" className="label">Distance ({imperial ? "mi" : "km"}, optional)</label>
           <input id="dist" type="number" inputMode="decimal" step="0.01" min={0} className="field" value={distance} onChange={(e) => setDistance(e.target.value)} />
         </div>
+      </div>
+      <div>
+        <label htmlFor="minutes" className="label">Walking / moving time (min, optional)</label>
+        <input id="minutes" type="number" inputMode="numeric" min={1} max={1440} className="field" value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="e.g. 75" />
+        <p className="mt-1.5 text-xs text-white/45">With time, BAUMB works out your pace: brisk walking and running cost more per km than strolling.</p>
       </div>
       {device && (
         <div>
@@ -140,7 +147,7 @@ export function ActivityView() {
   const act = summary.activity;
   const est =
     act?.steps != null && summary.weight.value != null && profile.heightCm != null
-      ? calculateStepExpenditure({ steps: act.steps, weightKg: summary.weight.value, heightCm: profile.heightCm, sex: profile.sex, distanceKm: act.distanceKm })
+      ? calculateStepExpenditure({ steps: act.steps, weightKg: summary.weight.value, heightCm: profile.heightCm, sex: profile.sex, distanceKm: act.distanceKm, durationMin: act.activeMinutes })
       : null;
   const recent = [...recovery].filter((r) => r.date <= today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
 
@@ -161,7 +168,7 @@ export function ActivityView() {
           <BigNumber unit="steps">{act?.steps != null ? act.steps.toLocaleString() : "—"}</BigNumber>
           {est && (
             <p className="mt-2 text-sm text-white/60">
-              ≈ {formatDistance(est.distanceKm, profile.unitSystem)} · ~{est.kcal} kcal of movement{act && isDeviceSource(act.source) ? " (device steps)" : ""}
+              ≈ {formatDistance(est.distanceKm, profile.unitSystem)}{est.paceKmh != null ? ` at ${profile.unitSystem === "imperial" ? `${(est.paceKmh / KM_PER_MI).toFixed(1)} mph` : `${est.paceKmh} km/h`}` : ""} · ~{est.kcal} kcal of movement{act && isDeviceSource(act.source) ? " (device steps)" : ""}
             </p>
           )}
           {target && <p className="mt-1 text-xs text-white/45">Target {target.toLocaleString()} steps</p>}

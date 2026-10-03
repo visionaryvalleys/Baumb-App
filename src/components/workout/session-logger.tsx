@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { type FormEvent, useMemo, useState } from "react";
-import { ArrowRight, Check, Clock, Dumbbell, Info, Moon, Palmtree, Plus, TrendingUp, X } from "lucide-react";
+import { Activity, ArrowRight, Check, Clock, Dumbbell, Info, Moon, Palmtree, Plus, TrendingUp, X } from "lucide-react";
+import { calculateReadiness, calculateVolumeTrend, type ReadinessResult } from "@/calculations/recovery";
 import { suggestNextLoad, type ProgressionSuggestion } from "@/calculations/workout";
 import { WEEKDAY_NAMES, weekdayIndex } from "@/lib/date";
 import { getExercise } from "@/lib/exercises";
@@ -32,16 +33,60 @@ function fmtRest(sec: number) {
   return sec >= 60 ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")} rest` : `${sec}s rest`;
 }
 
+const READINESS_STYLE: Record<ReadinessResult["status"], string> = {
+  good: "bg-brand text-black",
+  reduced: "bg-white text-black",
+  poor: "bg-bm-red text-white",
+  unknown: "bg-white/10 text-white/70",
+};
+
+function ReadinessCard({ readiness }: { readiness: ReadinessResult }) {
+  return (
+    <Card>
+      <CardTitle action={<span className={cn("px-2 py-1 text-[11px] font-semibold uppercase tracking-wider", READINESS_STYLE[readiness.status])}>{readiness.status === "unknown" ? "No data" : readiness.status}</span>}>
+        <span className="inline-flex items-center gap-2">
+          <Activity className="size-4" aria-hidden /> Readiness
+        </span>
+      </CardTitle>
+      <p className="text-sm text-white/65">{readiness.summary}</p>
+      {readiness.factors.length > 0 && (
+        <ul className="mt-3 space-y-1.5 text-xs">
+          {readiness.factors.map((f) => (
+            <li key={f.label} className="flex justify-between gap-3">
+              <span className="text-white/50">{f.label}</span>
+              <span className={f.load === 2 ? "text-red-300" : f.load === 1 ? "text-white" : "text-white/70"}>{f.value}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {readiness.status === "unknown" && (
+        <Link href="/activity" className="mt-3 inline-flex text-xs font-medium text-brand hover:underline">
+          Log sleep & recovery
+        </Link>
+      )}
+    </Card>
+  );
+}
+
 function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: WorkoutDay; unit: Unit; date: string }) {
-  const { workouts, profile } = useAppState();
+  const { workouts, profile, recovery } = useAppState();
+  const readiness = useMemo(() => calculateReadiness(recovery, date, plan.targets.sleepHours), [recovery, date, plan]);
   const suggestions = useMemo(
-    () => day.exercises.map((p) => suggestNextLoad(p, lastPerformance(workouts, p.exerciseId, date)?.sets ?? null)),
-    [day, workouts, date],
+    () =>
+      day.exercises.map((p) => {
+        const muscle = getExercise(p.exerciseId)?.muscle;
+        return suggestNextLoad(p, lastPerformance(workouts, p.exerciseId, date)?.sets ?? null, {
+          readiness,
+          volumeRatio: muscle ? calculateVolumeTrend(workouts, muscle, date).ratio : null,
+          inDeficit: plan.targets.energyAdjustment < 0,
+        });
+      }),
+    [day, workouts, date, readiness, plan],
   );
   const [sets, setSets] = useState<DraftSet[][]>(() =>
     day.exercises.map((p, i) => {
       const s = suggestions[i];
-      return Array.from({ length: p.sets }, () => ({
+      return Array.from({ length: Math.max(1, p.sets + s.setsDelta) }, () => ({
         weight: s.weightKg != null && s.weightKg > 0 ? String(toDisplayWeight(s.weightKg, unit)) : "",
         reps: String(s.repsTarget),
         rpe: "",
@@ -112,7 +157,8 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
                 <div>
                   <div className="text-lg font-semibold tracking-tight text-white">{ex?.name}</div>
                   <div className="mt-0.5 text-xs text-white/50">
-                    {p.sets} × {p.repsMin}–{p.repsMax} · {fmtRest(p.restSec)} · RPE {p.rpeTarget}
+                    {p.sets} × {p.repsMin}–{p.repsMax}
+                    {s.setsDelta !== 0 && <span className="text-white/80"> ({p.sets + s.setsDelta} sets today)</span>} · {fmtRest(p.restSec)} · RPE {p.rpeTarget}
                   </div>
                 </div>
                 <span className={cn("inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider", s.action === "increase_load" ? "bg-brand text-black" : s.action === "deload" ? "bg-bm-red text-white" : "bg-white/10 text-white/80")}>
@@ -152,6 +198,7 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
         })}
       </div>
       <div className="space-y-4 lg:sticky lg:top-28 lg:self-start">
+        <ReadinessCard readiness={readiness} />
         <Card>
           <CardTitle action={<KindTag kind="estimated" label={`~${day.estimatedMinutes} min planned`} />}>Session</CardTitle>
           <label htmlFor="dur" className="label">Actual duration (min)</label>
@@ -162,7 +209,7 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
         <button type="submit" className="btn-primary w-full py-3">
           <Check className="size-4" aria-hidden /> Finish workout
         </button>
-        <p className="text-xs text-white/45">RPE = how hard the set felt (10 = no reps left). It drives your next load suggestion.</p>
+        <p className="text-xs text-white/45">RPE = how hard the set felt (10 = no reps left). Suggestions combine your last session, RPE, this week&apos;s volume, recovery and your plan&apos;s calorie balance.</p>
       </div>
     </form>
   );

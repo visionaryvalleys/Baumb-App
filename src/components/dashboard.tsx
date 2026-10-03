@@ -26,6 +26,7 @@ import { formatWeight, toDisplayWeight } from "@/lib/units";
 import { useProjection } from "@/lib/use-projection";
 import { ProgressRing } from "./charts";
 import { EnergyBreakdown } from "./energy-breakdown";
+import { CountUp } from "./count-up";
 import { BigNumber, Card, CardTitle, KindTag, Meter, PageHeader, SectionLabel, cn } from "./ui";
 
 function greeting() {
@@ -39,6 +40,7 @@ function TodayStat({
   icon: Icon,
   label,
   value,
+  signed,
   unit,
   target,
   current,
@@ -48,7 +50,8 @@ function TodayStat({
 }: {
   icon: typeof Flame;
   label: string;
-  value: string;
+  value: number | null;
+  signed?: boolean;
   unit?: string;
   target?: number;
   current?: number;
@@ -65,7 +68,7 @@ function TodayStat({
         <KindTag kind={kind} />
       </div>
       <BigNumber unit={unit} gold={gold}>
-        {value}
+        {value == null ? "—" : <CountUp value={value} signed={signed} />}
       </BigNumber>
       {target != null && current != null && <Meter value={current} max={target} />}
       <div className="text-xs text-white/50">{hint}</div>
@@ -138,7 +141,7 @@ export function Dashboard() {
             <ProgressRing value={(projection.progressPct ?? 0) * 100} max={100} size={148}>
               <div>
                 <div className="text-[34px] font-semibold leading-none tracking-[-0.06em] tabular-nums text-white">
-                  {projection.progressPct != null ? `${Math.round(projection.progressPct * 100)}%` : "—"}
+                  {projection.progressPct != null ? <CountUp value={Math.round(projection.progressPct * 100)} suffix="%" /> : "—"}
                 </div>
                 <div className="text-[11px] text-white/50">to target</div>
               </div>
@@ -147,13 +150,13 @@ export function Dashboard() {
               <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
                 <div>
                   <SectionLabel>Current trend</SectionLabel>
-                  <BigNumber unit={unit}>{projection.currentKg != null ? toDisplayWeight(projection.currentKg, unit) : "—"}</BigNumber>
+                  <BigNumber unit={unit}>{projection.currentKg != null ? <CountUp value={toDisplayWeight(projection.currentKg, unit)} decimals={1} /> : "—"}</BigNumber>
                 </div>
                 <ArrowRight className="mb-2 size-6 text-white/30" aria-hidden />
                 <div>
                   <SectionLabel>Target</SectionLabel>
                   <BigNumber unit={unit} gold>
-                    {projection.targetKg != null ? toDisplayWeight(projection.targetKg, unit) : "—"}
+                    {projection.targetKg != null ? <CountUp value={toDisplayWeight(projection.targetKg, unit)} decimals={1} delay={150} /> : "—"}
                   </BigNumber>
                 </div>
               </div>
@@ -241,7 +244,7 @@ export function Dashboard() {
         <TodayStat
           icon={Utensils}
           label="Calories"
-          value={intake ? intake.calories.toLocaleString() : "—"}
+          value={intake ? Math.round(intake.calories) : null}
           unit={intake ? "kcal" : undefined}
           current={intake?.calories}
           target={targets?.nutrition.calories}
@@ -251,7 +254,8 @@ export function Dashboard() {
         <TodayStat
           icon={TrendingDown}
           label="Energy balance"
-          value={summary.balance == null ? "—" : `${summary.balance > 0 ? "+" : ""}${summary.balance.toLocaleString()}`}
+          value={summary.balance}
+          signed
           unit={summary.balance == null ? undefined : "kcal"}
           kind={summary.balance == null ? "missing" : "calculated"}
           hint={summary.energy ? `vs ~${summary.energy.total.toLocaleString()} kcal estimated expenditure` : "Needs a weigh-in and profile"}
@@ -259,7 +263,7 @@ export function Dashboard() {
         <TodayStat
           icon={Beef}
           label="Protein"
-          value={intake ? String(Math.round(intake.proteinG)) : "—"}
+          value={intake ? Math.round(intake.proteinG) : null}
           unit={intake ? "g" : undefined}
           current={intake?.proteinG}
           target={targets?.nutrition.proteinG}
@@ -270,7 +274,7 @@ export function Dashboard() {
         <TodayStat
           icon={Footprints}
           label="Steps"
-          value={steps != null ? steps.toLocaleString() : "—"}
+          value={steps}
           current={steps ?? undefined}
           target={targets?.steps}
           kind={steps != null ? "recorded" : "missing"}

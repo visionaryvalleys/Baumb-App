@@ -2,18 +2,25 @@ import { useSyncExternalStore } from "react";
 import { deviceTimezone } from "./date";
 import type {
   AppState,
+  AuditKind,
   BodyMeasurement,
+  CalculationAudit,
+  CalendarEvent,
+  CustomMeasurementField,
   DailyActivity,
   DayOverride,
+  EnergyRecord,
   Food,
   Goal,
   MealItem,
   PlanVersion,
   Profile,
+  ProgressPhoto,
   ProjectionSnapshot,
   RecoveryEntry,
   Settings,
   VacationPeriod,
+  WeeklyReviewRecord,
   WeightEntry,
   Workout,
 } from "./types";
@@ -21,6 +28,8 @@ import type {
 const STORAGE_KEY = "baumb:v2";
 const LEGACY_KEY = "pulse:v1";
 const MAX_PROJECTIONS = 60;
+const MAX_AUDIT = 300;
+const MAX_ENERGY_RECORDS = 400;
 
 export const DEFAULT_ACCENT = "#edb40b";
 
@@ -37,7 +46,7 @@ export const DEFAULT_PROFILE: Profile = {
   equipment: "full_gym",
 };
 
-export const DEFAULT_SETTINGS: Settings = { accent: DEFAULT_ACCENT };
+export const DEFAULT_SETTINGS: Settings = { accent: DEFAULT_ACCENT, notifications: true };
 
 export const EMPTY_STATE: AppState = {
   schemaVersion: 2,
@@ -56,6 +65,13 @@ export const EMPTY_STATE: AppState = {
   vacations: [],
   dayOverrides: [],
   projections: [],
+  measurementFields: [],
+  photos: [],
+  events: [],
+  energyRecords: [],
+  weeklyReviews: [],
+  audit: [],
+  dismissedNotifications: [],
   settings: DEFAULT_SETTINGS,
 };
 
@@ -79,6 +95,13 @@ export function normalizeState(raw: Partial<AppState> | null | undefined): AppSt
     vacations: raw.vacations ?? [],
     dayOverrides: raw.dayOverrides ?? [],
     projections: raw.projections ?? [],
+    measurementFields: raw.measurementFields ?? [],
+    photos: raw.photos ?? [],
+    events: raw.events ?? [],
+    energyRecords: raw.energyRecords ?? [],
+    weeklyReviews: raw.weeklyReviews ?? [],
+    audit: raw.audit ?? [],
+    dismissedNotifications: raw.dismissedNotifications ?? [],
   };
 }
 
@@ -143,14 +166,17 @@ function subscribe(listener: () => void) {
   };
 }
 
-function setState(update: (prev: AppState) => AppState) {
+/** Applies an update and persists it. Returns false when storage is full or unavailable. */
+function setState(update: (prev: AppState) => AppState): boolean {
   state = update(getSnapshot());
+  let persisted = true;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
-    // Storage full or unavailable: keep the in-memory state so the session still works.
+    persisted = false;
   }
   listeners.forEach((l) => l());
+  return persisted;
 }
 
 export function useAppState(): AppState {
@@ -181,6 +207,24 @@ function upsertByDate<T extends { date: string }>(list: T[], entry: T): T[] {
   return [...list.filter((x) => x.date !== entry.date), entry].sort(byDate);
 }
 
+function auditEntry(kind: AuditKind, summary: string, inputs: CalculationAudit["inputs"], outputs: CalculationAudit["outputs"]): CalculationAudit {
+  return { id: newId(), at: Date.now(), kind, summary, inputs, outputs };
+}
+
+function appendAudit(list: CalculationAudit[], ...entries: CalculationAudit[]): CalculationAudit[] {
+  return [...list, ...entries].slice(-MAX_AUDIT);
+}
+
+function planAudit(plan: PlanVersion, kind: AuditKind = "plan_created"): CalculationAudit {
+  const t = plan.targets;
+  return auditEntry(
+    kind,
+    `Plan V${plan.version}: ${plan.reason}`,
+    { goal: plan.goal.type, bodyWeightKg: plan.bodyWeightKg, daysPerWeek: plan.goal.daysPerWeek, sessionMinutes: plan.goal.sessionMinutes, targetWeightKg: plan.goal.targetWeightKg },
+    { bmr: t.bmr, tdee: t.tdee, calories: t.nutrition.calories, proteinG: t.nutrition.proteinG, steps: t.steps, weeklyRateKg: t.weeklyRateKg, energyAdjustment: t.energyAdjustment },
+  );
+}
+
 export const actions = {
   completeOnboarding(profile: Profile, goal: Goal, weight: WeightEntry, plan: PlanVersion) {
     setState((s) => ({
@@ -191,6 +235,7 @@ export const actions = {
       weights: upsertByDate(s.weights, weight),
       plans: [...s.plans, plan],
       activePlanId: plan.id,
+      audit: appendAudit(s.audit, planAudit(plan)),
     }));
   },
   updateProfile(patch: Partial<Profile>) {
@@ -198,10 +243,10 @@ export const actions = {
   },
   /** Goal changes always create a new plan version; history is preserved. */
   setGoalAndPlan(goal: Goal, plan: PlanVersion) {
-    setState((s) => ({ ...s, goal, plans: [...s.plans, plan], activePlanId: plan.id }));
+    setState((s) => ({ ...s, goal, plans: [...s.plans, plan], activePlanId: plan.id, audit: appendAudit(s.audit, planAudit(plan)) }));
   },
   addPlanVersion(plan: PlanVersion) {
-    setState((s) => ({ ...s, plans: [...s.plans, plan], activePlanId: plan.id }));
+    setState((s) => ({ ...s, plans: [...s.plans, plan], activePlanId: plan.id, audit: appendAudit(s.audit, planAudit(plan, "plan_adjusted")) }));
   },
 
   addWorkout(workout: Workout) {
@@ -259,7 +304,105 @@ export const actions = {
   },
 
   recordProjection(snapshot: ProjectionSnapshot) {
-    setState((s) => ({ ...s, projections: [...s.projections.filter((p) => p.date !== snapshot.date), snapshot].slice(-MAX_PROJECTIONS) }));
+    setState((s) => {
+      const prev = s.projections.filter((p) => p.date < snapshot.date).at(-1);
+      const same = (p?: ProjectionSnapshot) => !!p && p.windowLabel === snapshot.windowLabel && p.confidence === snapshot.confidence;
+      const changed = !same(prev) && !same(s.projections.find((p) => p.date === snapshot.date));
+      const i = snapshot.inputs;
+      return {
+        ...s,
+        projections: [...s.projections.filter((p) => p.date !== snapshot.date), snapshot].slice(-MAX_PROJECTIONS),
+        audit: changed
+          ? appendAudit(
+              s.audit,
+              auditEntry(
+                "projection_updated",
+                `Estimate ${prev?.windowLabel ? `${prev.windowLabel} → ` : ""}${snapshot.windowLabel ?? "unavailable"}`,
+                { trendWeightKg: i.trendWeightKg, observedRateKg: i.observedRateKg, workoutAdherence: i.workoutAdherence, nutritionAdherence: i.nutritionAdherence, avgSteps: i.avgSteps, avgCalories: i.avgCalories, weightEntries: i.weightEntries },
+                { window: snapshot.windowLabel, lowWeeks: snapshot.lowWeeks, highWeeks: snapshot.highWeeks, method: snapshot.method, confidence: snapshot.confidence },
+              ),
+            )
+          : s.audit,
+      };
+    });
+  },
+
+  addMeasurementField(field: CustomMeasurementField) {
+    setState((s) => ({ ...s, measurementFields: [...s.measurementFields, field] }));
+  },
+  /** Hides the field; values already recorded stay in each measurement entry. */
+  removeMeasurementField(id: string) {
+    setState((s) => ({ ...s, measurementFields: s.measurementFields.filter((f) => f.id !== id) }));
+  },
+
+  /** Returns false (and keeps nothing) when the photo doesn't fit in browser storage. */
+  addPhoto(photo: ProgressPhoto): boolean {
+    const before = getSnapshot();
+    const ok = setState((s) => ({ ...s, photos: [...s.photos, photo].sort(byDate) }));
+    if (!ok) setState(() => before);
+    return ok;
+  },
+  deletePhoto(id: string) {
+    setState((s) => ({ ...s, photos: s.photos.filter((p) => p.id !== id) }));
+  },
+
+  addEvent(event: CalendarEvent) {
+    setState((s) => ({ ...s, events: [...s.events, event].sort((a, b) => a.date.localeCompare(b.date) || (a.minutes ?? -1) - (b.minutes ?? -1)) }));
+  },
+  deleteEvent(id: string) {
+    setState((s) => ({ ...s, events: s.events.filter((e) => e.id !== id) }));
+  },
+
+  /** Saves energy calculations for past days; each changed day is also written to the audit log. */
+  saveEnergyRecords(records: EnergyRecord[]) {
+    const s0 = getSnapshot();
+    const changed = records.filter((r) => {
+      const prev = s0.energyRecords.find((x) => x.date === r.date);
+      return !prev || prev.totalKcal !== r.totalKcal || prev.intakeKcal !== r.intakeKcal;
+    });
+    if (!changed.length) return;
+    setState((s) => {
+      const dates = new Set(changed.map((r) => r.date));
+      return {
+        ...s,
+        energyRecords: [...s.energyRecords.filter((r) => !dates.has(r.date)), ...changed].sort(byDate).slice(-MAX_ENERGY_RECORDS),
+        audit: appendAudit(
+          s.audit,
+          ...changed.map((r) =>
+            auditEntry(
+              "energy_recorded",
+              `Energy for ${r.date}: ${r.totalKcal.toLocaleString()} kcal`,
+              Object.fromEntries(r.components.map((c) => [c.key, `${c.kcal} (${c.method})`])),
+              { totalKcal: r.totalKcal, intakeKcal: r.intakeKcal, balanceKcal: r.balanceKcal },
+            ),
+          ),
+        ),
+      };
+    });
+  },
+  /** Saved reviews are snapshots: a week that already has one is left untouched. */
+  saveWeeklyReview(record: WeeklyReviewRecord) {
+    if (getSnapshot().weeklyReviews.some((r) => r.weekStart === record.weekStart)) return;
+    setState((s) => ({
+      ...s,
+      weeklyReviews: [...s.weeklyReviews.filter((r) => r.weekStart !== record.weekStart), record].sort((a, b) => a.weekStart.localeCompare(b.weekStart)),
+      audit: appendAudit(
+        s.audit,
+        auditEntry(
+          "weekly_review",
+          `Weekly review ${record.weekStart} – ${record.weekEnd}`,
+          { planVersion: record.planVersion, vacationDays: record.vacationDays },
+          Object.fromEntries(record.rows.map((r) => [r.label, `${r.actual} (${r.status})`])),
+        ),
+      ),
+    }));
+  },
+  logAudit(kind: AuditKind, summary: string, inputs: CalculationAudit["inputs"] = {}, outputs: CalculationAudit["outputs"] = {}) {
+    setState((s) => ({ ...s, audit: appendAudit(s.audit, auditEntry(kind, summary, inputs, outputs)) }));
+  },
+
+  dismissNotification(id: string) {
+    setState((s) => ({ ...s, dismissedNotifications: [...s.dismissedNotifications.filter((d) => d !== id), id].slice(-200) }));
   },
 
   updateSettings(patch: Partial<Settings>) {
