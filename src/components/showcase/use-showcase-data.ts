@@ -1,12 +1,16 @@
 "use client";
 
+import { dayInfo } from "@/calculations/calendar";
+import { calculateDaySummary, targetsOn } from "@/calculations/day";
+import { calculateDailyNutrition } from "@/calculations/nutrition";
+import { calculateTransformationProjection } from "@/calculations/projection";
+import { calculateTrendSeries } from "@/calculations/trend";
 import { addDays, lastNDays, startOfWeek, todayKey, weekdayShort } from "@/lib/date";
 import { getExercise } from "@/lib/exercises";
 import { buildSampleState } from "@/lib/sample";
-import { personalRecords, sortByDateDesc, summarizeRange, thisWeek, workoutVolumeKg } from "@/lib/stats";
 import { useAppState } from "@/lib/store";
 import type { AppState } from "@/lib/types";
-import { toDisplayWeight } from "@/lib/units";
+import { toDisplayWeight, weightUnit } from "@/lib/units";
 
 let demo: AppState | null = null;
 
@@ -15,78 +19,69 @@ function demoState(): AppState {
   return demo;
 }
 
-function splitTitle(name: string): [string, string] {
-  const words = name.trim().split(/\s+/);
-  if (words.length === 1) return [words[0], "Session"];
-  return [words[0], words.slice(1).join(" ")];
-}
-
-/** Showcase content from the user's data, falling back to a demo month until they log a workout. */
+/** Showcase content from the user's plan, falling back to a demo athlete until onboarding is done. */
 export function useShowcaseData() {
   const live = useAppState();
-  const isDemo = live.workouts.length === 0;
-  const { workouts, profile } = isDemo ? demoState() : live;
-  const unit = profile.unit;
+  const isDemo = !live.onboarded;
+  const state = isDemo ? demoState() : live;
+  const system = state.profile.unitSystem;
+  const unit = weightUnit(system);
+  const today = todayKey(state.profile.timezone);
+  const display = (kg: number | null) => (kg == null ? null : Math.round(toDisplayWeight(kg, unit) * 10) / 10);
 
-  const latest = sortByDateDesc(workouts)[0];
-  const [titleTop, titleBottom] = splitTitle(latest?.name ?? "Leg Day");
+  const projection = calculateTransformationProjection(state, today);
+  const summary = calculateDaySummary(state, today, today);
+  const targets = targetsOn(state, today);
+  const planned = summary.info.planned;
 
-  const nameParts = profile.name.trim().split(/\s+/).filter(Boolean);
-  const heroTop = nameParts[0] ?? "BAUMB";
-  const heroBottom = nameParts.slice(1).join(" ") || "Athlete";
-
-  const weekStart = startOfWeek(todayKey());
-  const activeDays = new Set(workouts.map((w) => w.date));
+  const weekStart = startOfWeek(today);
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(weekStart, i);
-    return { date, label: weekdayShort(date).slice(0, 1), done: activeDays.has(date), today: date === todayKey() };
+    const info = dayInfo(state, date, today);
+    return { date, label: weekdayShort(date).slice(0, 1), done: info.status === "workout", today: date === today };
   });
+  const weekPlanned = summary.info.plan?.workout.days.length ?? 0;
 
-  const days = lastNDays(14);
-  const volumeByDay = new Map<string, number>();
-  for (const w of workouts) volumeByDay.set(w.date, (volumeByDay.get(w.date) ?? 0) + workoutVolumeKg(w) + w.durationMin * 20);
-  const loadSeries = days.map((d) => volumeByDay.get(d) ?? 0);
+  const trend = calculateTrendSeries(state.weights, today).filter((p) => p.date >= addDays(today, -29));
 
-  const week = thisWeek(workouts);
-  const lastWeekStart = addDays(weekStart, -7);
-  const prevWeek = summarizeRange(workouts, lastWeekStart, addDays(lastWeekStart, 6));
-
-  const prs = personalRecords(workouts)
-    .slice(0, 2)
-    .map((pr) => {
-      const history = sortByDateDesc(workouts)
-        .filter((w) => w.exercises.some((e) => e.exerciseId === pr.exerciseId))
-        .slice(0, 8)
-        .reverse()
-        .map((w) =>
-          Math.max(
-            ...w.exercises
-              .filter((e) => e.exerciseId === pr.exerciseId)
-              .flatMap((e) => e.sets.map((s) => s.weightKg * (1 + s.reps / 30))),
-          ),
-        );
-      return {
-        name: getExercise(pr.exerciseId)?.name ?? "Lift",
-        value: Math.round(toDisplayWeight(pr.estimatedOneRepMaxKg, unit)),
-        history,
-      };
-    });
+  const last7 = lastNDays(7, today).map((d) => calculateDailyNutrition(state.meals, d).totals);
 
   return {
     isDemo,
     unit,
-    lastSession: { label: latest ? "Last Session" : "Next Session", top: titleTop, bottom: titleBottom },
-    hero: { top: heroTop, bottom: heroBottom },
-    weekDays,
-    loadSeries,
-    stats: {
-      totalWorkouts: workouts.length,
-      weekMinutes: week.minutes,
-      weekVolume: Math.round(toDisplayWeight(week.volumeKg, unit)),
-      volumeTrend: prevWeek.volumeKg > 0 ? Math.round(((week.volumeKg - prevWeek.volumeKg) / prevWeek.volumeKg) * 100) : null,
+    transformation: {
+      status: projection.status,
+      currentKg: display(projection.currentKg),
+      targetKg: display(projection.targetKg),
+      window: projection.windowLabel,
+      progressPct: projection.progressPct,
+      message: projection.message,
     },
-    goal: { done: week.count, target: profile.weeklyWorkoutGoal },
-    prs,
+    weekDays,
+    weightSeries: trend.map((p) => p.trendKg),
+    today: {
+      calories: summary.intake?.calories ?? null,
+      calorieTarget: targets?.nutrition.calories ?? null,
+      proteinG: summary.intake?.proteinG ?? null,
+      proteinTarget: targets?.nutrition.proteinG ?? null,
+      steps: summary.steps.value,
+      stepTarget: targets?.steps ?? null,
+      workoutDone: summary.workouts.length > 0,
+    },
+    plan: {
+      title: planned ? planned.name : summary.info.vacation ? "Vacation" : "Rest Day",
+      focus: planned?.focus ?? (summary.info.vacation ? "Plan paused — enjoy it" : "Recover and hit your steps"),
+      exercises: (planned?.exercises ?? []).slice(0, 4).map((e) => ({
+        name: getExercise(e.exerciseId)?.name ?? "Exercise",
+        scheme: `${e.sets} × ${e.repsMin === e.repsMax ? e.repsMin : `${e.repsMin}–${e.repsMax}`}`,
+      })),
+      weekDone: weekDays.filter((d) => d.done).length,
+      weekPlanned,
+    },
+    targetCards: [
+      { name: "Calorie target", unit: "kcal", value: targets?.nutrition.calories ?? 0, history: last7.map((n) => n?.calories ?? 0) },
+      { name: "Protein target", unit: "g", value: targets?.nutrition.proteinG ?? 0, history: last7.map((n) => n?.proteinG ?? 0) },
+    ],
   };
 }
 

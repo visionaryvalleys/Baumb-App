@@ -1,24 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CalendarCheck, Flame, Sparkles, Timer, Trophy, Weight } from "lucide-react";
-import { lastNDays, weekdayShort } from "@/lib/date";
-import { getExercise } from "@/lib/exercises";
-import { buildSampleState } from "@/lib/sample";
 import {
-  currentStreak,
-  lastWeek,
-  latestWeight,
-  minutesByDay,
-  personalRecords,
-  sortByDateDesc,
-  thisWeek,
-} from "@/lib/stats";
-import { actions, useAppState, useHydrated } from "@/lib/store";
-import { formatVolume, formatWeight } from "@/lib/units";
-import { BarChart, ProgressRing } from "./charts";
-import { Card, CardTitle, EmptyState, PageHeader, Skeleton, StatCard } from "./ui";
-import { WorkoutCard } from "./workout-card";
+  ArrowRight,
+  Beef,
+  CalendarDays,
+  Check,
+  Dumbbell,
+  Flame,
+  Footprints,
+  Moon,
+  Palmtree,
+  Scale,
+  Sparkles,
+  Target,
+  TrendingDown,
+  Utensils,
+} from "lucide-react";
+import { useMemo } from "react";
+import { evaluateAdaptivePlan } from "@/calculations/review";
+import { formatDate } from "@/lib/date";
+import { useDaySummary, useToday, useUnit } from "@/lib/hooks";
+import { useAppState } from "@/lib/store";
+import { formatWeight, toDisplayWeight } from "@/lib/units";
+import { useProjection } from "@/lib/use-projection";
+import { ProgressRing } from "./charts";
+import { EnergyBreakdown } from "./energy-breakdown";
+import { BigNumber, Card, CardTitle, KindTag, Meter, PageHeader, SectionLabel, cn } from "./ui";
 
 function greeting() {
   const h = new Date().getHours();
@@ -27,206 +35,291 @@ function greeting() {
   return "Good evening";
 }
 
-function Trend({ now, prev, suffix = "" }: { now: number; prev: number; suffix?: string }) {
-  if (prev === 0) return <span>No data last week</span>;
-  const diff = Math.round(((now - prev) / prev) * 100);
+function TodayStat({
+  icon: Icon,
+  label,
+  value,
+  unit,
+  target,
+  current,
+  kind,
+  hint,
+  gold,
+}: {
+  icon: typeof Flame;
+  label: string;
+  value: string;
+  unit?: string;
+  target?: number;
+  current?: number;
+  kind: "recorded" | "estimated" | "calculated" | "missing";
+  hint: string;
+  gold?: boolean;
+}) {
   return (
-    <span className={diff >= 0 ? "text-brand" : "text-orange-300"}>
-      {diff >= 0 ? "▲" : "▼"} {Math.abs(diff)}%{suffix} vs last week
-    </span>
+    <Card className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2 text-[13px] text-white/60">
+          <Icon className="size-4" aria-hidden /> {label}
+        </span>
+        <KindTag kind={kind} />
+      </div>
+      <BigNumber unit={unit} gold={gold}>
+        {value}
+      </BigNumber>
+      {target != null && current != null && <Meter value={current} max={target} />}
+      <div className="text-xs text-white/50">{hint}</div>
+    </Card>
   );
 }
 
 export function Dashboard() {
-  const hydrated = useHydrated();
-  const { profile, workouts, weights } = useAppState();
+  const state = useAppState();
+  const today = useToday();
+  const unit = useUnit();
+  const summary = useDaySummary(today);
+  const { result: projection, change } = useProjection();
+  const adaptive = useMemo(() => evaluateAdaptivePlan(state, today), [state, today]);
 
-  if (!hydrated) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-16 w-72" />
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
-        </div>
-        <Skeleton className="h-72" />
-      </div>
-    );
-  }
+  const plan = summary.info.plan;
+  const targets = plan?.targets;
+  const planned = summary.info.planned;
+  const name = state.profile.firstName || "Athlete";
+  const intake = summary.intake;
+  const steps = summary.steps.value;
 
-  const name = profile.name.trim().split(/\s+/)[0] || "Athlete";
-  const title = (
-    <>
-      {greeting()},
-      <br />
-      <span className="font-semibold">{name}</span>
-    </>
-  );
-
-  if (workouts.length === 0) {
-    return (
-      <>
-        <PageHeader title={title} subtitle="Welcome to BAUMB" icon={Sparkles} />
-        <EmptyState
-          icon={Sparkles}
-          title="Your training log starts here"
-          description="Log your first workout to unlock weekly insights, streaks, and personal records. Or explore the app with a month of sample training."
-        >
-          <Link href="/workouts/new" className="btn-primary">
-            Log first workout <ArrowRight className="size-4" aria-hidden />
-          </Link>
-          <button type="button" className="btn-ghost" onClick={() => actions.replaceAll(buildSampleState())}>
-            Explore with sample data
-          </button>
-        </EmptyState>
-      </>
-    );
-  }
-
-  const bodyKg = latestWeight(weights)?.weightKg;
-  const week = thisWeek(workouts, bodyKg);
-  const prevWeek = lastWeek(workouts, bodyKg);
-  const streak = currentStreak(workouts);
-  const days = lastNDays(7);
-  const minutes = minutesByDay(workouts, days);
-  const recent = sortByDateDesc(workouts).slice(0, 4);
-  const prs = personalRecords(workouts).slice(0, 5);
-  const goalPct = Math.round((week.count / Math.max(profile.weeklyWorkoutGoal, 1)) * 100);
+  const workoutLine =
+    summary.workouts.length > 0
+      ? { label: `${summary.workouts[0].name} done`, icon: Check, tone: "text-brand" }
+      : summary.info.status === "vacation"
+        ? { label: summary.info.vacation?.pauseWorkouts ? "Vacation · training paused" : "Vacation · optional session", icon: Palmtree, tone: "text-white" }
+        : summary.info.status === "injury"
+          ? { label: "Injury day · rest", icon: Moon, tone: "text-white" }
+          : planned
+            ? { label: `${planned.name} · ~${planned.estimatedMinutes} min`, icon: Dumbbell, tone: "text-white" }
+            : { label: "Rest day", icon: Moon, tone: "text-white/70" };
 
   return (
     <>
       <PageHeader
-        title={title}
         icon={Flame}
-        subtitle={
-          goalPct >= 100
-            ? "Weekly goal smashed. Recovery counts as training too."
-            : `${Math.max(profile.weeklyWorkoutGoal - week.count, 0)} more workout${profile.weeklyWorkoutGoal - week.count === 1 ? "" : "s"} to hit this week's goal.`
+        subtitle={formatDate(today, { weekday: "long", month: "long", day: "numeric" })}
+        title={
+          <>
+            {greeting()},
+            <br />
+            <span className="font-semibold">{name}</span>
+          </>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          icon={CalendarCheck}
-          label="Workouts this week"
-          value={
-            <>
-              {week.count}
-              <span className="text-[28px] font-normal tracking-[-0.04em] text-white/40">/{profile.weeklyWorkoutGoal}</span>
-            </>
-          }
-          hint={<Trend now={week.count} prev={prevWeek.count} />}
-        />
-        <StatCard
-          icon={Timer}
-          label="Active minutes"
-          value={week.minutes}
-          hint={<Trend now={week.minutes} prev={prevWeek.minutes} />}
-        />
-        <StatCard
-          icon={Weight}
-          label="Volume lifted"
-          gold
-          value={
-            <>
-              {formatVolume(week.volumeKg, profile.unit).split(" ")[0]}
-              <span className="text-[28px] font-normal tracking-[-0.04em] text-[#EDB40B]/60"> {profile.unit}</span>
-            </>
-          }
-          hint={<Trend now={week.volumeKg} prev={prevWeek.volumeKg} />}
-        />
-        <StatCard
-          icon={Flame}
-          label="Day streak"
-          value={streak}
-          hint={`~${week.calories.toLocaleString()} kcal burned this week`}
-        />
-      </div>
+      {summary.info.vacation && (
+        <Link href="/vacation" className="mb-4 flex items-center justify-between gap-3 bg-white/10 px-5 py-4 text-sm text-white transition hover:bg-white/15">
+          <span className="flex items-center gap-3">
+            <Palmtree className="size-5 text-brand" aria-hidden />
+            Vacation mode until {formatDate(summary.info.vacation.end, { month: "short", day: "numeric" })}. Your data is still tracked; missed sessions don&apos;t count against you.
+          </span>
+          <ArrowRight className="size-4 shrink-0" aria-hidden />
+        </Link>
+      )}
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardTitle action={<span className="text-xs text-white/50">Last 7 days</span>}>Activity</CardTitle>
-          <BarChart data={days.map((d, i) => ({ label: weekdayShort(d), value: minutes[i] }))} unit=" min" />
-        </Card>
-        <Card className="flex flex-col items-center">
-          <div className="w-full">
-            <CardTitle>Weekly goal</CardTitle>
-          </div>
-          <ProgressRing value={week.count} max={profile.weeklyWorkoutGoal}>
-            <div>
-              <div className="text-[40px] font-semibold leading-none tracking-[-0.06em] tabular-nums text-white">{Math.min(goalPct, 999)}%</div>
-              <div className="text-xs text-white/50">complete</div>
-            </div>
-          </ProgressRing>
-          <div className="mt-5 w-full space-y-2">
-            <div className="flex justify-between text-xs text-white/60">
-              <span>Minutes</span>
-              <span className="tabular-nums text-white">
-                {week.minutes} / {profile.weeklyMinutesGoal}
-              </span>
-            </div>
-            <div className="h-1.5 overflow-hidden bg-white/10">
-              <div
-                className="h-full bg-white transition-all duration-700"
-                style={{ width: `${Math.min((week.minutes / Math.max(profile.weeklyMinutesGoal, 1)) * 100, 100)}%` }}
-              />
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="relative overflow-hidden lg:col-span-2">
           <CardTitle
             action={
-              <Link href="/workouts" className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
-                View all <ArrowRight className="size-3.5" aria-hidden />
+              <Link href="/transformation" className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
+                Details <ArrowRight className="size-3.5" aria-hidden />
               </Link>
             }
           >
-            Recent workouts
+            Your transformation
           </CardTitle>
-          <div className="space-y-3">
-            {recent.map((w) => (
-              <WorkoutCard key={w.id} workout={w} unit={profile.unit} bodyKg={bodyKg} compact />
-            ))}
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+            <ProgressRing value={(projection.progressPct ?? 0) * 100} max={100} size={148}>
+              <div>
+                <div className="text-[34px] font-semibold leading-none tracking-[-0.06em] tabular-nums text-white">
+                  {projection.progressPct != null ? `${Math.round(projection.progressPct * 100)}%` : "—"}
+                </div>
+                <div className="text-[11px] text-white/50">to target</div>
+              </div>
+            </ProgressRing>
+            <div className="min-w-0 flex-1 space-y-4">
+              <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+                <div>
+                  <SectionLabel>Current trend</SectionLabel>
+                  <BigNumber unit={unit}>{projection.currentKg != null ? toDisplayWeight(projection.currentKg, unit) : "—"}</BigNumber>
+                </div>
+                <ArrowRight className="mb-2 size-6 text-white/30" aria-hidden />
+                <div>
+                  <SectionLabel>Target</SectionLabel>
+                  <BigNumber unit={unit} gold>
+                    {projection.targetKg != null ? toDisplayWeight(projection.targetKg, unit) : "—"}
+                  </BigNumber>
+                </div>
+              </div>
+              {projection.status === "projected" ? (
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[22px] font-semibold tracking-[-0.04em] text-white">Estimated {projection.windowLabel}</span>
+                    <KindTag kind="projected" />
+                    <KindTag kind="estimated" label={`${projection.confidence} confidence`} />
+                  </div>
+                  <p className="mt-1 text-sm text-white/55">
+                    {projection.dateRangeLabel} · {projection.message}
+                  </p>
+                  {change && change.direction !== "same" && change.direction !== "unknown" && (
+                    <p className={cn("mt-2 text-xs", change.direction === "sooner" ? "text-brand" : "text-red-300")}>
+                      {change.direction === "sooner" ? "Moved earlier" : "Moved later"} since {change.previousLabel ?? "last estimate"}
+                      {change.reasons[0] ? ` — ${change.reasons[0].text.toLowerCase()}` : ""}.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-white/60">{projection.message}</p>
+              )}
+            </div>
           </div>
         </Card>
+
         <Card>
           <CardTitle
             action={
-              <Link href="/progress" className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
-                Progress <ArrowRight className="size-3.5" aria-hidden />
+              <Link href="/plan" className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
+                Plan <ArrowRight className="size-3.5" aria-hidden />
               </Link>
             }
           >
-            Personal records
+            Today&apos;s plan
           </CardTitle>
-          {prs.length === 0 ? (
-            <p className="text-sm text-white/50">Log a weighted exercise to start tracking PRs.</p>
-          ) : (
-            <ul className="space-y-3">
-              {prs.map((pr, i) => (
-                <li key={pr.exerciseId} className="flex items-center gap-3">
-                  <span className={`grid size-8 shrink-0 place-items-center text-xs font-bold ${i === 0 ? "bg-[#EDB40B] text-black" : "bg-white/10 text-white/60"}`}>
-                    {i === 0 ? <Trophy className="size-4" aria-hidden /> : i + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-white">{getExercise(pr.exerciseId)?.name}</div>
-                    <div className="text-xs text-white/50">
-                      {formatWeight(pr.bestWeightKg, profile.unit)} × {pr.bestReps}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold tabular-nums text-white">
-                      {formatWeight(pr.estimatedOneRepMaxKg, profile.unit)}
-                    </div>
-                    <div className="text-[10px] uppercase tracking-wider text-white/50">est. 1RM</div>
-                  </div>
+          <ul className="divide-y divide-line text-sm">
+            <li className="flex items-center justify-between gap-3 py-2.5">
+              <span className="flex items-center gap-2 text-white/60">
+                <Dumbbell className="size-4" aria-hidden /> Workout
+              </span>
+              <span className={cn("flex items-center gap-1.5 text-right font-medium", workoutLine.tone)}>
+                <workoutLine.icon className="size-4" aria-hidden />
+                {workoutLine.label}
+              </span>
+            </li>
+            <li className="flex items-center justify-between gap-3 py-2.5">
+              <span className="flex items-center gap-2 text-white/60">
+                <Utensils className="size-4" aria-hidden /> Calories
+              </span>
+              <span className="font-medium tabular-nums text-white">{targets ? `${targets.nutrition.calories.toLocaleString()} kcal` : "—"}</span>
+            </li>
+            <li className="flex items-center justify-between gap-3 py-2.5">
+              <span className="flex items-center gap-2 text-white/60">
+                <Beef className="size-4" aria-hidden /> Protein
+              </span>
+              <span className="font-medium tabular-nums text-white">{targets ? `${targets.nutrition.proteinG} g` : "—"}</span>
+            </li>
+            <li className="flex items-center justify-between gap-3 py-2.5">
+              <span className="flex items-center gap-2 text-white/60">
+                <Footprints className="size-4" aria-hidden /> Steps
+              </span>
+              <span className="font-medium tabular-nums text-white">{targets ? targets.steps.toLocaleString() : "—"}</span>
+            </li>
+            <li className="flex items-center justify-between gap-3 py-2.5">
+              <span className="flex items-center gap-2 text-white/60">
+                <Moon className="size-4" aria-hidden /> Sleep
+              </span>
+              <span className="font-medium tabular-nums text-white">{targets ? `${targets.sleepHours[0]}–${targets.sleepHours[1]} h` : "—"}</span>
+            </li>
+          </ul>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Link href="/workout" className="btn-primary px-3">
+              <Dumbbell className="size-4" aria-hidden /> Workout
+            </Link>
+            <Link href="/nutrition" className="btn-ghost px-3">
+              <Utensils className="size-4" aria-hidden /> Log meal
+            </Link>
+          </div>
+        </Card>
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <TodayStat
+          icon={Utensils}
+          label="Calories"
+          value={intake ? intake.calories.toLocaleString() : "—"}
+          unit={intake ? "kcal" : undefined}
+          current={intake?.calories}
+          target={targets?.nutrition.calories}
+          kind={intake ? "recorded" : "missing"}
+          hint={intake && targets ? `${Math.max(0, targets.nutrition.calories - intake.calories).toLocaleString()} kcal left of ${targets.nutrition.calories.toLocaleString()}` : "No food logged yet today"}
+        />
+        <TodayStat
+          icon={TrendingDown}
+          label="Energy balance"
+          value={summary.balance == null ? "—" : `${summary.balance > 0 ? "+" : ""}${summary.balance.toLocaleString()}`}
+          unit={summary.balance == null ? undefined : "kcal"}
+          kind={summary.balance == null ? "missing" : "calculated"}
+          hint={summary.energy ? `vs ~${summary.energy.total.toLocaleString()} kcal estimated expenditure` : "Needs a weigh-in and profile"}
+        />
+        <TodayStat
+          icon={Beef}
+          label="Protein"
+          value={intake ? String(Math.round(intake.proteinG)) : "—"}
+          unit={intake ? "g" : undefined}
+          current={intake?.proteinG}
+          target={targets?.nutrition.proteinG}
+          kind={intake ? "recorded" : "missing"}
+          hint={targets ? `Target ${targets.nutrition.proteinG} g` : ""}
+          gold
+        />
+        <TodayStat
+          icon={Footprints}
+          label="Steps"
+          value={steps != null ? steps.toLocaleString() : "—"}
+          current={steps ?? undefined}
+          target={targets?.steps}
+          kind={steps != null ? "recorded" : "missing"}
+          hint={steps != null ? `${summary.activity?.source === "manual" ? "Entered manually" : `From ${summary.activity?.source.replace("_", " ")}`}` : "No step data today"}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardTitle action={<span className="text-xs text-white/50">Tap expenditure for the breakdown</span>}>Today&apos;s energy</CardTitle>
+          <EnergyBreakdown summary={summary} />
+        </Card>
+        <Card className="flex flex-col">
+          <CardTitle
+            action={
+              <Link href="/review" className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
+                Review <ArrowRight className="size-3.5" aria-hidden />
+              </Link>
+            }
+          >
+            Plan check-in
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-brand" aria-hidden />
+            <span className="text-lg font-semibold tracking-tight text-white">{adaptive.headline}</span>
+          </div>
+          <p className="mt-2 text-sm text-white/60">{adaptive.detail}</p>
+          {adaptive.suggestions.length > 0 && (
+            <ul className="mt-3 space-y-1.5 text-sm text-white/80">
+              {adaptive.suggestions.slice(0, 2).map((s) => (
+                <li key={s.id} className="flex gap-2">
+                  <Target className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden /> {s.title}
                 </li>
               ))}
             </ul>
+          )}
+          <div className="mt-auto grid grid-cols-2 gap-2 pt-5">
+            <Link href="/progress" className="btn-ghost px-3">
+              <Scale className="size-4" aria-hidden /> Weigh in
+            </Link>
+            <Link href="/calendar" className="btn-ghost px-3">
+              <CalendarDays className="size-4" aria-hidden /> Calendar
+            </Link>
+          </div>
+          {summary.weight.value != null && (
+            <p className="mt-3 text-xs text-white/45">
+              Last weigh-in {formatWeight(summary.weight.value, unit)}
+              {summary.weight.state === "recorded" ? " today" : ""}
+            </p>
           )}
         </Card>
       </div>

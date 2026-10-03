@@ -10,7 +10,7 @@ export default function ProfilePage() {
     <>
       <PageHeader
         icon={UserRound}
-        subtitle="Goals & Data"
+        subtitle="Profile · Goal · Training setup"
         title={
           <>
             Your

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { CalendarCheck, Dumbbell, Flame, Medal, Target, Trophy } from "lucide-react";
+import { Activity, CalendarCheck, Dumbbell, Flame, Medal, Target, Trophy } from "lucide-react";
 import athleteImage from "@/assets/baumb/baumb-athlete.jpg";
 import barbellImage from "@/assets/baumb/baumb-barbell.jpg";
 import { cn } from "../ui";
@@ -10,12 +10,7 @@ import { PhoneNav, ScreenBackground } from "./phone-nav";
 import { useCountUp } from "./use-count-up";
 import type { ShowcaseData } from "./use-showcase-data";
 
-const GOLD = "#EDB40B";
-
-const PLACEHOLDER_PRS = [
-  { name: "Log a lift", value: 0, history: [] as number[] },
-  { name: "Log a lift", value: 0, history: [] as number[] },
-];
+const GOLD = "var(--color-brand)";
 
 function ScreenLink({ href, label }: { href: string; label: string }) {
   return <Link href={href} className="absolute inset-0 z-20" aria-label={label} />;
@@ -38,18 +33,23 @@ function smoothPath(points: [number, number][]): string {
   return d;
 }
 
-/** Training-load "circuit": the last 14 days drawn as a glowing track line. */
-function LoadTrack({ series }: { series: number[] }) {
+/** Weight trend "circuit": the last 30 days of trend weight drawn as a glowing track line. */
+function TrendTrack({ series }: { series: number[] }) {
   const w = 360;
-  const h = 300;
-  const max = Math.max(...series, 1);
-  const pts: [number, number][] = series.map((v, i) => [20 + (i / (series.length - 1)) * (w - 40), h - 40 - (v / max) * (h - 90)]);
+  const h = 260;
+  if (series.length < 2) {
+    return <p className="text-center text-[15px] text-white/50">Log a few weigh-ins to draw your trend line.</p>;
+  }
+  const max = Math.max(...series);
+  const min = Math.min(...series);
+  const span = max - min || 1;
+  const pts: [number, number][] = series.map((v, i) => [20 + (i / (series.length - 1)) * (w - 40), 20 + ((max - v) / span) * (h - 80)]);
   const d = smoothPath(pts);
   const end = pts[pts.length - 1];
   const start = pts[0];
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-full w-full" role="img" aria-label="Training load over the last 14 days">
+    <svg viewBox={`0 0 ${w} ${h}`} className="h-full w-full" role="img" aria-label="Trend weight over the last 30 days">
       <defs>
         <filter id="track-glow" x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur stdDeviation="6" />
@@ -69,7 +69,7 @@ function LoadTrack({ series }: { series: number[] }) {
       <circle cx={end[0]} cy={end[1]} r="14" fill={GOLD} opacity="0.25" className="animate-fade-in anim-delay-1600" />
       <circle cx={end[0]} cy={end[1]} r="7" fill={GOLD} className="animate-fade-in anim-delay-1600" />
       <text x="20" y={h - 12} fill="rgba(255,255,255,0.5)" fontSize="13">
-        14 days ago
+        30 days ago
       </text>
       <text x={w - 20} y={h - 12} fill="rgba(255,255,255,0.5)" fontSize="13" textAnchor="end">
         Today
@@ -79,6 +79,7 @@ function LoadTrack({ series }: { series: number[] }) {
 }
 
 function Sparkbars({ values }: { values: number[] }) {
+  if (!values.length) return null;
   const max = Math.max(...values, 1);
   const min = Math.min(...values);
   return (
@@ -86,8 +87,8 @@ function Sparkbars({ values }: { values: number[] }) {
       {values.map((v, i) => (
         <span
           key={i}
-          className={i === values.length - 1 ? "bg-[#EDB40B]" : "bg-white/40"}
-          style={{ width: 6, height: `${30 + ((v - min) / (max - min || 1)) * 70}%` }}
+          className={i === values.length - 1 ? "bg-brand" : "bg-white/40"}
+          style={{ width: 6, height: `${v === 0 ? 8 : 30 + ((v - min) / (max - min || 1)) * 70}%` }}
         />
       ))}
     </div>
@@ -95,26 +96,44 @@ function Sparkbars({ values }: { values: number[] }) {
 }
 
 function compact(n: number): string {
-  return n >= 100000 ? `${Math.round(n / 1000)}k` : String(n);
+  if (n >= 100000) return `${Math.round(n / 1000)}k`;
+  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
+function heroWindow(t: ShowcaseData["transformation"]): [string, string] {
+  if (t.status === "at_target") return ["Target", "Reached"];
+  if (t.status === "no_target") return ["Set a", "Target"];
+  if (!t.window) return ["Keep", "Logging"];
+  const [range, ...rest] = t.window.split(" ");
+  const word = rest.join(" ");
+  return [range, word.charAt(0).toUpperCase() + word.slice(1)];
 }
 
 export function HeroScreen({ data }: { data: ShowcaseData }) {
+  const t = data.transformation;
+  const [top, bottom] = heroWindow(t);
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden px-5 pb-0 pt-[76px]">
       <ScreenBackground />
       <PhoneNav />
-      <ScreenLink href="/dashboard" label="Open your dashboard" />
+      <ScreenLink href="/transformation" label="Open your transformation" />
 
       <div className="relative z-10 mb-2 mt-4 animate-fade-slide-up anim-delay-300">
         <div className="flex items-center gap-2">
-          <span className="text-[16px] text-white/60">{data.lastSession.label}</span>
+          <span className="text-[16px] text-white/60">Your Transformation</span>
           <Flame className="h-6 w-6" color={GOLD} aria-hidden />
         </div>
         <h2 className="text-[48px] font-normal leading-[0.95] tracking-[-0.05em] text-white">
-          {data.lastSession.top}
+          {t.currentKg ?? "—"} {data.unit}
           <br />
-          {data.lastSession.bottom}
+          <span className="text-brand">→ {t.targetKg ?? "—"}</span> {t.targetKg != null && data.unit}
         </h2>
+        {t.progressPct != null && (
+          <div className="mt-3 h-1.5 w-40 bg-white/15" aria-label={`${Math.round(t.progressPct * 100)}% of the way`}>
+            <div className="h-full bg-brand" style={{ width: `${Math.min(100, Math.max(0, t.progressPct * 100))}%` }} />
+          </div>
+        )}
       </div>
 
       <div className="absolute inset-0 z-[5] flex items-end justify-center mix-blend-lighten">
@@ -143,33 +162,34 @@ export function HeroScreen({ data }: { data: ShowcaseData }) {
               key={d.date}
               className={cn(
                 "grid h-12 w-10 place-items-center text-[13px] font-semibold",
-                d.done ? "bg-[#EDB40B] text-black" : "glass-button text-white/70",
-                d.today && !d.done && "ring-1 ring-inset ring-[#EDB40B]",
+                d.done ? "bg-brand text-black" : "glass-button text-white/70",
+                d.today && !d.done && "ring-1 ring-inset ring-brand",
               )}
             >
               {d.label}
             </span>
           ))}
         </div>
+        <p className="mb-1 text-[14px] text-white/60 animate-fade-slide-up anim-delay-700">Estimated window</p>
         <h1 className="text-[64px] font-semibold leading-[0.82] tracking-[-0.05em] text-white animate-speed-reveal anim-delay-800">
-          {data.hero.top}
+          {top}
           <br />
-          {data.hero.bottom}
+          {bottom}
         </h1>
       </div>
     </div>
   );
 }
 
-function StatNumber({ value, delay, label, gold = false }: { value: number; delay: number; label: string; gold?: boolean }) {
-  const n = useCountUp(value, delay);
+function StatNumber({ value, delay, label, gold = false }: { value: number | null; delay: number; label: string; gold?: boolean }) {
+  const n = useCountUp(value ?? 0, delay);
   return (
     <div className="flex items-end justify-between gap-3">
       <span
         className={cn("font-semibold tracking-[-0.06em]", gold ? "" : "text-fade-down")}
-        style={{ fontSize: 110, lineHeight: 0.72, color: gold ? GOLD : undefined }}
+        style={{ fontSize: 96, lineHeight: 0.72, color: gold ? GOLD : undefined }}
       >
-        {compact(n)}
+        {value == null ? "—" : compact(n)}
       </span>
       <span className="pb-1 text-right text-[13px] leading-tight text-white/60">{label}</span>
     </div>
@@ -177,37 +197,41 @@ function StatNumber({ value, delay, label, gold = false }: { value: number; dela
 }
 
 export function StatsScreen({ data }: { data: ShowcaseData }) {
+  const d = data.today;
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden px-5 pb-8 pt-[76px]">
       <ScreenBackground />
       <PhoneNav />
-      <ScreenLink href="/progress" label="Open your progress" />
+      <ScreenLink href="/dashboard" label="Open today's dashboard" />
 
       <div className="relative z-10 mb-4 animate-fade-slide-up anim-delay-400">
         <div className="flex items-center gap-2">
-          <span className="text-[16px] text-white/60">Training Load</span>
+          <span className="text-[16px] text-white/60">Today&apos;s Performance</span>
           <Target className="h-6 w-6" color={GOLD} aria-hidden />
         </div>
         <h2 className="text-[48px] font-normal leading-[0.95] tracking-[-0.05em] text-white">
-          Last Two
+          {d.workoutDone ? "Workout" : "Keep"}
           <br />
-          Weeks
+          {d.workoutDone ? "Complete" : "Pushing"}
         </h2>
       </div>
 
-      <div className="relative z-10 -mx-5 flex min-h-0 flex-1 items-center justify-center px-2 animate-scale-in anim-delay-600">
-        <LoadTrack series={data.loadSeries} />
+      <div className="relative z-10 -mx-5 flex min-h-0 flex-1 flex-col items-center justify-center px-2 animate-scale-in anim-delay-600">
+        <div className="mb-1 flex w-full items-center gap-2 px-5 text-[13px] text-white/50">
+          <Activity className="h-4 w-4" aria-hidden /> Weight trend
+        </div>
+        <TrendTrack series={data.weightSeries} />
       </div>
 
       <div className="relative z-10 mt-auto pt-4 animate-fade-slide-up anim-delay-800">
         <div className="mb-4 flex items-center gap-2">
-          <span className="text-[16px] text-white/60">Season Totals</span>
+          <span className="text-[16px] text-white/60">Today vs Plan</span>
           <Medal className="h-6 w-6" color={GOLD} aria-hidden />
         </div>
         <div className="flex flex-col gap-3">
-          <StatNumber value={data.stats.totalWorkouts} delay={800} label="workouts logged" />
-          <StatNumber value={data.stats.weekMinutes} delay={1000} label="active min this week" />
-          <StatNumber value={data.stats.weekVolume} delay={1200} label={`${data.unit} lifted this week`} gold />
+          <StatNumber value={d.calories} delay={800} label={d.calorieTarget ? `of ${d.calorieTarget} kcal eaten` : "kcal eaten"} />
+          <StatNumber value={d.proteinG} delay={1000} label={d.proteinTarget ? `of ${d.proteinTarget} g protein` : "g protein"} />
+          <StatNumber value={d.steps} delay={1200} label={d.stepTarget ? `of ${d.stepTarget.toLocaleString()} steps` : "steps"} gold />
         </div>
       </div>
     </div>
@@ -215,46 +239,59 @@ export function StatsScreen({ data }: { data: ShowcaseData }) {
 }
 
 export function PlanScreen({ data }: { data: ShowcaseData }) {
+  const p = data.plan;
+  const words = p.title.trim().split(/\s+/);
+  const titleTop = words.length > 1 ? words[0] : "Today's";
+  const titleBottom = words.length > 1 ? words.slice(1).join(" ") : words[0];
   return (
     <div className="relative h-full w-full overflow-hidden">
       <ScreenBackground />
       <PhoneNav />
-      <ScreenLink href="/workouts" label="Open your workouts" />
+      <ScreenLink href="/workout" label="Open today's workout" />
 
-      <div className="absolute left-5 top-[100px] z-10 animate-fade-slide-up anim-delay-300">
+      <div className="absolute left-5 right-5 top-[100px] z-10 animate-fade-slide-up anim-delay-300">
         <div className="flex items-center gap-2">
-          <span className="text-[15px] text-white/60">Training Program</span>
+          <span className="text-[15px] text-white/60">Today&apos;s Plan</span>
           <Dumbbell className="h-5 w-5" color={GOLD} aria-hidden />
         </div>
         <h2 className="text-[52px] font-normal leading-[0.83] text-white" style={{ letterSpacing: "-0.08em" }}>
-          Strength
+          {titleTop}
           <br />
-          Program
+          {titleBottom}
         </h2>
       </div>
 
-      <div className="absolute left-5 top-[245px] z-10 animate-fade-slide-up anim-delay-500">
+      <div className="absolute left-5 right-5 top-[235px] z-10 animate-fade-slide-up anim-delay-500">
         <div className="flex items-center gap-2">
           <CalendarCheck className="h-5 w-5" color={GOLD} aria-hidden />
-          <span className="text-[15px] text-white/60">Weekly Goal</span>
+          <span className="text-[15px] text-white/60">
+            {p.focus} · <span className="text-brand">{p.weekDone}/{p.weekPlanned}</span> this week
+          </span>
         </div>
-        <div className="text-[120px] font-semibold leading-[0.79] text-[#EDB40B]" style={{ letterSpacing: "-0.08em" }}>
-          {data.goal.done}/{data.goal.target}
-        </div>
+        {p.exercises.length > 0 && (
+          <ul className="mt-3 space-y-1.5">
+            {p.exercises.map((e) => (
+              <li key={e.name} className="flex justify-between gap-3 border-b border-white/10 pb-1.5 text-[15px]">
+                <span className="truncate text-white">{e.name}</span>
+                <span className="shrink-0 text-white/55">{e.scheme}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <Image
         src={barbellImage}
         alt="Loaded barbell"
         sizes="400px"
-        className="absolute left-3 right-3 top-[390px] z-10 h-auto w-[calc(100%-24px)] object-contain mix-blend-lighten animate-fade-slide-left anim-delay-700"
+        className="absolute left-3 right-3 top-[430px] z-[5] h-auto w-[calc(100%-24px)] object-contain opacity-80 mix-blend-lighten animate-fade-slide-left anim-delay-700"
       />
 
       <div className="absolute bottom-0 left-0 right-0 z-10 flex animate-fade-slide-up anim-delay-900">
-        {[...data.prs, ...PLACEHOLDER_PRS].slice(0, 2).map((pr, i) => (
+        {data.targetCards.map((c) => (
           <div
-            key={`${pr.name}-${i}`}
-            className="flex h-[200px] w-1/2 flex-col rounded-t-2xl p-3"
+            key={c.name}
+            className="flex h-[190px] w-1/2 flex-col rounded-t-2xl p-3"
             style={{
               background: "rgba(20,20,30,0.8)",
               border: "1px solid rgba(255,255,255,0.1)",
@@ -264,15 +301,15 @@ export function PlanScreen({ data }: { data: ShowcaseData }) {
             }}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="truncate text-[13px] text-white/60">{pr.name}</span>
+              <span className="truncate text-[13px] text-white/60">{c.name}</span>
               <Trophy className="h-4 w-4 shrink-0 text-white opacity-60" aria-hidden />
             </div>
             <div className="mt-2 flex items-center gap-2">
-              <Sparkbars values={pr.history} />
-              <span className="text-[11px] text-white/40">est. 1RM · {data.unit}</span>
+              <Sparkbars values={c.history} />
+              <span className="text-[11px] text-white/40">last 7 days · {c.unit}</span>
             </div>
-            <div className="mt-auto text-[110px] font-semibold leading-[0.79] text-white" style={{ letterSpacing: "-0.08em" }}>
-              {pr.value || "—"}
+            <div className="mt-auto font-semibold leading-[0.79] text-white" style={{ fontSize: c.value >= 1000 ? 76 : 100, letterSpacing: "-0.08em" }}>
+              {c.value || "—"}
             </div>
           </div>
         ))}

@@ -97,7 +97,7 @@ export function MenuOverlay({
         </button>
       </div>
 
-      <nav className="mt-16 flex flex-col gap-5">
+      <nav className="mt-10 grid min-h-0 flex-1 content-start gap-x-10 gap-y-4 overflow-y-auto pb-6 sm:mt-16 sm:grid-cols-2 sm:gap-y-5">
         {links.map((link, i) => {
           const style: CSSProperties = {
             opacity: open ? 1 : 0,
@@ -111,8 +111,8 @@ export function MenuOverlay({
               onClick={onClose}
               style={style}
               className={cn(
-                "text-3xl font-bold tracking-tight hover:text-[#EDB40B]",
-                activeHref === link.href ? "text-[#EDB40B]" : "text-white",
+                "text-2xl font-bold tracking-tight hover:text-brand sm:text-3xl",
+                activeHref === link.href ? "text-brand" : "text-white",
               )}
             >
               {link.label}
@@ -124,7 +124,7 @@ export function MenuOverlay({
       <Link
         href={cta.href}
         onClick={onClose}
-        className="mt-auto flex h-14 items-center justify-center bg-white text-base font-semibold text-black transition hover:bg-[#EDB40B]"
+        className="mt-auto flex h-14 items-center justify-center bg-white text-base font-semibold text-black transition hover:bg-brand"
       >
         {cta.label}
       </Link>

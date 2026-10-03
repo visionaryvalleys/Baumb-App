@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Search, Trophy } from "lucide-react";
 import { EXERCISES, MUSCLE_GROUPS } from "@/lib/exercises";
 import { personalRecords } from "@/lib/stats";
+import { useUnit } from "@/lib/hooks";
 import { useAppState, useHydrated } from "@/lib/store";
 import type { MuscleGroup } from "@/lib/types";
 import { formatWeight } from "@/lib/units";
@@ -11,7 +12,8 @@ import { Badge, cn } from "./ui";
 
 export function ExerciseLibrary() {
   const hydrated = useHydrated();
-  const { workouts, profile } = useAppState();
+  const { workouts } = useAppState();
+  const unit = useUnit();
   const [query, setQuery] = useState("");
   const [muscle, setMuscle] = useState<MuscleGroup | "all">("all");
 
@@ -71,9 +73,9 @@ export function ExerciseLibrary() {
                 </div>
                 <p className="mt-3 flex-1 text-sm leading-relaxed text-white/60">{e.cue}</p>
                 {pr && (
-                  <div className="mt-4 flex items-center gap-2 rounded-none bg-[#EDB40B]/10 px-3 py-2 text-xs text-[#EDB40B]">
+                  <div className="mt-4 flex items-center gap-2 rounded-none bg-brand/10 px-3 py-2 text-xs text-brand">
                     <Trophy className="size-3.5" aria-hidden />
-                    Best: {formatWeight(pr.bestWeightKg, profile.unit)} × {pr.bestReps}
+                    Best: {formatWeight(pr.bestWeightKg, unit)} × {pr.bestReps}
                   </div>
                 )}
               </article>

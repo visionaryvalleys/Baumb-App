@@ -6,10 +6,10 @@ import { Check, Copy, Plus, Search, Trash2, X } from "lucide-react";
 import { todayKey } from "@/lib/date";
 import { EXERCISES, WORKOUT_TYPES, getExercise } from "@/lib/exercises";
 import { sortByDateDesc } from "@/lib/stats";
-import { actions, newId, useAppState, useHydrated } from "@/lib/store";
+import { actions, newId, useAppState } from "@/lib/store";
 import type { WorkoutType } from "@/lib/types";
-import { fromDisplayWeight, toDisplayWeight } from "@/lib/units";
-import { Card, CardTitle, Skeleton, cn } from "./ui";
+import { fromDisplayWeight, toDisplayWeight, weightUnit } from "@/lib/units";
+import { Card, CardTitle, cn } from "./ui";
 
 interface DraftSet {
   reps: string;
@@ -83,26 +83,18 @@ function ExercisePicker({ onPick, onClose }: { onPick: (id: string) => void; onC
 }
 
 export function WorkoutForm() {
-  const hydrated = useHydrated();
-  if (!hydrated) {
-    return (
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Skeleton className="h-96 lg:col-span-2" />
-        <Skeleton className="h-64" />
-      </div>
-    );
-  }
   return <WorkoutFormInner />;
 }
 
 function WorkoutFormInner() {
   const router = useRouter();
   const { profile, workouts } = useAppState();
-  const unit = profile.unit;
+  const unit = weightUnit(profile.unitSystem);
+  const tz = profile.timezone;
 
   const [type, setType] = useState<WorkoutType>("strength");
   const [name, setName] = useState("");
-  const [date, setDate] = useState(todayKey);
+  const [date, setDate] = useState(() => todayKey(tz));
   const [duration, setDuration] = useState("45");
   const [notes, setNotes] = useState("");
   const [exercises, setExercises] = useState<DraftExercise[]>([]);
@@ -173,6 +165,9 @@ function WorkoutFormInner() {
       durationMin: Math.round(durationMin),
       notes: notes.trim(),
       createdAt: Date.now(),
+      timestamp: Date.now(),
+      timezone: tz,
+      status: "completed",
       exercises: exercises
         .map((x) => ({
           exerciseId: x.exerciseId,
@@ -231,7 +226,7 @@ function WorkoutFormInner() {
               <label htmlFor="date" className="label">
                 Date
               </label>
-              <input id="date" type="date" className="field [color-scheme:dark]" value={date} max={todayKey()} onChange={(e) => setDate(e.target.value)} />
+              <input id="date" type="date" className="field [color-scheme:dark]" value={date} max={todayKey(tz)} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div>
               <label htmlFor="duration" className="label">

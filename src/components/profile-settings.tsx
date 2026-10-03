@@ -1,184 +1,124 @@
 "use client";
 
-import { type ChangeEvent, type FormEvent, useRef, useState } from "react";
-import { Check, Database, Download, RotateCcw, Sparkles, Upload } from "lucide-react";
-import { buildSampleState } from "@/lib/sample";
-import { DEFAULT_PROFILE, actions, useAppState, useHydrated } from "@/lib/store";
-import type { AppState, Unit } from "@/lib/types";
-import { Card, CardTitle, Skeleton, cn } from "./ui";
+import { useState } from "react";
+import { Check, RefreshCw } from "lucide-react";
+import { sortedWeights } from "@/calculations/trend";
+import { buildPlanVersion } from "@/services/plan";
+import { actions, newId, useAppState } from "@/lib/store";
+import { useToday } from "@/lib/hooks";
+import type { PlanVersion } from "@/lib/types";
+import {
+  AboutFields,
+  BodyFields,
+  GoalPicker,
+  TargetFields,
+  TrainingFields,
+  draftToGoal,
+  draftToProfile,
+  draftWeightKg,
+  goalToDraft,
+  profileToDraft,
+  validateAbout,
+  validateBody,
+  validateTarget,
+  type Errors,
+  type GoalDraft,
+  type ProfileDraft,
+} from "./profile/fields";
+import { Card, CardTitle, FlagList } from "./ui";
 
-function isAppState(value: unknown): value is AppState {
-  if (!value || typeof value !== "object") return false;
-  const v = value as Record<string, unknown>;
-  return Array.isArray(v.workouts) && Array.isArray(v.weights) && typeof v.profile === "object" && v.profile !== null;
-}
+type Notice = { message: string; flags: PlanVersion["flags"] };
 
-function ProfileForm() {
-  const { profile } = useAppState();
-  const [name, setName] = useState(profile.name);
-  const [unit, setUnit] = useState<Unit>(profile.unit);
-  const [workoutGoal, setWorkoutGoal] = useState(String(profile.weeklyWorkoutGoal));
-  const [minutesGoal, setMinutesGoal] = useState(String(profile.weeklyMinutesGoal));
-  const [saved, setSaved] = useState(false);
-
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    actions.updateProfile({
-      name: name.trim(),
-      unit,
-      weeklyWorkoutGoal: Math.min(Math.max(Math.round(Number(workoutGoal)) || DEFAULT_PROFILE.weeklyWorkoutGoal, 1), 14),
-      weeklyMinutesGoal: Math.min(Math.max(Math.round(Number(minutesGoal)) || DEFAULT_PROFILE.weeklyMinutesGoal, 10), 3000),
-    });
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2000);
-  }
-
-  return (
-    <form onSubmit={submit} className="space-y-5">
-      <div>
-        <label htmlFor="profile-name" className="label">
-          Display name
-        </label>
-        <input id="profile-name" className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="What should we call you?" maxLength={40} />
-      </div>
-      <div>
-        <span className="label">Units</span>
-        <div className="grid grid-cols-2 gap-2 rounded-none border border-line bg-surface p-1" role="radiogroup" aria-label="Weight units">
-          {(["kg", "lb"] as const).map((u) => (
-            <button
-              key={u}
-              type="button"
-              role="radio"
-              aria-checked={unit === u}
-              onClick={() => setUnit(u)}
-              className={cn("rounded-none py-2 text-sm font-medium transition", unit === u ? "bg-surface-raised text-white shadow" : "text-white/50 hover:text-white/80")}
-            >
-              {u === "kg" ? "Kilograms (kg)" : "Pounds (lb)"}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="goal-workouts" className="label">
-            Workouts / week
-          </label>
-          <input id="goal-workouts" type="number" min={1} max={14} className="field" value={workoutGoal} onChange={(e) => setWorkoutGoal(e.target.value)} />
-        </div>
-        <div>
-          <label htmlFor="goal-minutes" className="label">
-            Minutes / week
-          </label>
-          <input id="goal-minutes" type="number" min={10} max={3000} step={10} className="field" value={minutesGoal} onChange={(e) => setMinutesGoal(e.target.value)} />
-        </div>
-      </div>
-      <button type="submit" className="btn-primary">
-        <Check className="size-4" aria-hidden /> {saved ? "Saved" : "Save changes"}
-      </button>
-    </form>
-  );
-}
-
-function DataControls() {
+function Editor({ notice, onSaved }: { notice: Notice | null; onSaved: (n: Notice) => void }) {
   const state = useAppState();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const today = useToday();
+  const latest = sortedWeights(state.weights).at(-1) ?? null;
+  const [d, setD] = useState<ProfileDraft>(() => profileToDraft(state.profile, latest?.weightKg ?? null));
+  const [g, setG] = useState<GoalDraft>(() => goalToDraft(state.goal, state.profile.unitSystem));
+  const [errors, setErrors] = useState<Errors>({});
 
-  function exportData() {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `baumb-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const setProfile = <K extends keyof ProfileDraft>(k: K, v: ProfileDraft[K]) => setD((p) => ({ ...p, [k]: v }));
+  const setGoal = <K extends keyof GoalDraft>(k: K, v: GoalDraft[K]) => setG((p) => ({ ...p, [k]: v }));
+
+  function validate() {
+    const e = { ...validateAbout(d), ...validateBody(d), ...validateTarget(g, d.unitSystem) };
+    setErrors(e);
+    return Object.keys(e).length === 0;
   }
 
-  async function importData(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    try {
-      const parsed: unknown = JSON.parse(await file.text());
-      if (!isAppState(parsed)) throw new Error("invalid");
-      actions.replaceAll({ ...parsed, profile: { ...DEFAULT_PROFILE, ...parsed.profile } });
-      setMessage({ tone: "ok", text: `Imported ${parsed.workouts.length} workouts and ${parsed.weights.length} weigh-ins.` });
-    } catch {
-      setMessage({ tone: "error", text: "That file isn't a valid BAUMB backup." });
+  function saveProfile(regenerate: boolean) {
+    if (!validate()) return;
+    const ageRecordedOn = String(state.profile.age) === d.age && state.profile.ageRecordedOn ? state.profile.ageRecordedOn : today;
+    const profile = draftToProfile(d, ageRecordedOn);
+    const weightKg = draftWeightKg(d)!;
+    actions.updateProfile(profile);
+    if (!latest || Math.abs(latest.weightKg - weightKg) >= 0.05)
+      actions.logWeight({ id: newId(), date: today, weightKg: Math.round(weightKg * 10) / 10, timestamp: Date.now(), timezone: profile.timezone, source: "manual" });
+
+    if (!regenerate) {
+      onSaved({ message: "Profile saved.", flags: [] });
+      return;
     }
+    const goal = draftToGoal(g, d.unitSystem, newId(), Date.now());
+    const plan = buildPlanVersion({
+      id: newId(),
+      version: Math.max(0, ...state.plans.map((p) => p.version)) + 1,
+      profile,
+      goal,
+      weightKg,
+      effectiveFrom: today,
+      reason: state.goal?.type !== goal.type ? "Goal changed" : "Profile or goal updated",
+      now: Date.now(),
+    });
+    if (!plan) return;
+    if (state.onboarded) actions.setGoalAndPlan(goal, plan);
+    else actions.completeOnboarding(profile, goal, { id: newId(), date: today, weightKg, timestamp: Date.now(), timezone: profile.timezone }, plan);
+    onSaved({ message: `Plan V${plan.version} created. Previous versions and all history are kept.`, flags: plan.flags });
   }
 
   return (
-    <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <button type="button" onClick={exportData} className="btn-ghost justify-start">
-          <Download className="size-4" aria-hidden /> Export backup
-        </button>
-        <button type="button" onClick={() => fileRef.current?.click()} className="btn-ghost justify-start">
-          <Upload className="size-4" aria-hidden /> Import backup
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (window.confirm("Replace your current data with a month of sample workouts?")) {
-              actions.replaceAll(buildSampleState());
-              setMessage({ tone: "ok", text: "Sample data loaded." });
-            }
-          }}
-          className="btn-ghost justify-start"
-        >
-          <Sparkles className="size-4" aria-hidden /> Load sample data
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (window.confirm("Permanently delete all workouts, weigh-ins, and settings on this device?")) {
-              actions.reset();
-              setMessage({ tone: "ok", text: "All data cleared." });
-            }
-          }}
-          className="btn-danger justify-start"
-        >
-          <RotateCcw className="size-4" aria-hidden /> Reset all data
-        </button>
+    <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardTitle>About you</CardTitle>
+          <AboutFields d={d} set={setProfile} errors={errors} />
+        </Card>
+        <Card>
+          <CardTitle>Body & locale</CardTitle>
+          <BodyFields d={d} set={setProfile} errors={errors} />
+        </Card>
       </div>
-      <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={importData} />
-      {message && (
-        <p role="status" className={cn("text-sm", message.tone === "ok" ? "text-brand" : "text-red-300")}>
-          {message.text}
+      <Card>
+        <CardTitle>Goal</CardTitle>
+        <GoalPicker value={g.type} onChange={(t) => setGoal("type", t)} />
+        <div className="mt-6">
+          <TargetFields g={g} set={setGoal} unit={d.unitSystem} errors={errors} />
+        </div>
+      </Card>
+      <Card>
+        <CardTitle>Training setup</CardTitle>
+        <TrainingFields g={g} set={setGoal} d={d} setProfile={setProfile} />
+      </Card>
+      <div className="glass sticky bottom-4 z-20 flex flex-wrap items-center justify-between gap-3 p-4">
+        <p className="text-sm text-white/60" role="status">
+          {notice?.message ?? "Goal, schedule or body changes take effect when you regenerate your plan."}
         </p>
-      )}
-      <p className="text-xs text-white/50">
-        {state.workouts.length} workouts · {state.weights.length} weigh-ins stored in this browser.
-      </p>
+        <div className="flex gap-2">
+          <button type="button" className="btn-ghost" onClick={() => saveProfile(false)}>
+            <Check className="size-4" aria-hidden /> Save profile
+          </button>
+          <button type="button" className="btn-primary" onClick={() => saveProfile(true)}>
+            <RefreshCw className="size-4" aria-hidden /> Save & regenerate plan
+          </button>
+        </div>
+      </div>
+      <FlagList flags={notice?.flags ?? []} />
     </div>
   );
 }
 
 export function ProfileSettings() {
-  const hydrated = useHydrated();
-  const { profile } = useAppState();
-
-  if (!hydrated) {
-    return (
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Skeleton className="h-96" />
-        <Skeleton className="h-64" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Card>
-        <CardTitle>Profile & goals</CardTitle>
-        {/* Remount when data is imported or reset so the form picks up the new values. */}
-        <ProfileForm key={JSON.stringify(profile)} />
-      </Card>
-      <Card>
-        <CardTitle action={<Database className="size-4 text-white/50" aria-hidden />}>Your data</CardTitle>
-        <DataControls />
-      </Card>
-    </div>
-  );
+  const { profile, goal } = useAppState();
+  const [notice, setNotice] = useState<Notice | null>(null);
+  return <Editor key={JSON.stringify([profile, goal?.id])} notice={notice} onSaved={setNotice} />;
 }

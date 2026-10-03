@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { ProgressView } from "@/components/progress-view";
 import { Medal } from "lucide-react";
+import { ProgressView } from "@/components/progress-view";
 import { PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Progress" };
@@ -10,7 +10,7 @@ export default function ProgressPage() {
     <>
       <PageHeader
         icon={Medal}
-        subtitle="Body Weight · Volume · Records"
+        subtitle="Weight trend · Measurements · Strength · Consistency"
         title={
           <>
             Season

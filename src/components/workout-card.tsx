@@ -11,11 +11,11 @@ import { formatVolume, formatWeight } from "@/lib/units";
 import { Badge, cn } from "./ui";
 
 export const TYPE_STYLES: Record<WorkoutType, string> = {
-  strength: "bg-[#EDB40B] text-black",
+  strength: "bg-brand text-black",
   cardio: "bg-white text-black",
   hiit: "bg-[#E10600] text-white",
   mobility: "bg-white/15 text-white",
-  sport: "bg-[#EDB40B]/20 text-[#EDB40B]",
+  sport: "bg-brand/20 text-brand",
 };
 
 export function WorkoutCard({

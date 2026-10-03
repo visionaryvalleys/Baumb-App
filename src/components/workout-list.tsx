@@ -6,6 +6,7 @@ import { Activity, Plus, Search } from "lucide-react";
 import { fromDateKey } from "@/lib/date";
 import { WORKOUT_TYPES, getExercise } from "@/lib/exercises";
 import { latestWeight, sortByDateDesc } from "@/lib/stats";
+import { useUnit } from "@/lib/hooks";
 import { useAppState, useHydrated } from "@/lib/store";
 import type { WorkoutType } from "@/lib/types";
 import { EmptyState, Skeleton, cn } from "./ui";
@@ -13,7 +14,8 @@ import { WorkoutCard } from "./workout-card";
 
 export function WorkoutList() {
   const hydrated = useHydrated();
-  const { workouts, weights, profile } = useAppState();
+  const { workouts, weights } = useAppState();
+  const unit = useUnit();
   const [query, setQuery] = useState("");
   const [type, setType] = useState<WorkoutType | "all">("all");
 
@@ -93,7 +95,7 @@ export function WorkoutList() {
               </h2>
               <div className="space-y-3">
                 {items.map((w) => (
-                  <WorkoutCard key={w.id} workout={w} unit={profile.unit} bodyKg={bodyKg} />
+                  <WorkoutCard key={w.id} workout={w} unit={unit} bodyKg={bodyKg} />
                 ))}
               </div>
             </section>

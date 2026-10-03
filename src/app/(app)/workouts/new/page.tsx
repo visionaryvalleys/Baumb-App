@@ -15,7 +15,7 @@ export default function NewWorkoutPage() {
           <>
             Log
             <br />
-            <span className="font-semibold text-[#EDB40B]">Workout</span>
+            <span className="font-semibold text-brand">Workout</span>
           </>
         }
       />

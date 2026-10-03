@@ -79,6 +79,63 @@ export function BarChart({
   );
 }
 
+/** Raw weigh-ins as dots with the smoothed trend as a line. */
+export function TrendChart({
+  points,
+  height = 220,
+  format = (v: number) => String(v),
+  target,
+}: {
+  points: { label: string; value: number; trend: number }[];
+  height?: number;
+  format?: (v: number) => string;
+  target?: number | null;
+}) {
+  if (points.length < 2) {
+    return <div className="grid h-40 place-items-center text-sm text-white/50">Log at least two weigh-ins to see your trend.</div>;
+  }
+  const width = 600;
+  const padX = 8;
+  const padY = 18;
+  const all = points.flatMap((p) => [p.value, p.trend]).concat(target != null ? [target] : []);
+  const min = Math.min(...all);
+  const max = Math.max(...all);
+  const span = max - min || 1;
+  const x = (i: number) => padX + (i / (points.length - 1)) * (width - padX * 2);
+  const y = (v: number) => padY + (1 - (v - min) / span) * (height - padY * 2);
+  const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.trend).toFixed(1)}`).join(" ");
+  const last = points[points.length - 1];
+  return (
+    <div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full overflow-visible" role="img" aria-label="Weight trend chart">
+        {[0.25, 0.5, 0.75].map((t) => (
+          <line key={t} x1={0} x2={width} y1={height * t} y2={height * t} stroke="#232733" strokeDasharray="4 6" />
+        ))}
+        {target != null && (
+          <>
+            <line x1={0} x2={width} y1={y(target)} y2={y(target)} stroke="var(--color-brand)" strokeOpacity={0.5} strokeDasharray="6 6" />
+            <text x={width - 4} y={y(target) - 6} textAnchor="end" fontSize="11" fill="var(--color-brand)">
+              Target {format(target)}
+            </text>
+          </>
+        )}
+        {points.map((p, i) => (
+          <circle key={i} cx={x(i)} cy={y(p.value)} r={2.5} fill="rgb(255 255 255 / 0.35)">
+            <title>{`${p.label}: ${format(p.value)}`}</title>
+          </circle>
+        ))}
+        <path d={line} fill="none" stroke="var(--color-brand)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+      </svg>
+      <div className="mt-2 flex justify-between text-[11px] text-white/50">
+        <span>{points[0].label}</span>
+        <span className="text-white/80">
+          {last.label} · trend {format(last.trend)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function LineChart({
   points,
   height = 200,
