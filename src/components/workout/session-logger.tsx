@@ -4,8 +4,9 @@ import Link from "next/link";
 import { type FormEvent, useMemo, useState } from "react";
 import { Activity, ArrowRight, Check, Clock, Dumbbell, Info, Moon, Palmtree, Plus, TrendingUp, X } from "lucide-react";
 import { calculateReadiness, calculateVolumeTrend, type ReadinessResult } from "@/calculations/recovery";
+import { calculateIntakeImpact } from "@/calculations/intake-impact";
 import { suggestNextLoad, type ProgressionSuggestion } from "@/calculations/workout";
-import { WEEKDAY_NAMES, weekdayIndex } from "@/lib/date";
+import { WEEKDAY_NAMES, addDays, daysBetween, formatDate, weekdayIndex } from "@/lib/date";
 import { getExercise } from "@/lib/exercises";
 import { useDaySummary, useToday, useUnit } from "@/lib/hooks";
 import { lastPerformance } from "@/lib/stats";
@@ -69,19 +70,23 @@ function ReadinessCard({ readiness }: { readiness: ReadinessResult }) {
 }
 
 function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: WorkoutDay; unit: Unit; date: string }) {
-  const { workouts, profile, recovery } = useAppState();
+  const { workouts, profile, recovery, meals, plans } = useAppState();
   const readiness = useMemo(() => calculateReadiness(recovery, date, plan.targets.sleepHours), [recovery, date, plan]);
+  const intake = useMemo(() => calculateIntakeImpact(meals, plans, addDays(date, -7), addDays(date, -1)), [meals, plans, date]);
   const suggestions = useMemo(
     () =>
       day.exercises.map((p) => {
         const muscle = getExercise(p.exerciseId)?.muscle;
-        return suggestNextLoad(p, lastPerformance(workouts, p.exerciseId, date)?.sets ?? null, {
+        const last = lastPerformance(workouts, p.exerciseId, date);
+        return suggestNextLoad(p, last?.sets ?? null, {
           readiness,
           volumeRatio: muscle ? calculateVolumeTrend(workouts, muscle, date).ratio : null,
           inDeficit: plan.targets.energyAdjustment < 0,
+          lowFuel: intake.lowFuel,
+          daysSinceLast: last ? daysBetween(last.date, date) : null,
         });
       }),
-    [day, workouts, date, readiness, plan],
+    [day, workouts, date, readiness, plan, intake.lowFuel],
   );
   const [sets, setSets] = useState<DraftSet[][]>(() =>
     day.exercises.map((p, i) => {
@@ -228,8 +233,10 @@ export function SessionLogger() {
   const today = useToday();
   const unit = useUnit();
   const summary = useDaySummary(today);
+  const { vacations } = useAppState();
   const plan = summary.info.plan;
   const [choice, setChoice] = useState<string | null>(null);
+  const backFrom = vacations.filter((v) => v.pauseWorkouts && v.end < today && daysBetween(v.end, today) <= 7).at(-1);
 
   if (!plan) return <EmptyState icon={Dumbbell} title="No plan yet" description="Finish onboarding to generate a workout plan." />;
 
@@ -275,6 +282,15 @@ export function SessionLogger() {
           </p>
         )}
       </Card>
+      {backFrom && !paused && (
+        <Card className="flex gap-3">
+          <Palmtree className="mt-0.5 size-5 shrink-0 text-brand" aria-hidden />
+          <div className="text-sm leading-relaxed text-white/65">
+            <div className="font-semibold text-white">Welcome back — your break ended {formatDate(backFrom.end)}.</div>
+            Exercises you haven&apos;t done for two weeks or more start about 10% lighter with one set fewer; after 8–13 days the load holds. The meals and steps you logged while away are already in your energy and goal estimate.
+          </div>
+        </Card>
+      )}
       {day && <SessionForm key={`${day.id}-${plan.id}`} plan={plan} day={day} unit={unit} date={today} />}
     </div>
   );

@@ -121,6 +121,16 @@ export interface ProgressPhoto extends Timestamped {
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack" | "drink" | "supplement" | "other";
 
+/** One of the user's meals of the day. The defaults reuse the `MealType` ids so older logs keep their meal. */
+export interface MealSlot {
+  id: string;
+  name: string;
+  /** Usual time, minutes after local midnight. */
+  minutes: number;
+  /** Removed from the day, but kept so past logs still show its name. */
+  archived?: boolean;
+}
+
 export interface NutritionProfile {
   calories: number;
   proteinG: number;
@@ -142,6 +152,12 @@ export interface Food {
   per100g: NutritionProfile;
   servings: FoodServing[];
   custom?: boolean;
+  /** Other names people type for this food (regional names, spellings). */
+  aliases?: string[];
+  /** Where the values come from, e.g. "ICMR-NIN IFCT 2017 L003". */
+  source?: string;
+  /** Higher wins when several foods match the same words (2 = NIN/IFCT anchored). */
+  priority?: number;
 }
 
 /** A logged food. Nutrition is snapshotted at log time so later database edits never rewrite history. */
@@ -154,7 +170,8 @@ export interface MealItem extends Timestamped {
   servingLabel: string;
   quantity: number;
   grams: number;
-  meal: MealType;
+  /** A `MealSlot` id (legacy logs use a `MealType`). */
+  meal: string;
   nutrition: NutritionProfile;
 }
 
@@ -466,6 +483,7 @@ export interface AppState {
   weights: WeightEntry[];
   measurements: BodyMeasurement[];
   meals: MealItem[];
+  mealSlots: MealSlot[];
   customFoods: Food[];
   activity: DailyActivity[];
   recovery: RecoveryEntry[];

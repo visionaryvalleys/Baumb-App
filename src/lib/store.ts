@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { DEFAULT_MEAL_SLOTS } from "@/calculations/nutrition";
 import { deviceTimezone } from "./date";
 import type {
   AppState,
@@ -13,6 +14,7 @@ import type {
   Food,
   Goal,
   MealItem,
+  MealSlot,
   PlanVersion,
   Profile,
   ProgressPhoto,
@@ -66,6 +68,7 @@ export const EMPTY_STATE: AppState = {
   weights: [],
   measurements: [],
   meals: [],
+  mealSlots: DEFAULT_MEAL_SLOTS,
   customFoods: [],
   activity: [],
   recovery: [],
@@ -96,6 +99,7 @@ export function normalizeState(raw: Partial<AppState> | null | undefined): AppSt
     weights: raw.weights ?? [],
     measurements: raw.measurements ?? [],
     meals: raw.meals ?? [],
+    mealSlots: raw.mealSlots?.length ? raw.mealSlots : DEFAULT_MEAL_SLOTS,
     customFoods: raw.customFoods ?? [],
     activity: raw.activity ?? [],
     recovery: raw.recovery ?? [],
@@ -307,6 +311,22 @@ export const actions = {
 
   addMealItem(item: MealItem) {
     setState((s) => ({ ...s, meals: [...s.meals, item] }));
+  },
+  addMealItems(items: MealItem[]) {
+    setState((s) => ({ ...s, meals: [...s.meals, ...items] }));
+  },
+  addMealSlot(slot: MealSlot) {
+    setState((s) => ({ ...s, mealSlots: [...s.mealSlots, slot] }));
+  },
+  updateMealSlot(id: string, patch: Partial<Omit<MealSlot, "id">>) {
+    setState((s) => ({ ...s, mealSlots: s.mealSlots.map((m) => (m.id === id ? { ...m, ...patch } : m)) }));
+  },
+  /** Takes the meal out of the day. Food already logged to it keeps its meal and is never deleted. */
+  removeMealSlot(id: string) {
+    setState((s) => ({
+      ...s,
+      mealSlots: s.meals.some((m) => m.meal === id) ? s.mealSlots.map((m) => (m.id === id ? { ...m, archived: true } : m)) : s.mealSlots.filter((m) => m.id !== id),
+    }));
   },
   deleteMealItem(id: string) {
     setState((s) => ({ ...s, meals: s.meals.filter((m) => m.id !== id) }));

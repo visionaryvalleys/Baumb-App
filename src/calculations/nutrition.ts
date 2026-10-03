@@ -1,6 +1,29 @@
-import type { Food, LocalDate, MealItem, MealType, NutritionProfile, NutritionTarget } from "@/lib/types";
+import type { Food, LocalDate, MealItem, MealSlot, MealType, NutritionProfile, NutritionTarget } from "@/lib/types";
 
 export const EMPTY_NUTRITION: NutritionProfile = { calories: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 };
+
+export const MAX_MEAL_SLOTS = 10;
+
+export const DEFAULT_MEAL_SLOTS: MealSlot[] = [
+  { id: "breakfast", name: "Breakfast", minutes: 8 * 60 },
+  { id: "lunch", name: "Lunch", minutes: 13 * 60 },
+  { id: "snack", name: "Snacks", minutes: 16 * 60 + 30 },
+  { id: "dinner", name: "Dinner", minutes: 20 * 60 },
+];
+
+/** The meals currently in the user's day, earliest first. */
+export function activeMealSlots(slots: MealSlot[]): MealSlot[] {
+  return slots.filter((s) => !s.archived).sort((a, b) => a.minutes - b.minutes);
+}
+
+/** The meal whose usual time is closest to `minutes`. */
+export function mealSlotForTime(slots: MealSlot[], minutes: number): MealSlot | undefined {
+  return activeMealSlots(slots).reduce<MealSlot | undefined>((best, s) => (!best || Math.abs(s.minutes - minutes) < Math.abs(best.minutes - minutes) ? s : best), undefined);
+}
+
+export function mealLabel(meal: string, slots: MealSlot[]): string {
+  return slots.find((s) => s.id === meal)?.name ?? MEAL_TYPES.find((m) => m.value === meal)?.label ?? "Other";
+}
 
 export const MEAL_TYPES: { value: MealType; label: string }[] = [
   { value: "breakfast", label: "Breakfast" },
@@ -59,16 +82,16 @@ export interface DailyNutrition {
   items: MealItem[];
   /** null when nothing was logged — a missing day is not a zero-calorie day. */
   totals: NutritionProfile | null;
-  byMeal: Partial<Record<MealType, { items: MealItem[]; totals: NutritionProfile }>>;
+  /** Keyed by meal id; only meals with something logged appear. */
+  byMeal: Partial<Record<string, { items: MealItem[]; totals: NutritionProfile }>>;
 }
 
 export function calculateDailyNutrition(meals: MealItem[], date: LocalDate): DailyNutrition {
   const items = meals.filter((m) => m.date === date).sort((a, b) => a.timestamp - b.timestamp);
+  const groups = new Map<string, MealItem[]>();
+  for (const i of items) groups.set(i.meal, [...(groups.get(i.meal) ?? []), i]);
   const byMeal: DailyNutrition["byMeal"] = {};
-  for (const { value } of MEAL_TYPES) {
-    const group = items.filter((i) => i.meal === value);
-    if (group.length) byMeal[value] = { items: group, totals: sumNutrition(group) };
-  }
+  for (const [meal, group] of groups) byMeal[meal] = { items: group, totals: sumNutrition(group) };
   return { date, items, totals: items.length ? sumNutrition(items) : null, byMeal };
 }
 

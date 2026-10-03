@@ -1,3 +1,4 @@
+import { matchFoods } from "@/calculations/food-parser";
 import type { Food, NutritionProfile } from "@/lib/types";
 
 function n(calories: number, proteinG: number, carbsG: number, fatG: number, fiberG: number): NutritionProfile {
@@ -5,8 +6,8 @@ function n(calories: number, proteinG: number, carbsG: number, fatG: number, fib
 }
 
 /**
- * Built-in food database (values per 100 g, rounded from USDA FoodData Central).
- * The app only reads foods through `searchFoods`/`findFood`, so a remote provider can replace this later.
+ * Built-in foods (values per 100 g, rounded from USDA FoodData Central), used alongside the
+ * Indian food catalogue served from SQL Server (`/api/foods`).
  */
 export const FOODS: Food[] = [
   { id: "chicken-breast", name: "Chicken breast, cooked", category: "Protein", per100g: n(165, 31, 0, 3.6, 0), servings: [{ id: "fillet", label: "1 fillet", grams: 150 }] },
@@ -58,23 +59,17 @@ export const FOODS: Food[] = [
 
 const BY_ID = new Map(FOODS.map((f) => [f.id, f]));
 
-export function findFood(id: string, custom: Food[] = []): Food | undefined {
-  return BY_ID.get(id) ?? custom.find((f) => f.id === id);
+/** Custom foods first, then the SQL Server catalogue, then the built-in list; ids are unique. */
+export function foodPool(custom: Food[] = [], catalogue: Food[] = []): Food[] {
+  const seen = new Set<string>();
+  return [...custom, ...catalogue, ...FOODS].filter((f) => !seen.has(f.id) && (seen.add(f.id), true));
 }
 
-export function searchFoods(query: string, custom: Food[] = [], limit = 12): Food[] {
-  const q = query.trim().toLowerCase();
-  const pool = [...custom, ...FOODS];
-  if (!q) return pool.slice(0, limit);
-  const words = q.split(/\s+/);
-  return pool
-    .map((f) => {
-      const name = f.name.toLowerCase();
-      if (!words.every((w) => name.includes(w) || f.category.toLowerCase().includes(w))) return null;
-      return { f, score: name.startsWith(q) ? 0 : name.includes(q) ? 1 : 2 };
-    })
-    .filter((x): x is { f: Food; score: number } => x !== null)
-    .sort((a, b) => a.score - b.score || a.f.name.localeCompare(b.f.name))
-    .slice(0, limit)
-    .map((x) => x.f);
+export function findFood(id: string, custom: Food[] = [], catalogue: Food[] = []): Food | undefined {
+  return custom.find((f) => f.id === id) ?? catalogue.find((f) => f.id === id) ?? BY_ID.get(id);
+}
+
+export function searchFoods(query: string, pool: Food[], limit = 12): Food[] {
+  if (!query.trim()) return pool.slice(0, limit);
+  return matchFoods(query, pool, limit).map((m) => m.food);
 }

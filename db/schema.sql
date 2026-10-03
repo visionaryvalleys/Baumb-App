@@ -38,3 +38,23 @@ CREATE TABLE dbo.UserData (
   UpdatedAt DATETIME2(3)     NOT NULL CONSTRAINT DF_UserData_UpdatedAt DEFAULT SYSUTCDATETIME()
 );
 GO
+
+-- Shared food catalogue, nutrition per 100 g. The app inserts any rows from src/data/indian-foods.json
+-- that are missing here and never overwrites existing rows, so corrections made in this table are kept.
+IF OBJECT_ID('dbo.Foods', 'U') IS NULL
+CREATE TABLE dbo.Foods (
+  Id           NVARCHAR(64)   NOT NULL CONSTRAINT PK_Foods PRIMARY KEY,
+  Name         NVARCHAR(200)  NOT NULL,
+  Aliases      NVARCHAR(1000) NOT NULL CONSTRAINT DF_Foods_Aliases DEFAULT N'',
+  Category     NVARCHAR(60)   NOT NULL,
+  Calories     DECIMAL(7,1)   NOT NULL,
+  ProteinG     DECIMAL(6,2)   NOT NULL,
+  CarbsG       DECIMAL(6,2)   NOT NULL,
+  FatG         DECIMAL(6,2)   NOT NULL,
+  FiberG       DECIMAL(6,2)   NOT NULL,
+  ServingsJson NVARCHAR(1000) NOT NULL CONSTRAINT DF_Foods_Servings DEFAULT N'[]',
+  Source       NVARCHAR(200)  NOT NULL,
+  Priority     TINYINT        NOT NULL CONSTRAINT DF_Foods_Priority DEFAULT 1,
+  CreatedAt    DATETIME2(3)   NOT NULL CONSTRAINT DF_Foods_CreatedAt DEFAULT SYSUTCDATETIME()
+);
+GO

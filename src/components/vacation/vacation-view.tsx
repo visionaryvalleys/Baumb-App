@@ -11,7 +11,17 @@ import type { AppState, VacationPeriod } from "@/lib/types";
 import { toDisplayWeight } from "@/lib/units";
 import { Card, CardTitle, EmptyState, KindTag, cn } from "../ui";
 
-function vacationStats(state: AppState, v: VacationPeriod, today: string) {
+export const MAX_VACATION_DAYS = 90;
+
+/** Why a new vacation range can't be saved, or null when it can. */
+export function vacationRangeError(vacations: VacationPeriod[], start: string, end: string): string | null {
+  if (!start || !end || end < start) return "Choose an end date on or after the start date.";
+  if (daysBetween(start, end) > MAX_VACATION_DAYS) return `A vacation can be at most ${MAX_VACATION_DAYS} days.`;
+  if (vacations.some((v) => start <= v.end && end >= v.start)) return "These dates overlap an existing vacation.";
+  return null;
+}
+
+export function vacationStats(state: AppState, v: VacationPeriod, today: string) {
   const end = v.end > today ? today : v.end;
   const days = v.start <= end ? eachDay(v.start, end) : [];
   const logged = days.map((d) => calculateDailyNutrition(state.meals, d).totals).filter((t) => t != null);
@@ -42,8 +52,8 @@ export function VacationView() {
 
   const sorted = useMemo(() => [...state.vacations].sort((a, b) => b.start.localeCompare(a.start)), [state.vacations]);
   const active = sorted.find((v) => today >= v.start && today <= v.end);
-  const overlap = state.vacations.some((v) => start <= v.end && end >= v.start);
-  const valid = start && end && end >= start && daysBetween(start, end) <= 90 && !overlap;
+  const rangeError = vacationRangeError(state.vacations, start, end);
+  const valid = !rangeError;
 
   function create(e: FormEvent) {
     e.preventDefault();
@@ -91,7 +101,7 @@ export function VacationView() {
               Pause planned workouts
             </label>
             <input className="field" placeholder="Note (optional) — e.g. Lisbon trip" value={note} onChange={(e) => setNote(e.target.value)} maxLength={80} aria-label="Vacation note" />
-            {overlap && <p className="text-xs text-red-300">These dates overlap an existing vacation.</p>}
+            {rangeError && start && end && <p className="text-xs text-red-300">{rangeError}</p>}
             <button type="submit" className="btn-primary w-full" disabled={!valid}>
               <Check className="size-4" aria-hidden /> Save vacation
             </button>

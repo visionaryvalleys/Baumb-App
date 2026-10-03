@@ -152,4 +152,25 @@ describe("suggestNextLoad with recovery, volume and goal context", () => {
     expect(suggestNextLoad(squat, sets).weightKg).toBe(105);
     expect(suggestNextLoad(squat, sets, { inDeficit: true }).weightKg).toBe(102.5);
   });
+
+  it("holds the load when recent intake is well under target", () => {
+    const s = suggestNextLoad(p, topSets, { lowFuel: true });
+    expect(s.action).toBe("hold");
+    expect(s.weightKg).toBe(80);
+  });
+
+  it("eases back in after two weeks away: ~10% lighter and one set fewer", () => {
+    const s = suggestNextLoad(p, topSets, { daysSinceLast: 18 });
+    expect(s.action).toBe("deload");
+    expect(s.weightKg).toBe(72);
+    expect(s.setsDelta).toBe(-1);
+    expect(s.reason).toMatch(/18 days/);
+  });
+
+  it("holds rather than adds load after 8–13 days away", () => {
+    const s = suggestNextLoad(p, topSets, { daysSinceLast: 10 });
+    expect(s.action).toBe("hold");
+    expect(s.weightKg).toBe(80);
+    expect(suggestNextLoad(p, topSets, { daysSinceLast: 5 }).action).toBe("increase_load");
+  });
 });

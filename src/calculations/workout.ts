@@ -295,7 +295,16 @@ export interface ProgressionContext {
   volumeRatio?: number | null;
   /** True when the active plan is a calorie deficit: load jumps stay small to protect strength. */
   inDeficit?: boolean;
+  /** Recent logged intake is well under target: hold loads rather than push. */
+  lowFuel?: boolean;
+  /** Days since this exercise was last trained (e.g. after a vacation). */
+  daysSinceLast?: number | null;
 }
+
+/** After this long away, the first session back starts lighter. */
+export const RETURN_EASE_DAYS = 14;
+/** After this long away, loads hold rather than increase. */
+export const RETURN_HOLD_DAYS = 8;
 
 export const VOLUME_SPIKE_RATIO = 1.3;
 
@@ -356,13 +365,29 @@ function baseSuggestion(prescription: ExercisePrescription, lastSets: WorkoutSet
  * Double progression with RPE, then adjusted for recovery, recent volume and the plan's energy balance:
  * low readiness or a volume spike turns "add load" into "hold", poor readiness also trims a set,
  * and in a deficit load jumps are capped so the goal stays strength retention.
+ * A long gap (e.g. a vacation) eases the first session back, and low logged intake holds loads.
  */
 export function suggestNextLoad(prescription: ExercisePrescription, lastSets: WorkoutSet[] | null, ctx: ProgressionContext = {}): ProgressionSuggestion {
   const base: ProgressionSuggestion = { ...baseSuggestion(prescription, lastSets), setsDelta: 0 };
   const top = lastSets?.length ? Math.max(...lastSets.map((s) => s.weightKg)) : null;
   const progressing = base.action === "increase_load" || base.action === "increase_reps";
   const readiness = ctx.readiness?.status;
+  const away = ctx.daysSinceLast ?? 0;
 
+  if (away >= RETURN_EASE_DAYS && base.action !== "start") {
+    const lighter = top != null && top > 0 && base.weightKg != null;
+    return {
+      ...base,
+      action: lighter ? "deload" : "hold",
+      weightKg: lighter ? roundTo(top * 0.9, 0.5) : base.weightKg,
+      repsTarget: prescription.repsMin,
+      setsDelta: prescription.sets > 2 ? -1 : 0,
+      reason: `${away} days since you last did this — ${lighter ? "about 10% lighter and " : ""}one set fewer to ease back in. Normal progression resumes next session.`,
+    };
+  }
+  if (away >= RETURN_HOLD_DAYS && base.action === "increase_load") {
+    return { ...base, action: "hold", weightKg: top, repsTarget: prescription.repsMax, reason: `${away} days since you last did this — repeat that load before adding more.` };
+  }
   if (readiness === "poor" && base.action !== "start") {
     return {
       ...base,
@@ -384,6 +409,15 @@ export function suggestNextLoad(prescription: ExercisePrescription, lastSets: Wo
       weightKg: top,
       repsTarget: prescription.repsMax,
       reason: `Your ${muscle} volume this week is ${Math.round((ctx.volumeRatio - 1) * 100)}% above your recent average — consolidate this load before adding more.`,
+    };
+  }
+  if (ctx.lowFuel && base.action === "increase_load") {
+    return {
+      ...base,
+      action: "hold",
+      weightKg: top,
+      repsTarget: prescription.repsMax,
+      reason: "You've logged well under your calorie target lately — keep this load until you're eating closer to plan.",
     };
   }
   if (ctx.inDeficit && base.action === "increase_load" && top != null && base.weightKg != null && base.weightKg - top > 2.5) {
