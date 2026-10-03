@@ -7,17 +7,17 @@ import { useToday } from "./hooks";
 import { actions, getState, newId, useAppState } from "./store";
 
 /** Saves finished days' energy calculations and completed weekly reviews as the data arrives. */
-export function useRecordKeeper() {
+export function useRecordKeeper(enabled = true) {
   const state = useAppState();
   const today = useToday();
 
   useEffect(() => {
-    if (!state.onboarded) return;
+    if (!enabled || !state.onboarded) return;
     const now = Date.now();
     const energy = pendingEnergyRecords(getState(), today, now, newId);
     if (energy.length) actions.saveEnergyRecords(energy);
     for (const review of pendingWeeklyReviews(getState(), today, now, newId)) actions.saveWeeklyReview(review);
-  }, [state, today]);
+  }, [enabled, state, today]);
 }
 
 function useClock(intervalMs = 60_000) {

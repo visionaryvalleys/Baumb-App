@@ -2,11 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ArrowRight, Plus, Sparkles } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ArrowRight, DatabaseZap, LogOut, Plus, Sparkles } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import bgImage from "@/assets/baumb/baumb-bg.jpg";
 import { buildSampleState } from "@/lib/sample";
+import { ensureSession, retrySession, signOut, useSession } from "@/lib/session";
 import { DEFAULT_ACCENT, actions, useAppState, useHydrated } from "@/lib/store";
 import { useRecordKeeper } from "@/lib/use-records";
 import { BaumbLogo, MenuButton, MenuOverlay, ProfileButton } from "./brand";
@@ -73,16 +74,36 @@ function OnboardingGate() {
   );
 }
 
+function SessionProblem({ message }: { message: string | null }) {
+  return (
+    <EmptyState icon={DatabaseZap} title="Can't load your account" description={message ?? "The server or database didn't respond."}>
+      <button type="button" className="btn-primary" onClick={() => void retrySession()}>
+        Try again
+      </button>
+    </EmptyState>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const hydrated = useHydrated();
+  const session = useSession();
   const { onboarded } = useAppState();
   const [menuOpen, setMenuOpen] = useState(false);
   const current = activeHref(pathname, NAV);
   useAccent();
-  useRecordKeeper();
+  useRecordKeeper(session.ready);
 
-  const gated = hydrated && !onboarded && !UNGATED.some((p) => pathname.startsWith(p));
+  useEffect(() => {
+    void ensureSession();
+  }, []);
+  useEffect(() => {
+    if (session.auth === "unauthenticated") router.replace(`/signin?next=${encodeURIComponent(pathname)}`);
+  }, [session.auth, pathname, router]);
+
+  const ready = hydrated && session.ready;
+  const gated = ready && !onboarded && !UNGATED.some((p) => pathname.startsWith(p));
 
   return (
     <div className="relative min-h-dvh">
@@ -111,7 +132,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/nutrition" className="mr-2 hidden h-14 items-center gap-2 bg-brand px-5 text-sm font-semibold text-black transition hover:bg-brand-strong sm:flex">
               <Plus className="h-4 w-4" aria-hidden /> Log meal
             </Link>
-            {hydrated && onboarded && <NotificationBell />}
+            {ready && onboarded && <NotificationBell />}
             <ProfileButton />
             <MenuButton expanded={menuOpen} onClick={() => setMenuOpen(true)} />
           </div>
@@ -119,7 +140,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <main key={pathname} className="relative z-10 mx-auto w-full max-w-6xl px-5 pb-20 pt-6 animate-fade-slide-up sm:px-8">
-        {!hydrated ? <PageSkeleton /> : gated ? <OnboardingGate /> : children}
+        {session.auth === "error" ? <SessionProblem message={session.message} /> : !ready ? <PageSkeleton /> : gated ? <OnboardingGate /> : children}
       </main>
 
       <MenuOverlay
@@ -129,6 +150,21 @@ export function AppShell({ children }: { children: ReactNode }) {
         links={MENU}
         activeHref={activeHref(pathname, MENU)}
         cta={{ href: "/nutrition", label: "Log meal" }}
+        footer={
+          session.user && (
+            <button
+              type="button"
+              onClick={async () => {
+                setMenuOpen(false);
+                await signOut();
+                router.replace("/signin");
+              }}
+              className="mt-3 flex h-12 w-full items-center justify-center gap-2 text-sm font-semibold text-white/80 transition hover:text-white"
+            >
+              <LogOut className="size-4" aria-hidden /> Sign out {session.user.name}
+            </button>
+          )
+        }
       />
     </div>
   );

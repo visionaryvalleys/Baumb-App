@@ -6,6 +6,7 @@ import { buildSampleState } from "@/lib/sample";
 import { DEFAULT_ACCENT, actions, migrateLegacy, useAppState } from "@/lib/store";
 import type { AppState } from "@/lib/types";
 import { Card, CardTitle, Segmented, cn } from "../ui";
+import { AccountCard } from "./account-card";
 import { CalculationLog } from "./calculation-log";
 
 const ACCENTS = [
@@ -56,6 +57,8 @@ export function SettingsView() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <AccountCard />
+
       <Card>
         <CardTitle action={<Palette className="size-4 text-white/50" aria-hidden />}>Accent colour</CardTitle>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
@@ -96,7 +99,7 @@ export function SettingsView() {
       <Card className="lg:col-span-2">
         <CardTitle action={<Bell className="size-4 text-white/50" aria-hidden />}>Reminders</CardTitle>
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="max-w-xl text-sm text-white/60">In-app reminders for weigh-ins, unlogged food, planned workouts, calendar events, weekly reviews and plan check-ins. They appear under the bell and never leave this device.</p>
+          <p className="max-w-xl text-sm text-white/60">In-app reminders for weigh-ins, unlogged food, planned workouts, calendar events, weekly reviews and plan check-ins. They appear under the bell.</p>
           <Segmented
             value={state.settings.notifications ? "on" : "off"}
             onChange={(v) => actions.updateSettings({ notifications: v === "on" })}
@@ -120,7 +123,7 @@ export function SettingsView() {
           <button
             type="button"
             onClick={() => {
-              if (window.confirm("Replace your current data with six weeks of sample data?")) {
+              if (window.confirm("Replace all your data (here and in your account) with six weeks of sample data?")) {
                 actions.replaceAll(buildSampleState());
                 setMessage({ tone: "ok", text: "Sample data loaded." });
               }
@@ -132,7 +135,7 @@ export function SettingsView() {
           <button
             type="button"
             onClick={() => {
-              if (window.confirm("Permanently delete everything stored on this device?")) {
+              if (window.confirm("Permanently delete all your BAUMB data — on this device and in your account database? Your account itself stays.")) {
                 actions.reset();
                 setMessage({ tone: "ok", text: "All data cleared." });
               }
@@ -149,7 +152,7 @@ export function SettingsView() {
           </p>
         )}
         <p className="mt-3 text-xs text-white/45">
-          {state.workouts.length} workouts · {state.meals.length} meal items · {state.weights.length} weigh-ins · {state.measurements.length} measurements · {state.photos.length} photos · {state.events.length} events · {state.plans.length} plan versions · {state.energyRecords.length} saved energy days · {state.weeklyReviews.length} saved reviews — stored only in this browser.
+          {state.workouts.length} workouts · {state.meals.length} meal items · {state.weights.length} weigh-ins · {state.measurements.length} measurements · {state.photos.length} photos · {state.events.length} events · {state.plans.length} plan versions · {state.energyRecords.length} saved energy days · {state.weeklyReviews.length} saved reviews — saved to your account.
         </p>
       </Card>
 

@@ -166,9 +166,10 @@ function subscribe(listener: () => void) {
   };
 }
 
-/** Applies an update and persists it. Returns false when storage is full or unavailable. */
-function setState(update: (prev: AppState) => AppState): boolean {
-  state = update(getSnapshot());
+const localChangeListeners = new Set<(s: AppState) => void>();
+
+function commit(next: AppState): boolean {
+  state = next;
   let persisted = true;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -177,6 +178,34 @@ function setState(update: (prev: AppState) => AppState): boolean {
   }
   listeners.forEach((l) => l());
   return persisted;
+}
+
+/** Applies a user change, persists it locally and notifies the account sync. Returns false when local storage is full. */
+function setState(update: (prev: AppState) => AppState): boolean {
+  const persisted = commit(update(getSnapshot()));
+  localChangeListeners.forEach((l) => l(state!));
+  return persisted;
+}
+
+/** Called for every change the user makes on this tab (not for data loaded from the account). */
+export function onLocalChange(listener: (s: AppState) => void): () => void {
+  localChangeListeners.add(listener);
+  return () => localChangeListeners.delete(listener);
+}
+
+/** Replaces local data with what's saved in the account, without echoing it back as a change. */
+export function applyRemoteState(raw: Partial<AppState>) {
+  commit(normalizeState(raw));
+}
+
+/** Wipes this browser's copy (on sign-out) so the next account starts clean. */
+export function clearLocalState() {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_KEY);
+  } catch {}
+  state = { ...EMPTY_STATE, profile: { ...DEFAULT_PROFILE, timezone: deviceTimezone() } };
+  listeners.forEach((l) => l());
 }
 
 export function useAppState(): AppState {

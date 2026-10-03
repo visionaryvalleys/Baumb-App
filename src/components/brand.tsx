@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { UserRound } from "lucide-react";
-import { type CSSProperties, useEffect } from "react";
+import { type CSSProperties, type ReactNode, useEffect } from "react";
 import { cn } from "./ui";
 
 export function BaumbLogo({ className, href = "/" }: { className?: string; href?: string }) {
@@ -53,6 +53,7 @@ export function MenuOverlay({
   cta,
   fixed = false,
   activeHref,
+  footer,
 }: {
   open: boolean;
   onClose: () => void;
@@ -60,6 +61,7 @@ export function MenuOverlay({
   cta: MenuLink;
   fixed?: boolean;
   activeHref?: string;
+  footer?: ReactNode;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -128,6 +130,7 @@ export function MenuOverlay({
       >
         {cta.label}
       </Link>
+      {footer}
     </div>
   );
 }
