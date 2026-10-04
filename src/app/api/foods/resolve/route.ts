@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { MAX_FOOD_KEY } from "@/calculations/food-key";
-import { aiEnabled } from "@/server/anthropic";
+import { aiEnabled } from "@/server/ai";
 import { getSessionUser } from "@/server/auth";
 import { resolveFoods } from "@/server/food-ai";
 import { HttpError, assertSameOrigin, errorResponse, readJson } from "@/server/http";

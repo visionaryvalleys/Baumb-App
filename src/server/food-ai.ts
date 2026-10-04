@@ -3,14 +3,14 @@ import { foodKey, isLookupKey } from "@/calculations/food-key";
 import { matchFoods } from "@/calculations/food-parser";
 import { type AiFoodDraft, validateAiFood } from "@/calculations/food-validation";
 import type { Food } from "@/lib/types";
-import { AI_MODEL, FOOD_EFFORT, aiEnabled, claudeJson } from "./anthropic";
+import { FOOD_EFFORT, aiEnabled, aiJson, aiModel } from "./ai";
 import { db, sql } from "./db";
 import { AI_FOOD_PREFIX, FOOD_COLUMNS, type FoodRow, getFoodCatalogue, toFood } from "./foods";
 import { LruCache, Semaphore } from "./limits";
 
 /**
  * Turns a typed food phrase into one stored food, once for all users:
- *   memory (LRU)  →  dbo.FoodKeys (phrase → food, primary-key lookup)  →  Claude (only for phrases never seen).
+ *   memory (LRU)  →  dbo.FoodKeys (phrase → food, primary-key lookup)  →  the AI model (only for phrases never seen).
  * Quantities are never stored — "5 idli" and "2 idlis" both resolve the key "idli" and the app multiplies.
  * Concurrent requests for the same phrase share one AI call, and different new phrases are batched together.
  */
@@ -149,7 +149,7 @@ async function saveFood(food: Food, keys: string[], attempt = 0): Promise<Food> 
   }
 }
 
-/* ───────────── Claude ───────────── */
+/* ───────────── AI ───────────── */
 
 const FOOD_SYSTEM = `You are the nutrition data engine of BAUMB, a fitness app used mostly in India. Accuracy is the top priority: users' fat-loss and muscle-gain timelines are calculated from your numbers.
 
@@ -217,7 +217,7 @@ interface AiItem extends AiFoodDraft {
 
 const slug = (name: string) => foodKey(name).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 
-async function askClaude(keys: string[]): Promise<Map<string, Known>> {
+async function askAi(keys: string[]): Promise<Map<string, Known>> {
   const catalogue = await getFoodCatalogue();
   const candidates = new Map(keys.map((key) => [key, matchFoods(key, catalogue, 4).map((m) => m.food)]));
   const phrases = keys.map((key) => ({
@@ -225,13 +225,14 @@ async function askClaude(keys: string[]): Promise<Map<string, Known>> {
     candidates: candidates.get(key)!.map((f) => ({ id: f.id, name: f.name, per100g: f.per100g, servings: f.servings.map((s) => `${s.label} = ${s.grams} g`) })),
   }));
 
-  const answer = await claudeJson<{ items: AiItem[] }>({
+  const answer = await aiJson<{ items: AiItem[] }>({
     system: FOOD_SYSTEM,
     prompt: `Food phrases (JSON):\n${JSON.stringify(phrases)}`,
     schema: FOOD_SCHEMA,
     maxTokens: 16_000,
     effort: FOOD_EFFORT,
     timeoutMs: AI_TIMEOUT_MS,
+    cacheKey: "baumb-food",
   });
 
   const out = new Map<string, Known>();
@@ -260,7 +261,7 @@ async function askClaude(keys: string[]): Promise<Map<string, Known>> {
         aliases: c.aliases,
         per100g: c.per100g,
         servings: c.servings.map((s, i) => ({ id: `s${i + 1}`, label: s.label, grams: s.grams })),
-        source: `AI (${AI_MODEL}) · ${item.reference || "reference values"} · ${item.confidence} confidence`,
+        source: `AI (${aiModel()}) · ${item.reference || "reference values"} · ${item.confidence} confidence`,
         priority: 1,
       };
       // A shaky estimate is shown to this user but not frozen for everyone.
@@ -280,7 +281,7 @@ function flush() {
   if (state.queue.length) state.timer = setTimeout(flush, 0);
   if (!batch.length) return;
   void state.slots
-    .run(() => askClaude(batch.map((b) => b.key)))
+    .run(() => askAi(batch.map((b) => b.key)))
     .then((answers) => batch.forEach((b) => b.resolve(answers.get(b.key) ?? null)))
     .catch((err) => {
       console.error("[food-ai] AI lookup failed:", err instanceof Error ? err.message : err);

@@ -20,7 +20,7 @@ let state: ChatState = EMPTY;
 let controller: AbortController | null = null;
 const listeners = new Set<() => void>();
 
-const storageKey = (userId: string) => `baumb:coach:${userId}`;
+const storageKey = (userId: string) => `baumb:trainer:${userId}`;
 
 function set(next: ChatState) {
   state = next;
@@ -32,7 +32,7 @@ function set(next: ChatState) {
   }
 }
 
-/** One conversation per account and browser tab; it follows the user from page to page. */
+/** One conversation per account and browser tab; an answer keeps streaming while the user moves between pages. */
 function switchOwner(userId: string | null) {
   if (userId === owner) return;
   controller?.abort();
@@ -44,7 +44,7 @@ function switchOwner(userId: string | null) {
   state = { turns, streaming: false };
 }
 
-export function useHealthChat(userId: string | null): ChatState {
+export function useTrainerChat(userId: string | null): ChatState {
   if (typeof window !== "undefined") switchOwner(userId);
   return useSyncExternalStore(
     (l) => {
@@ -64,7 +64,7 @@ function patchLast(patch: Partial<ChatTurn>, streaming = state.streaming) {
   set({ turns, streaming });
 }
 
-export async function askCoach(question: string, context: string) {
+export async function askTrainer(question: string, context: string) {
   const text = question.trim();
   if (!text || state.streaming) return;
   const history = state.turns.filter((t) => !t.failed && t.content);
@@ -81,7 +81,7 @@ export async function askCoach(question: string, context: string) {
     });
     if (!res.ok || !res.body) {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
-      return patchLast({ content: body.error ?? "BAUMB Coach couldn't answer right now. Please try again.", failed: true }, false);
+      return patchLast({ content: body.error ?? "BAUMB Trainer couldn't answer right now. Please try again.", failed: true }, false);
     }
     const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
     let answer = "";
@@ -100,11 +100,11 @@ export async function askCoach(question: string, context: string) {
   }
 }
 
-export function stopCoach() {
+export function stopTrainer() {
   controller?.abort();
 }
 
-export function clearCoach() {
+export function clearTrainer() {
   controller?.abort();
   set({ turns: [], streaming: false });
 }

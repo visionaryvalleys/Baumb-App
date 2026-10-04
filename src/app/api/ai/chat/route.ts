@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { CHAT_EFFORT, type ChatMessage, aiEnabled, claudeStream } from "@/server/anthropic";
+import { CHAT_EFFORT, type ChatMessage, aiEnabled, aiStream } from "@/server/ai";
 import { getSessionUser } from "@/server/auth";
 import { HttpError, assertSameOrigin, errorResponse, readJson } from "@/server/http";
 import { Semaphore, limitPerUser } from "@/server/limits";
@@ -12,7 +12,7 @@ const MAX_CONTEXT_CHARS = 8_000;
 const g = globalThis as unknown as { baumbChatSlots?: Semaphore };
 const slots = (g.baumbChatSlots ??= new Semaphore(Number(process.env.AI_MAX_STREAMS) || 32, 300));
 
-const SYSTEM = `You are BAUMB Coach, the health and fitness assistant inside BAUMB, a training and nutrition app used mostly in India.
+const SYSTEM = `You are BAUMB Trainer, the health and fitness assistant inside BAUMB, a training and nutrition app used mostly in India.
 
 Help with: nutrition and Indian food, calories and macros, fat loss, muscle gain, training and exercise technique, steps, sleep, recovery, hydration, supplements, and healthy habits.
 Personalise every answer with the user's BAUMB data given below (profile, goal, plan targets, today's food, recent logs). The plan targets were calculated by the app — work with them, and explain them if asked. Never invent data the user hasn't logged; say what's missing instead.
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     assertSameOrigin(req);
     const user = await getSessionUser();
     if (!user) throw new HttpError(401, "Please sign in.");
-    if (!aiEnabled()) throw new HttpError(503, "BAUMB Coach isn't switched on yet. Add ANTHROPIC_API_KEY to .env.local and restart the app.");
+    if (!aiEnabled()) throw new HttpError(503, "BAUMB Trainer isn't switched on yet. Add OPENAI_API_KEY to .env.local and restart the app.");
     limitPerUser(`chat:${user.id}`, 12, 60_000, "You're asking very quickly. Wait a minute and try again.");
     limitPerUser(`chat-day:${user.id}`, 200, 86_400_000, "You've reached today's question limit. It resets tomorrow.");
 
@@ -53,14 +53,15 @@ export async function POST(req: NextRequest) {
     req.signal.addEventListener("abort", release, { once: true });
     let stream: ReadableStream<Uint8Array>;
     try {
-      stream = await claudeStream({
+      stream = await aiStream({
         system: SYSTEM,
         context: context ? `User data from BAUMB:\n${context}` : "The user has no data in BAUMB yet.",
         messages,
-        maxTokens: 2_000,
+        maxTokens: 4_000,
         effort: CHAT_EFFORT,
         signal: req.signal,
         timeoutMs: 90_000,
+        cacheKey: "baumb-chat",
       });
     } catch (err) {
       release();

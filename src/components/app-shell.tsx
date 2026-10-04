@@ -10,12 +10,12 @@ import { DEFAULT_ACCENT, actions, getState, resolveAccent, useAppState, useHydra
 import { useRecordKeeper } from "@/lib/use-records";
 import { Backdrop } from "./backdrop";
 import { BaumbLogo, MenuButton, MenuOverlay, ProfileButton } from "./brand";
-import { HealthChat } from "./health-chat";
 import { NotificationBell } from "./notifications";
 import { EmptyState, PageSkeleton, cn } from "./ui";
 
 const NAV = [
   { href: "/dashboard", label: "Home" },
+  { href: "/trainer", label: "Trainer" },
   { href: "/plan", label: "Plan" },
   { href: "/nutrition", label: "Nutrition" },
   { href: "/workout", label: "Workout" },
@@ -26,6 +26,7 @@ const NAV = [
 
 const MENU = [
   { href: "/dashboard", label: "Home" },
+  { href: "/trainer", label: "BAUMB Trainer" },
   { href: "/transformation", label: "Transformation" },
   { href: "/plan", label: "My Plan" },
   { href: "/nutrition", label: "Nutrition" },
@@ -113,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-base/70 backdrop-blur-xl backdrop-saturate-150">
         <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
           <BaumbLogo />
-          <nav className="hidden items-center gap-1 rounded-full bg-white/[0.03] p-1 ring-1 ring-inset ring-white/[0.06] xl:flex" aria-label="Primary">
+          <nav className="hidden items-center gap-0.5 rounded-full bg-white/[0.03] p-1 ring-1 ring-inset ring-white/[0.06] xl:flex" aria-label="Primary">
             {NAV.map((n) => (
               <Link
                 key={n.href}
@@ -129,7 +130,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="flex items-center">
-            <Link href="/nutrition" className="btn-primary mr-3 hidden min-h-10 rounded-full px-4 sm:inline-flex">
+            {current !== "/trainer" && (
+              <Link href="/trainer" className="mr-2 inline-flex min-h-10 items-center rounded-full px-3.5 text-[14px] font-semibold text-white ring-1 ring-inset ring-brand/40 transition hover:bg-brand/10 sm:mr-3 xl:hidden">
+                Trainer
+              </Link>
+            )}
+            <Link href="/nutrition" className="btn-primary mr-3 hidden min-h-10 whitespace-nowrap rounded-full px-4 sm:inline-flex">
               <Plus className="size-4" aria-hidden /> Log meal
             </Link>
             {ready && onboarded && <NotificationBell />}
@@ -141,7 +147,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main key={pathname} className="relative z-10 mx-auto w-full max-w-6xl px-5 pb-24 pt-8 animate-fade-slide-up sm:px-8 sm:pt-12">
         {session.auth === "error" ? <SessionProblem message={session.message} /> : !ready ? <PageSkeleton /> : gated ? <OnboardingGate /> : children}
-        {ready && session.auth !== "error" && !pathname.startsWith("/onboarding") && <HealthChat />}
       </main>
 
       <MenuOverlay

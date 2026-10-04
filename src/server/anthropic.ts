@@ -8,16 +8,6 @@ export type Effort = "low" | "medium" | "high";
 
 export const AI_MODEL = process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5";
 
-function effort(value: string | undefined, fallback: Effort): Effort {
-  return value === "low" || value === "medium" || value === "high" ? value : fallback;
-}
-export const FOOD_EFFORT = effort(process.env.ANTHROPIC_FOOD_EFFORT, "medium");
-export const CHAT_EFFORT = effort(process.env.ANTHROPIC_CHAT_EFFORT, "low");
-
-export function aiEnabled(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
-}
-
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;

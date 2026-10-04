@@ -37,22 +37,22 @@ vi.mock("./foods", async () => ({
   toFood: (r: Record<string, unknown>) => ({ id: r.Id, name: r.Name, aliases: [], category: r.Category, per100g: { calories: r.Calories, proteinG: r.ProteinG, carbsG: r.CarbsG, fatG: r.FatG, fiberG: r.FiberG }, servings: JSON.parse(r.ServingsJson as string), source: r.Source, priority: r.Priority }),
 }));
 
-const claudeJson = vi.fn();
-vi.mock("./anthropic", () => ({ AI_MODEL: "test-model", FOOD_EFFORT: "medium", aiEnabled: () => true, claudeJson: (...args: unknown[]) => claudeJson(...args) }));
+const aiJson = vi.fn();
+vi.mock("./ai", () => ({ aiModel: () => "test-model", FOOD_EFFORT: "medium", aiEnabled: () => true, aiJson: (...args: unknown[]) => aiJson(...args) }));
 
 const { resolveFoods } = await import("./food-ai");
 
 const blank = { databaseId: "", name: "", category: "", aliases: [], per100g: { calories: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0, alcoholG: 0 }, servings: [], confidence: "high", reference: "" };
 
 function answer(items: object[]) {
-  claudeJson.mockImplementation(async () => {
+  aiJson.mockImplementation(async () => {
     await new Promise((r) => setTimeout(r, 20));
     return { items };
   });
 }
 
 beforeEach(() => {
-  claudeJson.mockReset();
+  aiJson.mockReset();
   queries.length = 0;
 });
 
@@ -60,13 +60,13 @@ describe("resolveFoods", () => {
   it("makes one AI call when many users type the same food at once, then serves it from memory", async () => {
     answer([{ ...blank, key: "idli", kind: "database", databaseId: "nin-idli" }]);
     const results = await Promise.all(Array.from({ length: 50 }, (_, i) => resolveFoods([i % 2 ? "idlis" : "Idli"])));
-    expect(claudeJson).toHaveBeenCalledTimes(1);
+    expect(aiJson).toHaveBeenCalledTimes(1);
     expect(results.every((r) => r[0].status === "matched" && r[0].food?.id === "nin-idli")).toBe(true);
     expect(queries.some((q) => q.includes("INSERT INTO dbo.FoodKeys"))).toBe(true);
 
     const again = await resolveFoods(["idli"]);
     expect(again[0].status).toBe("matched");
-    expect(claudeJson).toHaveBeenCalledTimes(1);
+    expect(aiJson).toHaveBeenCalledTimes(1);
   });
 
   it("batches different new foods into one AI call and stores validated ones", async () => {
@@ -84,7 +84,7 @@ describe("resolveFoods", () => {
       { ...blank, key: "asdfgh", kind: "not_food" },
     ]);
     const [a, b] = await Promise.all([resolveFoods(["paneer tikka"]), resolveFoods(["asdfgh"])]);
-    expect(claudeJson).toHaveBeenCalledTimes(1);
+    expect(aiJson).toHaveBeenCalledTimes(1);
     expect(a[0]).toMatchObject({ status: "estimated", food: { id: "ai-paneer-tikka" } });
     expect(b[0]).toMatchObject({ status: "not_food", food: null });
   });
@@ -99,6 +99,6 @@ describe("resolveFoods", () => {
   it("reuses the answer for every spelling of a food already resolved above", async () => {
     const [r] = await resolveFoods(["idlis"]);
     expect(r.key).toBe("idli");
-    expect(claudeJson).not.toHaveBeenCalled();
+    expect(aiJson).not.toHaveBeenCalled();
   });
 });

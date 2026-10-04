@@ -27,6 +27,7 @@ import { useProjection } from "@/lib/use-projection";
 import { ProgressRing } from "./charts";
 import { EnergyBreakdown } from "./energy-breakdown";
 import { CountUp } from "./count-up";
+import { TrainerPrompt } from "./trainer";
 import { BigNumber, Card, CardTitle, KindTag, Meter, PageHeader, SectionLabel, cn } from "./ui";
 
 function greeting() {
@@ -177,6 +178,8 @@ export function Dashboard() {
           </div>
         </div>
       </section>
+
+      <TrainerPrompt />
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <TodayStat

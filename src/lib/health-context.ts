@@ -9,7 +9,7 @@ const MAX_CHARS = 7_500;
 const round = (v: number) => Math.round(v * 10) / 10;
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
-/** A compact, plain-text summary of the user's own data that BAUMB Coach answers from. */
+/** A compact, plain-text summary of the user's own data that BAUMB Trainer answers from. */
 export function buildHealthContext(s: AppState): string {
   const tz = s.profile.timezone;
   const today = todayKey(tz);
