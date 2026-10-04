@@ -6,7 +6,7 @@ import { ArrowRight, DatabaseZap, LogOut, Plus, Sparkles } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { buildSampleState } from "@/lib/sample";
 import { ensureSession, retrySession, signOut, useSession } from "@/lib/session";
-import { DEFAULT_ACCENT, actions, resolveAccent, useAppState, useHydrated } from "@/lib/store";
+import { DEFAULT_ACCENT, actions, getState, resolveAccent, useAppState, useHydrated } from "@/lib/store";
 import { useRecordKeeper } from "@/lib/use-records";
 import { Backdrop } from "./backdrop";
 import { BaumbLogo, MenuButton, MenuOverlay, ProfileButton } from "./brand";
@@ -67,7 +67,7 @@ function OnboardingGate() {
       <Link href="/onboarding" className="btn-primary">
         Start onboarding <ArrowRight className="size-4" aria-hidden />
       </Link>
-      <button type="button" className="btn-ghost" onClick={() => actions.replaceAll(buildSampleState())}>
+      <button type="button" className="btn-ghost" onClick={() => actions.replaceAll(buildSampleState(getState().profile))}>
         Explore with sample data
       </button>
     </EmptyState>

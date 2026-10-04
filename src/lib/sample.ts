@@ -125,16 +125,18 @@ function mealItems(date: LocalDate, meal: MealType, template: MealTemplate, tz: 
 /** Six weeks of a lean-phase athlete following a generated plan, including a vacation and a plan revision. */
 const CALVES_FIELD: CustomMeasurementField = { id: "sample-calves", label: "Calves", unit: "length", createdAt: 0 };
 
-export function buildSampleState(): AppState {
+/** Pass the account holder's profile so the sample keeps their own name. */
+export function buildSampleState(owner?: Pick<Profile, "firstName" | "lastName">): AppState {
   const rand = rng(42);
   const tz = deviceTimezone();
   const today = todayKey(tz);
   const start = addDays(today, -(DAYS - 1));
+  const ownName = owner?.firstName.trim();
 
   const profile: Profile = {
     ...DEFAULT_PROFILE,
-    firstName: "Alex",
-    lastName: "Morgan",
+    firstName: ownName || "Alex",
+    lastName: ownName ? owner!.lastName.trim() : "Morgan",
     age: 29,
     ageRecordedOn: start,
     sex: "male",

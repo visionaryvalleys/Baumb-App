@@ -3,7 +3,7 @@
 import { type ChangeEvent, useRef, useState } from "react";
 import { Bell, Check, Download, Palette, RotateCcw, Sparkles, Upload } from "lucide-react";
 import { buildSampleState } from "@/lib/sample";
-import { DEFAULT_ACCENT, actions, migrateLegacy, resolveAccent, useAppState } from "@/lib/store";
+import { DEFAULT_ACCENT, actions, getState, migrateLegacy, resolveAccent, useAppState } from "@/lib/store";
 import type { AppState } from "@/lib/types";
 import { Card, CardTitle, Segmented, cn } from "../ui";
 import { AccountCard } from "./account-card";
@@ -125,7 +125,7 @@ export function SettingsView() {
             type="button"
             onClick={() => {
               if (window.confirm("Replace all your data (here and in your account) with six weeks of sample data?")) {
-                actions.replaceAll(buildSampleState());
+                actions.replaceAll(buildSampleState(getState().profile));
                 setMessage({ tone: "ok", text: "Sample data loaded." });
               }
             }}
