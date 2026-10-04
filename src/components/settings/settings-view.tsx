@@ -136,7 +136,7 @@ export function SettingsView() {
           <button
             type="button"
             onClick={() => {
-              if (window.confirm("Permanently delete all your BAUMB data — on this device and in your account database? Your account itself stays.")) {
+              if (window.confirm("Permanently delete all your BAUMB data — on this device and in your account? Your account itself stays.")) {
                 actions.reset();
                 setMessage({ tone: "ok", text: "All data cleared." });
               }

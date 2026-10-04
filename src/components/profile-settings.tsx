@@ -12,6 +12,7 @@ import {
   BodyFields,
   GoalPicker,
   TargetFields,
+  StrengthFields,
   TrainingFields,
   draftToGoal,
   draftToProfile,
@@ -20,6 +21,7 @@ import {
   profileToDraft,
   validateAbout,
   validateBody,
+  validateStrength,
   validateTarget,
   type Errors,
   type GoalDraft,
@@ -41,7 +43,7 @@ function Editor({ notice, onSaved }: { notice: Notice | null; onSaved: (n: Notic
   const setGoal = <K extends keyof GoalDraft>(k: K, v: GoalDraft[K]) => setG((p) => ({ ...p, [k]: v }));
 
   function validate() {
-    const e = { ...validateAbout(d), ...validateBody(d), ...validateTarget(g, d.unitSystem) };
+    const e = { ...validateAbout(d), ...validateBody(d), ...validateTarget(g, d.unitSystem), ...validateStrength(g) };
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -59,7 +61,7 @@ function Editor({ notice, onSaved }: { notice: Notice | null; onSaved: (n: Notic
       onSaved({ message: "Profile saved.", flags: [] });
       return;
     }
-    const goal = draftToGoal(g, d.unitSystem, newId(), Date.now());
+    const goal = draftToGoal(g, d, newId(), Date.now());
     const plan = buildPlanVersion({
       id: newId(),
       version: Math.max(0, ...state.plans.map((p) => p.version)) + 1,
@@ -98,6 +100,10 @@ function Editor({ notice, onSaved }: { notice: Notice | null; onSaved: (n: Notic
       <Card>
         <CardTitle>Training setup</CardTitle>
         <TrainingFields g={g} set={setGoal} d={d} setProfile={setProfile} />
+      </Card>
+      <Card>
+        <CardTitle>Strength test</CardTitle>
+        <StrengthFields g={g} set={setGoal} d={d} errors={errors} />
       </Card>
       <div className="glass sticky bottom-4 z-20 flex flex-wrap items-center justify-between gap-3 rounded-card p-4 shadow-lift sm:px-5">
         <p className="text-sm text-white/60" role="status">

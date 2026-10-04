@@ -1,12 +1,13 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { EQUIPMENT_LABELS, EXPERIENCE_LABELS, GOAL_LIST, LIFESTYLE_LABELS, goalConfig } from "@/data/goals";
-import { MAX_SESSION_MINUTES, MIN_SESSION_MINUTES } from "@/calculations/workout";
-import { deviceTimezone } from "@/lib/date";
-import type { EquipmentAccess, Experience, Goal, GoalType, Lifestyle, Profile, Sex, UnitSystem } from "@/lib/types";
+import { EQUIPMENT_LABELS, EXPERIENCE_DETAILS, EXPERIENCE_LABELS, GOAL_LIST, LIFESTYLE_LABELS, SPLIT_OPTIONS, goalConfig } from "@/data/goals";
+import { STRENGTH_LEVELS, strengthProfile, strengthTestLifts, type StrengthLevel } from "@/calculations/strength";
+import { MAX_SESSION_MINUTES, MIN_SESSION_MINUTES, weekStructure } from "@/calculations/workout";
+import { WEEKDAY_SHORT, deviceTimezone } from "@/lib/date";
+import type { EquipmentAccess, Experience, Goal, GoalType, Lifestyle, Profile, Sex, SplitPreference, StrengthTest, UnitSystem } from "@/lib/types";
 import { cmToFeetInches, feetInchesToCm, fromDisplayWeight, toDisplayWeight, weightUnit } from "@/lib/units";
-import { Segmented, cn } from "../ui";
+import { Segmented, SectionLabel, cn } from "../ui";
 
 export interface ProfileDraft {
   firstName: string;
@@ -30,6 +31,9 @@ export interface GoalDraft {
   experience: Experience;
   daysPerWeek: number;
   sessionMinutes: number;
+  split: SplitPreference;
+  /** Strength test inputs by exercise id, weight in the display unit. */
+  tests: Record<string, { weight: string; reps: string }>;
 }
 
 export type Errors = Partial<Record<string, string>>;
@@ -60,6 +64,10 @@ export function goalToDraft(g: Goal | null, unit: UnitSystem): GoalDraft {
     experience: g?.experience ?? "beginner",
     daysPerWeek: g?.daysPerWeek ?? 3,
     sessionMinutes: g?.sessionMinutes ?? 60,
+    split: g?.split ?? "auto",
+    tests: Object.fromEntries(
+      (g?.strengthTests ?? []).map((t) => [t.exerciseId, { weight: t.weightKg ? String(toDisplayWeight(t.weightKg, weightUnit(unit))) : "", reps: String(t.reps) }]),
+    ),
   };
 }
 
@@ -124,7 +132,30 @@ export function draftToProfile(d: ProfileDraft, ageRecordedOn: string): Profile 
   };
 }
 
-export function draftToGoal(g: GoalDraft, unit: UnitSystem, id: string, now: number): Goal {
+export function validateStrength(g: GoalDraft): Errors {
+  const e: Errors = {};
+  for (const [id, t] of Object.entries(g.tests)) {
+    const reps = Number(t.reps);
+    const weight = Number(t.weight || 0);
+    if (t.reps.trim() && (!Number.isInteger(reps) || reps < 0 || reps > 100)) e[`test-${id}`] = "Reps must be a whole number";
+    else if (!Number.isFinite(weight) || weight < 0 || weight > 1000) e[`test-${id}`] = "Enter a realistic weight";
+  }
+  return e;
+}
+
+/** Tests with reps entered, for the lifts that apply to this sex and equipment. */
+function draftTests(g: GoalDraft, unit: UnitSystem, sex: Sex | null, equipment: EquipmentAccess): StrengthTest[] {
+  return strengthTestLifts(sex, equipment).flatMap((lift) => {
+    const t = g.tests[lift.exerciseId];
+    if (!t?.reps.trim()) return [];
+    const kg = lift.load === "none" ? 0 : fromDisplayWeight(Number(t.weight || 0), weightUnit(unit));
+    return [{ exerciseId: lift.exerciseId, weightKg: Math.round(kg * 10) / 10, reps: Math.round(Number(t.reps)) }];
+  });
+}
+
+export function draftToGoal(g: GoalDraft, d: Pick<ProfileDraft, "unitSystem" | "sex" | "equipment">, id: string, now: number): Goal {
+  const unit = d.unitSystem;
+  const strengthTests = draftTests(g, unit, d.sex || null, d.equipment);
   return {
     id,
     createdAt: now,
@@ -134,6 +165,8 @@ export function draftToGoal(g: GoalDraft, unit: UnitSystem, id: string, now: num
     experience: g.experience,
     daysPerWeek: g.daysPerWeek,
     sessionMinutes: g.sessionMinutes,
+    split: g.split,
+    ...(strengthTests.length ? { strengthTests } : {}),
   };
 }
 
@@ -301,17 +334,84 @@ export function TargetFields({ g, set, unit, errors }: { g: GoalDraft; set: Sett
   );
 }
 
+function ChoiceCards<T extends string>({ value, onChange, options, label, columns }: { value: T; onChange: (v: T) => void; options: { value: T; label: string; detail: string }[]; label: string; columns: string }) {
+  return (
+    <div role="radiogroup" aria-label={label} className={cn("grid gap-2", columns)}>
+      {options.map((o) => {
+        const active = o.value === value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(o.value)}
+            className={cn("relative rounded-xl px-3.5 py-3 text-left transition", active ? "bg-brand/12 shadow-[inset_0_0_0_1.5px_var(--color-brand)]" : "bg-white/[0.03] ring-1 ring-inset ring-white/[0.08] hover:bg-white/[0.06]")}
+          >
+            <span className={cn("block text-sm font-semibold", active ? "text-white" : "text-white/85")}>{o.label}</span>
+            <span className={cn("mt-0.5 block text-xs", active ? "text-white/70" : "text-white/45")}>{o.detail}</span>
+            {active && <Check className="absolute right-3 top-3 size-3.5 text-brand" aria-hidden />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function WeekPreview({ g }: { g: GoalDraft }) {
+  const week = weekStructure({ type: g.type, experience: g.experience, daysPerWeek: g.daysPerWeek, split: g.split });
+  const byDay = new Map(week.days.map((d) => [d.weekday, d]));
+  return (
+    <div className="panel p-4">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <SectionLabel>Your week</SectionLabel>
+        <span className="text-xs font-semibold text-brand">{week.split}</span>
+      </div>
+      <ol className="grid grid-cols-7 gap-1.5">
+        {WEEKDAY_SHORT.map((label, i) => {
+          const day = byDay.get(i);
+          return (
+            <li key={label} className={cn("min-h-[4.5rem] rounded-lg p-2 text-center", day ? "bg-white/[0.06] ring-1 ring-inset ring-white/10" : "bg-black/20")}>
+              <span className="block text-[10px] font-semibold uppercase tracking-wider text-white/40">{label}</span>
+              <span className={cn("mt-1 block text-[11px] font-semibold leading-tight sm:text-xs", day ? "text-white" : "text-white/30")}>{day?.name ?? "Rest"}</span>
+              {day && <span className="mt-0.5 hidden text-[10px] leading-tight text-white/45 md:block">{day.focus}</span>}
+            </li>
+          );
+        })}
+      </ol>
+      {week.note && <p className="mt-3 text-xs text-white/55">{week.note}</p>}
+    </div>
+  );
+}
+
 export function TrainingFields({ g, set, d, setProfile }: { g: GoalDraft; set: Setter<GoalDraft>; d: ProfileDraft; setProfile: Setter<ProfileDraft> }) {
   return (
     <div className="space-y-6">
       <div>
         <span className="label">Training experience</span>
-        <Segmented value={g.experience} onChange={(v) => set("experience", v)} options={(Object.keys(EXPERIENCE_LABELS) as Experience[]).map((k) => ({ value: k, label: EXPERIENCE_LABELS[k] }))} />
+        <ChoiceCards
+          label="Training experience"
+          columns="sm:grid-cols-3"
+          value={g.experience}
+          onChange={(v) => set("experience", v)}
+          options={(Object.keys(EXPERIENCE_LABELS) as Experience[]).map((k) => ({ value: k, label: EXPERIENCE_LABELS[k], detail: EXPERIENCE_DETAILS[k] }))}
+        />
       </div>
       <div>
         <span className="label">Workout days per week</span>
         <Segmented value={g.daysPerWeek} onChange={(v) => set("daysPerWeek", v)} options={[1, 2, 3, 4, 5, 6, 7].map((n) => ({ value: n, label: n }))} />
       </div>
+      <div>
+        <span className="label">Workout structure</span>
+        <ChoiceCards
+          label="Workout structure"
+          columns="grid-cols-2 lg:grid-cols-5"
+          value={g.split}
+          onChange={(v) => set("split", v)}
+          options={(Object.keys(SPLIT_OPTIONS) as SplitPreference[]).map((k) => ({ value: k, ...SPLIT_OPTIONS[k] }))}
+        />
+      </div>
+      <WeekPreview g={g} />
       <div>
         <label htmlFor="session-min" className="label">
           Time per session: <span className="font-semibold text-white">{g.sessionMinutes} min</span> (warm-up, rest and transitions included)
@@ -335,6 +435,109 @@ export function TrainingFields({ g, set, d, setProfile }: { g: GoalDraft; set: S
         <span className="label">Daily life outside workouts</span>
         <Segmented value={d.lifestyle} onChange={(v) => setProfile("lifestyle", v)} options={(Object.keys(LIFESTYLE_LABELS) as Lifestyle[]).map((k) => ({ value: k, label: LIFESTYLE_LABELS[k] }))} />
       </div>
+    </div>
+  );
+}
+
+const LEVEL_STYLES = ["bg-white/10 text-white/70", "bg-sky-400/15 text-sky-200", "bg-emerald-400/15 text-emerald-200", "bg-brand/20 text-brand", "bg-fuchsia-400/20 text-fuchsia-200"];
+
+function LevelChip({ level }: { level: StrengthLevel }) {
+  return <span className={cn("inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider", LEVEL_STYLES[level])}>{STRENGTH_LEVELS[level]}</span>;
+}
+
+export function StrengthFields({ g, set, d, errors }: { g: GoalDraft; set: Setter<GoalDraft>; d: ProfileDraft; errors: Errors }) {
+  const sex = d.sex || null;
+  const unit = weightUnit(d.unitSystem);
+  const lifts = strengthTestLifts(sex, d.equipment);
+  const bodyWeightKg = draftWeightKg(d);
+  const profile = bodyWeightKg ? strengthProfile(draftTests(g, d.unitSystem, sex, d.equipment), sex, bodyWeightKg) : null;
+  const setTest = (id: string, patch: Partial<{ weight: string; reps: string }>) => set("tests", { ...g.tests, [id]: { ...(g.tests[id] ?? { weight: "", reps: "" }), ...patch } });
+
+  return (
+    <div className="space-y-5">
+      <p className="text-[14px] leading-relaxed text-white/60">
+        For each lift, enter the heaviest weight you&apos;ve lifted recently and how many clean reps you got. No recent numbers? Warm up, then do one set you can manage for 3–8 good reps. Skip anything you
+        don&apos;t do — your plan works either way.
+      </p>
+      <ul className="space-y-2">
+        {lifts.map((lift) => {
+          const t = g.tests[lift.exerciseId] ?? { weight: "", reps: "" };
+          const result = profile?.lifts.find((l) => l.exerciseId === lift.exerciseId);
+          return (
+            <li key={lift.exerciseId} className="panel p-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-semibold text-white">
+                    {lift.label}
+                    {lift.optional && <span className="ml-1.5 text-xs font-normal text-white/40">optional</span>}
+                  </div>
+                  <div className="text-xs text-white/45">{lift.hint}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {lift.load !== "none" && (
+                    <div className="relative w-28">
+                      <input
+                        aria-label={`${lift.label} ${lift.load === "added" ? "added weight" : "weight"}`}
+                        type="number"
+                        inputMode="decimal"
+                        step="0.5"
+                        min={0}
+                        className="field pr-9"
+                        placeholder={lift.load === "added" ? "0" : ""}
+                        value={t.weight}
+                        onChange={(e) => setTest(lift.exerciseId, { weight: e.target.value })}
+                      />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-white/40">{unit}</span>
+                    </div>
+                  )}
+                  {lift.load !== "none" && <span className="text-white/35" aria-hidden>×</span>}
+                  <div className="relative w-24">
+                    <input
+                      aria-label={`${lift.label} reps`}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      className="field pr-11"
+                      value={t.reps}
+                      onChange={(e) => setTest(lift.exerciseId, { reps: e.target.value })}
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-white/40">reps</span>
+                  </div>
+                </div>
+              </div>
+              {result && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/55">
+                  <LevelChip level={result.level} />
+                  {result.oneRepMaxKg ? (
+                    <span>
+                      Estimated max {toDisplayWeight(result.oneRepMaxKg, unit)} {unit}
+                      {lift.load === "added" ? " (body + added)" : ""}
+                      {lift.load === "barbell" || lift.load === "machine" ? ` · ${result.score.toFixed(2)}× body weight` : ""}
+                    </span>
+                  ) : lift.load === "none" ? (
+                    <span>{result.score} reps</span>
+                  ) : (
+                    <span>Not yet — your plan builds up to it</span>
+                  )}
+                </div>
+              )}
+              <FieldError msg={errors[`test-${lift.exerciseId}`]} />
+            </li>
+          );
+        })}
+      </ul>
+      {profile?.overall != null && (
+        <div className="panel flex flex-wrap items-center gap-3 p-4">
+          <SectionLabel>Overall</SectionLabel>
+          <LevelChip level={profile.overall} />
+          <p className="basis-full text-[13px] text-white/60">
+            Your plan sets starting weights for your main lifts from these numbers{profile.lagging.length ? `, and gives ${profile.lagging.map((l) => l.label.toLowerCase()).join(" and ")} extra work` : ""}.
+          </p>
+        </div>
+      )}
+      <p className="text-xs text-white/40">
+        Levels compare your estimated one-rep max (Epley formula) with body-weight strength standards for {sex === "female" ? "women" : "men"}.
+      </p>
     </div>
   );
 }

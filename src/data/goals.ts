@@ -159,7 +159,21 @@ export function goalConfig(type: GoalType): GoalConfig {
 export const EXPERIENCE_LABELS = {
   beginner: "Beginner",
   intermediate: "Intermediate",
-  advanced: "Advanced",
+  advanced: "Pro",
+} as const;
+
+export const EXPERIENCE_DETAILS = {
+  beginner: "Training less than 6 months",
+  intermediate: "6 months to 1 year",
+  advanced: "More than 1 year",
+} as const;
+
+export const SPLIT_OPTIONS = {
+  auto: { label: "Recommended", detail: "Chosen for your goal, days and experience" },
+  full_body: { label: "Full body", detail: "Every muscle each session" },
+  upper_lower: { label: "Upper / Lower", detail: "Alternate upper- and lower-body days" },
+  ppl: { label: "Push / Pull / Legs", detail: "Pressing, pulling and leg days" },
+  body_part: { label: "Body-part split", detail: "Chest, back, legs, shoulders, arms" },
 } as const;
 
 export const LIFESTYLE_LABELS = {

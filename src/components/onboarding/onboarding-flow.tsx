@@ -9,11 +9,14 @@ import { WEEKDAY_SHORT, todayKey } from "@/lib/date";
 import { buildPlanVersion } from "@/services/plan";
 import { actions, newId, useAppState } from "@/lib/store";
 import { sortedWeights } from "@/calculations/trend";
+import type { Unit } from "@/lib/types";
+import { toDisplayWeight, weightUnit } from "@/lib/units";
 import {
   AboutFields,
   BodyFields,
   GoalPicker,
   TargetFields,
+  StrengthFields,
   TrainingFields,
   draftToGoal,
   draftToProfile,
@@ -22,6 +25,7 @@ import {
   profileToDraft,
   validateAbout,
   validateBody,
+  validateStrength,
   validateTarget,
   type Errors,
   type GoalDraft,
@@ -29,7 +33,8 @@ import {
 } from "../profile/fields";
 import { BigNumber, Card, FlagList, KindTag, SectionLabel, cn } from "../ui";
 
-const STEPS = ["About you", "Your body", "Your goal", "Your target", "Your week", "Your plan"] as const;
+const STEPS = ["About you", "Your body", "Your goal", "Your target", "Your week", "Your strength", "Your plan"] as const;
+const PLAN_STEP = STEPS.length - 1;
 
 export function OnboardingFlow() {
   const router = useRouter();
@@ -45,14 +50,14 @@ export function OnboardingFlow() {
 
   const today = todayKey(d.timezone);
   const preview = useMemo(() => {
-    if (step < 5) return null;
+    if (step < PLAN_STEP) return null;
     const weightKg = draftWeightKg(d);
     if (weightKg == null) return null;
     return buildPlanVersion({
       id: "preview",
       version: (state.plans.at(-1)?.version ?? 0) + 1,
       profile: draftToProfile(d, today),
-      goal: draftToGoal(g, d.unitSystem, "preview", 0),
+      goal: draftToGoal(g, d, "preview", 0),
       weightKg,
       effectiveFrom: today,
       reason: state.plans.length ? "Re-onboarding" : "Initial plan from onboarding",
@@ -61,7 +66,7 @@ export function OnboardingFlow() {
   }, [step, d, g, today, state.plans]);
 
   function next() {
-    const e = step === 0 ? validateAbout(d) : step === 1 ? validateBody(d) : step === 3 ? validateTarget(g, d.unitSystem) : {};
+    const e = step === 0 ? validateAbout(d) : step === 1 ? validateBody(d) : step === 3 ? validateTarget(g, d.unitSystem) : step === 5 ? validateStrength(g) : {};
     setErrors(e);
     if (Object.keys(e).length === 0) setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
@@ -71,7 +76,7 @@ export function OnboardingFlow() {
     if (!preview || weightKg == null) return;
     const now = Date.now();
     const profile = draftToProfile(d, today);
-    const goal = draftToGoal(g, d.unitSystem, newId(), now);
+    const goal = draftToGoal(g, d, newId(), now);
     actions.completeOnboarding(
       profile,
       goal,
@@ -115,7 +120,8 @@ export function OnboardingFlow() {
         {step === 2 && <GoalPicker value={g.type} onChange={(t) => setGoal("type", t)} />}
         {step === 3 && <TargetFields g={g} set={setGoal} unit={d.unitSystem} errors={errors} />}
         {step === 4 && <TrainingFields g={g} set={setGoal} d={d} setProfile={setProfile} />}
-        {step === 5 && <PlanPreview plan={preview} />}
+        {step === 5 && <StrengthFields g={g} set={setGoal} d={d} errors={errors} />}
+        {step === PLAN_STEP && <PlanPreview plan={preview} unit={weightUnit(d.unitSystem)} />}
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
           <button type="button" className="btn-ghost" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>
@@ -136,14 +142,14 @@ export function OnboardingFlow() {
   );
 }
 
-function PlanPreview({ plan }: { plan: ReturnType<typeof buildPlanVersion> }) {
+function PlanPreview({ plan, unit }: { plan: ReturnType<typeof buildPlanVersion>; unit: Unit }) {
   if (!plan) return <p className="text-white/60">Some details are missing. Go back and complete your profile.</p>;
   const t = plan.targets;
   const cfg = goalConfig(plan.goal.type);
   return (
     <div className="space-y-6">
       <p className="text-[15px] text-white/60">
-        {cfg.label}: {cfg.tagline} Here&apos;s what the engine calculated. You can change your goal any time and a new plan version will be created.
+        {cfg.label}: {cfg.tagline} Here&apos;s your plan. You can change your goal any time and a new plan version will be created.
       </p>
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="panel p-4">
@@ -192,7 +198,17 @@ function PlanPreview({ plan }: { plan: ReturnType<typeof buildPlanVersion> }) {
                 </span>
                 <span className="text-xs tabular-nums text-white/50">~{day.estimatedMinutes} min</span>
               </div>
-              <p className="mt-1 truncate text-xs text-white/50">{day.exercises.map((e) => getExercise(e.exerciseId)?.name).join(", ")}</p>
+              <ul className="mt-1.5 space-y-0.5 text-xs text-white/55">
+                {day.exercises.map((e) => (
+                  <li key={e.exerciseId} className="flex justify-between gap-2">
+                    <span className="truncate">{getExercise(e.exerciseId)?.name}</span>
+                    <span className="shrink-0 tabular-nums text-white/40">
+                      {e.sets}×{e.repsMin}–{e.repsMax}
+                      {e.startKg != null && <span className="text-brand"> · {toDisplayWeight(e.startKg, unit)} {unit}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
         </div>

@@ -27,10 +27,10 @@ async function post(body: object, signal: AbortSignal): Promise<Response> {
 async function failure(res: Response): Promise<HttpError> {
   const body = (await res.json().catch(() => null)) as { error?: { message?: string; code?: string } } | null;
   console.error(`[ai] OpenAI ${res.status}: ${body?.error?.message ?? res.statusText}`);
-  if (res.status === 401 || res.status === 403) return new HttpError(502, "The AI key was rejected. Check OPENAI_API_KEY in .env.local.");
-  if (body?.error?.code === "insufficient_quota") return new HttpError(503, "The OpenAI account has no credit left. Add billing at platform.openai.com.");
-  if (res.status === 429) return new HttpError(503, "BAUMB AI is busy right now. Try again in a moment.");
-  return new HttpError(502, "BAUMB AI couldn't answer right now.");
+  if (res.status === 401 || res.status === 403) return new HttpError(502, "BAUMB couldn't answer right now.");
+  if (body?.error?.code === "insufficient_quota") return new HttpError(503, "BAUMB couldn't answer right now.");
+  if (res.status === 429) return new HttpError(503, "BAUMB is busy right now. Try again in a moment.");
+  return new HttpError(502, "BAUMB couldn't answer right now.");
 }
 
 interface OutputItem {
@@ -55,11 +55,11 @@ export async function openaiJson<T>(opts: AiJsonOptions): Promise<T> {
   );
   if (!res.ok) throw await failure(res);
   const data = (await res.json()) as { status?: string; incomplete_details?: { reason?: string }; output?: OutputItem[] };
-  if (data.status === "incomplete") throw new HttpError(502, data.incomplete_details?.reason === "max_output_tokens" ? "The AI answer was cut off." : "The AI answer was incomplete.");
+  if (data.status === "incomplete") throw new HttpError(502, data.incomplete_details?.reason === "max_output_tokens" ? "The answer was cut off." : "The answer was incomplete.");
   const parts = data.output?.find((o) => o.type === "message")?.content ?? [];
-  if (parts.some((p) => p.type === "refusal")) throw new HttpError(502, "The AI declined to answer.");
+  if (parts.some((p) => p.type === "refusal")) throw new HttpError(502, "No answer came back.");
   const text = parts.find((p) => p.type === "output_text")?.text;
-  if (!text) throw new HttpError(502, "The AI returned no answer.");
+  if (!text) throw new HttpError(502, "No answer came back.");
   return JSON.parse(text) as T;
 }
 
@@ -167,7 +167,7 @@ class StreamEnd extends Error {
 function streamError(msg: StreamEvent, raw: string): HttpError {
   const err = msg.error ?? msg.response?.error ?? msg;
   console.error(`[ai] OpenAI stream error: ${err.message ?? raw.slice(0, 500)}`);
-  if (err.code === "insufficient_quota" || /no credits|quota/i.test(err.message ?? "")) return new HttpError(503, "The OpenAI account has no credit left. Add billing at platform.openai.com.");
-  if (err.code === "rate_limit_exceeded") return new HttpError(503, "BAUMB AI is busy right now. Try again in a moment.");
-  return new HttpError(502, "BAUMB AI couldn't answer right now.");
+  if (err.code === "insufficient_quota" || /no credits|quota/i.test(err.message ?? "")) return new HttpError(503, "BAUMB couldn't answer right now.");
+  if (err.code === "rate_limit_exceeded") return new HttpError(503, "BAUMB is busy right now. Try again in a moment.");
+  return new HttpError(502, "BAUMB couldn't answer right now.");
 }

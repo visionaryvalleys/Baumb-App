@@ -38,7 +38,7 @@ export function errorResponse(err: unknown) {
   if (err instanceof HttpError) return Response.json({ error: err.message }, { status: err.status });
   console.error(err);
   const dbDown = err instanceof Error && /ConnectionError|ESOCKET|ETIMEOUT|ELOGIN/i.test(`${err.name} ${(err as { code?: string }).code ?? ""}`);
-  return Response.json({ error: dbDown ? "The database is unavailable. Check that SQL Server is running." : "Something went wrong." }, { status: dbDown ? 503 : 500 });
+  return Response.json({ error: dbDown ? "BAUMB is temporarily unavailable. Please try again in a moment." : "Something went wrong." }, { status: dbDown ? 503 : 500 });
 }
 
 const attempts = new Map<string, { count: number; resetAt: number }>();

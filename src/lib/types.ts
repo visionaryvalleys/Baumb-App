@@ -57,6 +57,16 @@ export type GoalType =
 
 export type Experience = "beginner" | "intermediate" | "advanced";
 
+/** Weekly workout structure; "auto" lets the generator choose from goal, days and experience. */
+export type SplitPreference = "auto" | "full_body" | "upper_lower" | "ppl" | "body_part";
+
+/** One strength-test set: the heaviest weight for `reps` clean reps (pull-ups: added weight; bodyweight tests: 0). */
+export interface StrengthTest {
+  exerciseId: string;
+  weightKg: number;
+  reps: number;
+}
+
 export interface Goal {
   id: string;
   createdAt: number;
@@ -66,6 +76,8 @@ export interface Goal {
   experience: Experience;
   daysPerWeek: number;
   sessionMinutes: number;
+  split?: SplitPreference;
+  strengthTests?: StrengthTest[];
 }
 
 /* ───────────── Module 03 — Body composition ───────────── */
@@ -177,6 +189,22 @@ export interface MealItem extends Timestamped {
 
 export type NutritionTarget = NutritionProfile;
 
+export type DietPreference = "veg" | "egg" | "nonveg";
+export type MealRole = "protein" | "carb" | "veg" | "fruit" | "fat";
+
+/** A food picked for one part of a planned meal. `grams` is set once the user edits the amount. */
+export interface MealPlanChoice {
+  foodId: string;
+  grams?: number;
+}
+
+/** The user's meal-plan choices; portions not set by the user are sized to the plan targets. */
+export interface MealPlanPrefs {
+  diet: DietPreference;
+  /** By meal slot id, then role. */
+  choices: Record<string, Partial<Record<MealRole, MealPlanChoice>>>;
+}
+
 /* ───────────── Module 06/07 — Workouts ───────────── */
 
 export type WorkoutType = "strength" | "cardio" | "hiit" | "mobility" | "sport";
@@ -226,6 +254,8 @@ export interface ExercisePrescription {
   repsMax: number;
   restSec: number;
   rpeTarget: number;
+  /** First-session load from the strength test, in kg. */
+  startKg?: number | null;
 }
 
 export interface WorkoutDay {
@@ -484,6 +514,7 @@ export interface AppState {
   measurements: BodyMeasurement[];
   meals: MealItem[];
   mealSlots: MealSlot[];
+  mealPlan?: MealPlanPrefs;
   customFoods: Food[];
   activity: DailyActivity[];
   recovery: RecoveryEntry[];

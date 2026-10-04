@@ -78,7 +78,7 @@ function OnboardingGate() {
 
 function SessionProblem({ message }: { message: string | null }) {
   return (
-    <EmptyState icon={DatabaseZap} title="Can't load your account" description={message ?? "The server or database didn't respond."}>
+    <EmptyState icon={DatabaseZap} title="Can't load your account" description={message ?? "BAUMB didn't respond. Check your connection and try again."}>
       <button type="button" className="btn-primary" onClick={() => void retrySession()}>
         Try again
       </button>

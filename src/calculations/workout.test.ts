@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getExercise } from "@/lib/exercises";
 import type { ExercisePrescription, Goal } from "@/lib/types";
 import type { ReadinessResult } from "./recovery";
-import { estimateSessionMinutes, fitToDuration, generateWorkoutPlan, suggestNextLoad } from "./workout";
+import { estimateSessionMinutes, fitToDuration, generateWorkoutPlan, suggestNextLoad, weekStructure } from "./workout";
 
 function goal(partial: Partial<Goal> = {}): Goal {
   return { id: "g", createdAt: 0, type: "athletic", targetWeightKg: null, targetBodyFatPct: null, experience: "intermediate", daysPerWeek: 4, sessionMinutes: 60, ...partial };
@@ -49,6 +49,76 @@ describe("generateWorkoutPlan", () => {
   it("flags very high frequency for beginners", () => {
     const { flags } = generateWorkoutPlan(goal({ experience: "beginner", daysPerWeek: 6 }), "full_gym");
     expect(flags.length).toBeGreaterThan(0);
+  });
+});
+
+describe("workout structure preference", () => {
+  it("builds the chosen structure for every day count, one session per day", () => {
+    for (const split of ["full_body", "upper_lower", "ppl", "body_part"] as const)
+      for (let days = 1; days <= 7; days++) {
+        const { plan } = generateWorkoutPlan(goal({ split, daysPerWeek: days }), "full_gym");
+        expect(plan.days).toHaveLength(days);
+        expect(new Set(plan.days.map((d) => d.weekday)).size).toBe(days);
+        for (const day of plan.days) expect(new Set(day.exercises.map((e) => e.exerciseId)).size).toBe(day.exercises.length);
+      }
+  });
+
+  it("uses body-part days and falls back to full body when there are too few days", () => {
+    expect(weekStructure(goal({ split: "body_part", daysPerWeek: 5 })).days.map((d) => d.name)).toEqual(["Chest", "Back", "Legs", "Shoulders", "Arms"]);
+    const twoDays = weekStructure(goal({ split: "ppl", daysPerWeek: 2 }));
+    expect(twoDays.days.map((d) => d.name)).toEqual(["Full Body A", "Full Body B"]);
+    expect(twoDays.note).toMatch(/at least 3/);
+  });
+
+  it("keeps the recommended structure when none is chosen", () => {
+    expect(weekStructure(goal({ daysPerWeek: 4 })).split).toBe("Upper / Lower");
+    expect(weekStructure(goal({ daysPerWeek: 4, split: "auto" })).split).toBe("Upper / Lower");
+  });
+});
+
+describe("strength test in the plan", () => {
+  const body = { sex: "male" as const, weightKg: 80 };
+  const tests = [
+    { exerciseId: "bench-press", weightKg: 80, reps: 6 },
+    { exerciseId: "pull-up", weightKg: 0, reps: 4 },
+    { exerciseId: "back-squat", weightKg: 110, reps: 5 },
+    { exerciseId: "deadlift", weightKg: 140, reps: 5 },
+    { exerciseId: "overhead-press", weightKg: 50, reps: 5 },
+  ];
+
+  it("sets starting weights for tested and related lifts", () => {
+    const { plan } = generateWorkoutPlan(goal({ strengthTests: tests }), "full_gym", body);
+    const all = plan.days.flatMap((d) => d.exercises);
+    const bench = all.find((p) => p.exerciseId === "bench-press")!;
+    expect(bench.startKg).toBeGreaterThan(50);
+    expect(bench.startKg).toBeLessThan(80);
+    expect(bench.startKg! % 2.5).toBe(0);
+    expect(all.find((p) => p.exerciseId === "lateral-raise")?.startKg).toBeUndefined();
+  });
+
+  it("swaps pull-ups out until the user can do enough reps", () => {
+    const { plan, flags } = generateWorkoutPlan(goal({ strengthTests: tests, experience: "advanced" }), "full_gym", body);
+    expect(plan.days.flatMap((d) => d.exercises).some((p) => p.exerciseId === "pull-up")).toBe(false);
+    expect(flags.some((f) => /Pull-ups are swapped/.test(f.message))).toBe(true);
+  });
+
+  it("starts the first session at the test-based load", () => {
+    const { plan } = generateWorkoutPlan(goal({ strengthTests: tests }), "full_gym", body);
+    const bench = plan.days.flatMap((d) => d.exercises).find((p) => p.exerciseId === "bench-press")!;
+    const s = suggestNextLoad(bench, null);
+    expect(s.action).toBe("start");
+    expect(s.weightKg).toBe(bench.startKg);
+  });
+
+  it("moves a Pro who tests at beginner level to intermediate volume", () => {
+    const weak = [
+      { exerciseId: "bench-press", weightKg: 40, reps: 5 },
+      { exerciseId: "back-squat", weightKg: 50, reps: 5 },
+      { exerciseId: "deadlift", weightKg: 60, reps: 5 },
+    ];
+    const { plan, flags } = generateWorkoutPlan(goal({ strengthTests: weak, experience: "advanced" }), "full_gym", body);
+    expect(Math.max(...plan.days.flatMap((d) => d.exercises.map((e) => getExercise(e.exerciseId)!.level)))).toBeLessThanOrEqual(2);
+    expect(flags.some((f) => /intermediate lifter/.test(f.message))).toBe(true);
   });
 });
 

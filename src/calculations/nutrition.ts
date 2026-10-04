@@ -45,6 +45,11 @@ export function gramsForServing(food: Food, servingId: string | null, quantity: 
   return serving ? serving.grams * quantity : quantity;
 }
 
+/** The quantity of a serving that weighs `grams` (the grams themselves when `servingGrams` is null). */
+export function quantityForGrams(servingGrams: number | null | undefined, grams: number): number {
+  return servingGrams && servingGrams > 0 ? Math.round((grams / servingGrams) * 100) / 100 : grams;
+}
+
 export function calculateItemNutrition(food: Food, grams: number): NutritionProfile {
   const f = Math.max(0, grams) / 100;
   const p = food.per100g;

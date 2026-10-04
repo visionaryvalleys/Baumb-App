@@ -60,7 +60,7 @@ export function AccountCard() {
           </button>
         </div>
       </div>
-      <p className="mt-4 text-xs text-white/45">Everything you enter is saved to the BAUMB SQL Server database under your account, so it&apos;s there whenever you sign in. Passwords are stored only as salted scrypt hashes.</p>
+      <p className="mt-4 text-xs text-white/45">Everything you enter is saved to your BAUMB account, so it&apos;s there whenever you sign in. Your password is never stored as plain text.</p>
     </Card>
   );
 }

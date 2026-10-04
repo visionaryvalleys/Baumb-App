@@ -38,9 +38,9 @@ async function post(body: object, signal: AbortSignal): Promise<Response> {
 async function failure(res: Response): Promise<HttpError> {
   const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
   console.error(`[ai] Anthropic ${res.status}: ${body?.error?.message ?? res.statusText}`);
-  if (res.status === 401 || res.status === 403) return new HttpError(502, "The AI key was rejected. Check ANTHROPIC_API_KEY in .env.local.");
-  if (res.status === 429 || res.status === 529) return new HttpError(503, "BAUMB AI is busy right now. Try again in a moment.");
-  return new HttpError(502, "BAUMB AI couldn't answer right now.");
+  if (res.status === 401 || res.status === 403) return new HttpError(502, "BAUMB couldn't answer right now.");
+  if (res.status === 429 || res.status === 529) return new HttpError(503, "BAUMB is busy right now. Try again in a moment.");
+  return new HttpError(502, "BAUMB couldn't answer right now.");
 }
 
 /** One request whose answer is guaranteed to match `schema` (structured outputs). */
@@ -57,9 +57,9 @@ export async function claudeJson<T>(opts: { system: string; prompt: string; sche
   );
   if (!res.ok) throw await failure(res);
   const data = (await res.json()) as { content?: { type: string; text?: string }[]; stop_reason?: string };
-  if (data.stop_reason === "max_tokens") throw new HttpError(502, "The AI answer was cut off.");
+  if (data.stop_reason === "max_tokens") throw new HttpError(502, "The answer was cut off.");
   const text = data.content?.find((b) => b.type === "text")?.text;
-  if (!text) throw new HttpError(502, "The AI returned no answer.");
+  if (!text) throw new HttpError(502, "No answer came back.");
   return JSON.parse(text) as T;
 }
 

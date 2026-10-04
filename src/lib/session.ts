@@ -122,7 +122,7 @@ async function save(): Promise<void> {
       } else if (status === 401) {
         set({ ...INITIAL, auth: "unauthenticated" });
       } else {
-        set({ sync: "error", message: body.error ?? "Couldn't save to the database." });
+        set({ sync: "error", message: body.error ?? "Couldn't save just now — your changes are kept on this device and will be saved shortly." });
         scheduleSave(RETRY_MS);
       }
     } catch {
@@ -207,7 +207,7 @@ export function ensureSession(): Promise<void> {
       if (status === 200 && body.user) await loadAccount(body.user);
       else set({ auth: status === 401 ? "unauthenticated" : "error", message: body.error ?? null });
     } catch {
-      set({ auth: "error", message: "Can't reach the server." });
+      set({ auth: "error", message: "Can't reach BAUMB. Check your connection." });
     }
   })();
   return started;
@@ -227,7 +227,7 @@ async function authenticate(path: string, payload: Record<string, string>): Prom
     await started;
     return snapshot.ready ? null : (snapshot.message ?? "Couldn't load your data.");
   } catch {
-    return "Can't reach the server. Is the app running?";
+    return "Can't reach BAUMB. Check your connection and try again.";
   }
 }
 

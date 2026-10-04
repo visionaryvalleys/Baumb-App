@@ -17,7 +17,7 @@ const SUGGESTIONS = [
   { topic: "Recovery", question: "How can I recover better between workouts?" },
 ];
 
-const DISCLAIMER = "AI guidance, not medical advice. For symptoms or medical conditions, see a doctor.";
+const DISCLAIMER = "General guidance, not medical advice. For symptoms or medical conditions, see a doctor.";
 const BULLET = /^\s*(?:[-*•]|\d+[.)])\s+/;
 
 const ask = (question: string) => void askTrainer(question, buildHealthContext(getState()));
@@ -170,7 +170,7 @@ export function TrainerChat() {
     <div className="-mb-[4.5rem] flex h-[calc(100dvh-72px-3.5rem)] min-h-[28rem] flex-col sm:h-[calc(100dvh-72px-4.5rem)]">
       <header className="flex items-end justify-between gap-4 border-b border-white/[0.06] pb-5">
         <div className="min-w-0">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-white/55">Your AI health &amp; fitness trainer</p>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-white/55">Your personal health &amp; fitness trainer</p>
           <h1 className="mt-2 text-[32px] font-light leading-none tracking-[-0.035em] text-white sm:text-[42px]">
             BAUMB <span className="font-semibold">Trainer</span>
           </h1>

@@ -112,7 +112,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           {!busy && <ArrowRight className="size-4" aria-hidden />}
         </button>
         <p className="flex items-center justify-center gap-1.5 text-[11px] text-white/50">
-          <Lock className="size-3" aria-hidden /> Your data is saved to your BAUMB account database.
+          <Lock className="size-3" aria-hidden /> Your data is saved privately to your BAUMB account.
         </p>
       </form>
 

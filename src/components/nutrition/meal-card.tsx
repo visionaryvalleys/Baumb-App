@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";
-import { MAX_MEAL_SLOTS, activeMealSlots, resizeMealItem } from "@/calculations/nutrition";
+import { MAX_MEAL_SLOTS, activeMealSlots, quantityForGrams, resizeMealItem } from "@/calculations/nutrition";
 import { localMinutes, minutesToTime, timeToMinutes } from "@/lib/date";
 import { actions, newId, useAppState } from "@/lib/store";
 import type { Food, LocalDate, MealItem, MealSlot, NutritionProfile } from "@/lib/types";
@@ -21,7 +21,9 @@ const SUGGESTIONS: { name: string; minutes: number }[] = [
 function ItemEditor({ item, food, onClose }: { item: MealItem; food: Food | undefined; onClose: () => void }) {
   const [servingId, setServingId] = useState<string | null>(item.servingId);
   const [quantity, setQuantity] = useState(String(item.servingId ? item.quantity : item.grams));
+  const [gramsDraft, setGramsDraft] = useState<string | null>(null);
   const servings = food ? food.servings : item.servingId ? [{ id: item.servingId, label: item.servingLabel, grams: item.grams / item.quantity }] : [];
+  const servingGrams = servings.find((s) => s.id === servingId)?.grams;
   const next = resizeMealItem(item, food, servingId, Number(quantity));
 
   function save(e: FormEvent) {
@@ -42,7 +44,10 @@ function ItemEditor({ item, food, onClose }: { item: MealItem; food: Food | unde
           step={servingId ? 0.5 : 10}
           className="field h-10 w-24 py-1.5 text-sm tabular-nums"
           value={quantity}
-          onChange={(e) => setQuantity(e.target.value)}
+          onChange={(e) => {
+            setQuantity(e.target.value);
+            setGramsDraft(null);
+          }}
           aria-label={`Quantity of ${item.foodName}`}
         />
         <select
@@ -52,6 +57,7 @@ function ItemEditor({ item, food, onClose }: { item: MealItem; food: Food | unde
             const id = e.target.value === "g" ? null : e.target.value;
             setServingId(id);
             setQuantity(id ? "1" : String(Math.round(next?.grams ?? item.grams)));
+            setGramsDraft(null);
           }}
           aria-label={`Serving for ${item.foodName}`}
         >
@@ -64,6 +70,25 @@ function ItemEditor({ item, food, onClose }: { item: MealItem; food: Food | unde
             grams
           </option>
         </select>
+        {servingId && servingGrams && (
+          <label className="flex items-center gap-1.5 text-sm text-white/45">
+            =
+            <input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step={5}
+              className="field h-10 w-20 py-1.5 text-sm tabular-nums"
+              value={gramsDraft ?? String(Math.round((next?.grams ?? 0) * 10) / 10)}
+              onChange={(e) => {
+                setGramsDraft(e.target.value);
+                setQuantity(String(quantityForGrams(servingGrams, Math.max(0, Number(e.target.value) || 0))));
+              }}
+              aria-label={`Grams of ${item.foodName}`}
+            />
+            g
+          </label>
+        )}
         <button type="submit" className="btn-primary h-10" disabled={!next}>
           <Check className="size-4" aria-hidden /> Save
         </button>

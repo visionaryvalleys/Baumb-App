@@ -14,6 +14,7 @@ import { EnergyBreakdown } from "../energy-breakdown";
 import { Card, CardTitle, KindTag, Meter, Segmented } from "../ui";
 import { IntakeImpactCard } from "./intake-impact-card";
 import { AddMealForm, MealCard, PastMealCard } from "./meal-card";
+import { MealPlanCard } from "./meal-plan-card";
 import { VacationCard } from "./vacation-card";
 
 export function NutritionView() {
@@ -77,6 +78,10 @@ export function NutritionView() {
             </div>
             {!day.totals && <p className="mt-4 text-sm text-white/50">Nothing logged for this day. Missing days are shown as missing — never as 0 kcal.</p>}
           </Card>
+
+          {target && summary.info.plan && (
+            <MealPlanCard date={date} today={today} target={target} goal={summary.info.plan.goal.type} foods={pool} trainingDay={!!summary.info.planned && summary.info.planned.type !== "mobility"} />
+          )}
 
           {slots.map((slot) => (
             <MealCard

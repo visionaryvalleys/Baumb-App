@@ -49,7 +49,7 @@ export class Semaphore {
       };
     };
     if (this.active < this.max) return Promise.resolve(grant());
-    if (this.waiting.length >= this.maxQueue) return Promise.reject(new HttpError(503, "BAUMB AI is busy right now. Try again in a moment."));
+    if (this.waiting.length >= this.maxQueue) return Promise.reject(new HttpError(503, "BAUMB is busy right now. Try again in a moment."));
     return new Promise((resolve) => this.waiting.push(() => resolve(grant())));
   }
 

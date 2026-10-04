@@ -14,6 +14,7 @@ import type {
   Food,
   Goal,
   MealItem,
+  MealPlanPrefs,
   MealSlot,
   PlanVersion,
   Profile,
@@ -314,6 +315,9 @@ export const actions = {
   },
   addMealItems(items: MealItem[]) {
     setState((s) => ({ ...s, meals: [...s.meals, ...items] }));
+  },
+  setMealPlan(mealPlan: MealPlanPrefs) {
+    setState((s) => ({ ...s, mealPlan }));
   },
   addMealSlot(slot: MealSlot) {
     setState((s) => ({ ...s, mealSlots: [...s.mealSlots, slot] }));

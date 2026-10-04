@@ -100,7 +100,7 @@ export function ProgressPhotos() {
         </p>
       )}
       <p className="flex items-center gap-1.5 text-xs text-white/45">
-        <Lock className="size-3.5" aria-hidden /> Optional and private. Photos are downscaled on this device and saved only to your BAUMB account database. They are included in backups you export.
+        <Lock className="size-3.5" aria-hidden /> Optional and private. Photos are downscaled on this device and saved only to your BAUMB account. They are included in backups you export.
       </p>
 
       {photos.length === 0 ? (

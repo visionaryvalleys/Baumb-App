@@ -79,7 +79,7 @@ describe("claudeStream", () => {
   it("explains a rejected key before streaming starts", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: { message: "invalid x-api-key" } }, { status: 401 })));
     await expect(claudeStream({ system: "s", messages: [{ role: "user", content: "q" }], maxTokens: 100, effort: "low", signal: new AbortController().signal, timeoutMs: 5_000 })).rejects.toThrow(
-      "ANTHROPIC_API_KEY",
+      "couldn't answer",
     );
   });
 });

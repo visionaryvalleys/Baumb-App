@@ -30,7 +30,7 @@ export function buildPlanVersion(input: BuildPlanInput): PlanVersion | null {
     goal,
   });
   if (!targetResult) return null;
-  const workout = generateWorkoutPlan(goal, profile.equipment);
+  const workout = generateWorkoutPlan(goal, profile.equipment, { sex: profile.sex, weightKg });
   return {
     id: input.id,
     version: input.version,

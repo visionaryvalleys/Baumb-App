@@ -1,11 +1,12 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BadgeCheck, Loader2, Plus, Sparkles, X } from "lucide-react";
+import { AlertTriangle, BadgeCheck, BookOpen, Loader2, Plus, Sparkles, X } from "lucide-react";
 import { parseFoodText, resolvePortion, type ParsedFood } from "@/calculations/food-parser";
-import { calculateItemNutrition, gramsForServing, sumNutrition } from "@/calculations/nutrition";
+import { calculateItemNutrition, gramsForServing, quantityForGrams, sumNutrition } from "@/calculations/nutrition";
 import { type AiCheckStatus, aiCheckFor, requestAiChecks, useAiChecks } from "@/lib/ai-foods";
 import { minutesToTime, timeToMinutes, zonedInstant } from "@/lib/date";
+import { foodCitation } from "@/lib/food-source";
 import { actions, newId, useAppState } from "@/lib/store";
 import type { Food, LocalDate, MealSlot, NutritionProfile } from "@/lib/types";
 import { CustomFoodForm } from "./custom-food-form";
@@ -15,6 +16,8 @@ interface RowEdit {
   quantity?: string;
   /** null = grams; undefined = keep the parsed serving. */
   servingId?: string | null;
+  /** Grams typed by the user; they win over quantity × serving. */
+  grams?: string;
   removed?: boolean;
 }
 
@@ -26,6 +29,7 @@ interface Row {
   servingId: string | null;
   quantity: string;
   grams: number;
+  gramsText: string;
   nutrition: NutritionProfile | null;
   /** null when the user picked the food themselves or it's one of their own foods. */
   check: AiCheckStatus | null;
@@ -39,9 +43,13 @@ function buildRow(parsed: ParsedFood, key: string, edit: RowEdit, pool: Food[]):
   const food = manual ?? own ?? aiFood ?? parsed.food;
   const base = food ? (food === parsed.food ? parsed.portion : resolvePortion(food, parsed.quantity, parsed.unit)) : null;
   const servingId = edit.servingId !== undefined ? edit.servingId : (base?.servingId ?? null);
-  const quantity = edit.quantity ?? String(base?.quantity ?? parsed.quantity);
-  const qty = Number(quantity);
-  const grams = food && qty > 0 ? gramsForServing(food, servingId, qty) : 0;
+  const serving = food?.servings.find((s) => s.id === servingId);
+  let quantity = edit.quantity ?? String(base?.quantity ?? parsed.quantity);
+  let grams = food && Number(quantity) > 0 ? gramsForServing(food, servingId, Number(quantity)) : 0;
+  if (food && edit.grams !== undefined) {
+    grams = Math.max(0, Number(edit.grams) || 0);
+    quantity = String(quantityForGrams(serving?.grams, grams));
+  }
   return {
     key,
     parsed,
@@ -50,24 +58,34 @@ function buildRow(parsed: ParsedFood, key: string, edit: RowEdit, pool: Food[]):
     servingId,
     quantity,
     grams,
+    gramsText: edit.grams ?? String(Math.round(grams * 10) / 10),
     nutrition: food && grams > 0 ? calculateItemNutrition(food, grams) : null,
     check: check?.status ?? null,
   };
 }
 
-function AiBadge({ status }: { status: AiCheckStatus }) {
-  const view = {
-    checking: { icon: Loader2, text: "Checking with AI…", tone: "text-white/45", spin: true },
-    matched: { icon: BadgeCheck, text: "AI verified · database values", tone: "text-emerald-300/90", spin: false },
-    estimated: { icon: Sparkles, text: "Calculated by AI · saved for next time", tone: "text-brand", spin: false },
-    not_food: { icon: AlertTriangle, text: "AI doesn't recognise this as food — check the match", tone: "text-amber-300/90", spin: false },
-    unavailable: { icon: AlertTriangle, text: "Database value · AI check unavailable right now", tone: "text-white/40", spin: false },
-  }[status];
-  const Icon = view.icon;
+function Checking({ label = "Checking nutrition…" }: { label?: string }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${view.tone}`}>
-      <Icon className={`size-3.5 ${view.spin ? "animate-spin" : ""}`} aria-hidden />
-      {view.text}
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-white/45">
+      <Loader2 className="size-3.5 animate-spin" aria-hidden /> {label}
+    </span>
+  );
+}
+
+/** The research reference behind the numbers; nothing about how they were looked up. */
+function SourceLine({ food, check }: { food: Food; check: AiCheckStatus | null }) {
+  if (check === "checking") return <Checking />;
+  if (check === "not_food")
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-300/90">
+        <AlertTriangle className="size-3.5" aria-hidden /> This doesn&apos;t look like a food — check the match above.
+      </span>
+    );
+  const verified = check === "matched" || check === "estimated";
+  return (
+    <span className="flex items-start gap-1.5 text-[11px] leading-snug text-white/45">
+      {verified ? <BadgeCheck className="mt-px size-3.5 shrink-0 text-emerald-300/90" aria-label="Verified" /> : <BookOpen className="mt-px size-3.5 shrink-0 text-white/35" aria-hidden />}
+      <span>Source: {foodCitation(food)}</span>
     </span>
   );
 }
@@ -76,7 +94,7 @@ const sourceTag = (f: Food) => (f.custom ? "my food" : f.priority === 2 ? "NIN" 
 
 const macroLine = (n: NutritionProfile) => `P ${n.proteinG} g · C ${n.carbsG} g · F ${n.fatG} g · Fibre ${n.fiberG} g`;
 
-/** Type a meal the way you'd say it; every item is matched to the food database and calculated as you type. */
+/** Type a meal the way you'd say it; every item is matched to a food and calculated as you type. */
 export function MealFoodEntry({ slot, date, pool, loading, onDone }: { slot: MealSlot; date: LocalDate; pool: Food[]; loading: boolean; onDone: () => void }) {
   const { profile } = useAppState();
   const [text, setText] = useState("");
@@ -117,8 +135,8 @@ export function MealFoodEntry({ slot, date, pool, loading, onDone }: { slot: Mea
           foodName: r.food!.name,
           servingId: serving ? serving.id : null,
           servingLabel: serving ? serving.label : "g",
-          quantity: Number(r.quantity),
-          grams: r.grams,
+          quantity: serving ? quantityForGrams(serving.grams, r.grams) : r.grams,
+          grams: Math.round(r.grams * 10) / 10,
           meal: slot.id,
           timestamp: at + i,
           timezone: tz,
@@ -157,8 +175,8 @@ export function MealFoodEntry({ slot, date, pool, loading, onDone }: { slot: Mea
       </form>
       {!text.trim() && (
         <p className="text-xs leading-relaxed text-white/45">
-          Write it the way you&apos;d say it — pieces, katori, cup, glass, slice or grams all work. Calories, protein, carbs, fat and fibre come from the ICMR-NIN based Indian food database, and AI checks every match — foods the database doesn&apos;t have are calculated by AI and saved. Change any quantity or serving and everything recalculates.
-          {loading && " Loading the food database…"}
+          Write it the way you&apos;d say it — pieces, katori, cup, glass, slice or grams all work. Calories, protein, carbs, fat and fibre are calculated from published food composition research (ICMR-NIN, IFCT 2017), shown under each item. Set the exact grams you ate and everything recalculates.
+          {loading && " Loading foods…"}
         </p>
       )}
 
@@ -189,7 +207,7 @@ export function MealFoodEntry({ slot, date, pool, loading, onDone }: { slot: Mea
                       step={r.servingId ? 0.5 : 10}
                       className="field h-10 w-20 py-1.5 text-sm tabular-nums"
                       value={r.quantity}
-                      onChange={(e) => edit(r.key, { quantity: e.target.value })}
+                      onChange={(e) => edit(r.key, { quantity: e.target.value, grams: undefined })}
                       aria-label={`Quantity of ${r.food.name}`}
                     />
                     <select
@@ -197,7 +215,7 @@ export function MealFoodEntry({ slot, date, pool, loading, onDone }: { slot: Mea
                       value={r.servingId ?? "g"}
                       onChange={(e) => {
                         const id = e.target.value === "g" ? null : e.target.value;
-                        edit(r.key, { servingId: id, quantity: id ? "1" : String(Math.round(r.grams) || 100) });
+                        edit(r.key, { servingId: id, quantity: id ? "1" : String(Math.round(r.grams) || 100), grams: undefined });
                       }}
                       aria-label={`Serving for ${r.food.name}`}
                     >
@@ -210,6 +228,22 @@ export function MealFoodEntry({ slot, date, pool, loading, onDone }: { slot: Mea
                         grams
                       </option>
                     </select>
+                    {r.servingId && (
+                      <label className="flex items-center gap-1.5 text-sm text-white/45">
+                        =
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          step={5}
+                          className="field h-10 w-20 py-1.5 text-sm tabular-nums"
+                          value={r.gramsText}
+                          onChange={(e) => edit(r.key, { grams: e.target.value })}
+                          aria-label={`Grams of ${r.food.name}`}
+                        />
+                        g
+                      </label>
+                    )}
                     <button type="button" onClick={() => edit(r.key, { removed: true })} className="grid size-9 place-items-center rounded-lg text-white/35 hover:bg-white/[0.06] hover:text-white" aria-label={`Remove ${r.food.name}`}>
                       <X className="size-4" aria-hidden />
                     </button>
@@ -220,20 +254,17 @@ export function MealFoodEntry({ slot, date, pool, loading, onDone }: { slot: Mea
                       {r.nutrition && <span className="tabular-nums"> · {macroLine(r.nutrition)}</span>}
                       <span className="text-white/35"> · {Math.round(r.grams)} g</span>
                     </span>
-                    {r.food.source && <span className="truncate text-[10px] text-white/30">{r.food.source}</span>}
                   </div>
-                  {r.check && (
-                    <div className="mt-1.5">
-                      <AiBadge status={r.check} />
-                    </div>
-                  )}
+                  <div className="mt-1.5">
+                    <SourceLine food={r.food} check={r.check} />
+                  </div>
                 </>
               ) : r.check === "checking" ? (
                 <div className="flex items-center justify-between gap-2 text-sm">
                   <span className="text-white/60">
                     Looking up <span className="font-medium text-white">“{r.parsed.name || r.parsed.text}”</span>
                   </span>
-                  <AiBadge status="checking" />
+                  <Checking label="Finding it…" />
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm">

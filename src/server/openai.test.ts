@@ -58,7 +58,7 @@ describe("openaiJson", () => {
 
     const broke = vi.fn(async () => Response.json({ error: { code: "insufficient_quota", message: "quota" } }, { status: 429 }));
     vi.stubGlobal("fetch", broke);
-    await expect(openaiJson(json)).rejects.toThrow("no credit");
+    await expect(openaiJson(json)).rejects.toThrow("couldn't answer");
     expect(broke).toHaveBeenCalledTimes(1);
   });
 
@@ -92,7 +92,7 @@ describe("openaiStream", () => {
       { type: "error", error: { code: "insufficient_quota", message: "You have no credits remaining." } },
     ];
     vi.stubGlobal("fetch", vi.fn(async () => new Response(sse(events), { status: 200 })));
-    await expect(openaiStream(chat)).rejects.toThrow("no credit");
+    await expect(openaiStream(chat)).rejects.toThrow("couldn't answer");
   });
 
   it("keeps the text already streamed when the answer breaks later", async () => {
@@ -106,6 +106,6 @@ describe("openaiStream", () => {
 
   it("explains a rejected key before streaming starts", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: { message: "Incorrect API key" } }, { status: 401 })));
-    await expect(openaiStream(chat)).rejects.toThrow("OPENAI_API_KEY");
+    await expect(openaiStream(chat)).rejects.toThrow("couldn't answer");
   });
 });

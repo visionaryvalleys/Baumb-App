@@ -29,7 +29,7 @@ export function CustomFoodForm({ initialName = "", onCancel, onCreated }: { init
   return (
     <form onSubmit={submit} className="panel space-y-3 p-4 animate-fade-in">
       <div className="text-sm font-semibold text-white">New food</div>
-      <p className="text-xs leading-relaxed text-white/50">Not in the database yet. Copy the values from the pack label once — next time it&apos;s matched automatically.</p>
+      <p className="text-xs leading-relaxed text-white/50">Not in our food list yet. Copy the values from the pack label once — next time it&apos;s matched automatically.</p>
       <input className="field" placeholder="Name" value={f.name} onChange={set("name")} aria-label="Food name" />
       <div className="grid grid-cols-2 gap-3">
         <input className="field" placeholder="Serving label" value={f.serving} onChange={set("serving")} aria-label="Serving label" />

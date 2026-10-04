@@ -1,6 +1,7 @@
 import { goalConfig, type RepScheme } from "@/data/goals";
 import { getExercise } from "@/lib/exercises";
 import type { ReadinessResult } from "./recovery";
+import { STRENGTH_LEVELS, bodyweightPullUps, startingLoad, strengthProfile, trainingExperience } from "./strength";
 import type {
   EquipmentAccess,
   Exercise,
@@ -9,6 +10,8 @@ import type {
   Goal,
   MovementPattern,
   SafetyFlag,
+  Sex,
+  SplitPreference,
   WorkoutDay,
   WorkoutPlan,
   WorkoutSet,
@@ -41,6 +44,13 @@ const TEMPLATES = {
   legs: { key: "legs", name: "Legs", focus: "Quads · Hamstrings · Glutes", type: "strength", slots: ["squat", "hinge", "lunge", "quad_iso", "hamstring_iso", "calves", "core"] },
   conditioning: { key: "conditioning", name: "Conditioning", focus: "Engine & core", type: "hiit", slots: ["conditioning", "lunge", "conditioning", "horizontal_push", "core"] },
   mobility: { key: "mobility", name: "Active Recovery", focus: "Mobility & easy movement", type: "mobility", slots: ["mobility", "core"] },
+  chestTri: { key: "chestTri", name: "Chest & Triceps", focus: "Chest · Triceps", type: "strength", slots: ["horizontal_push", "horizontal_push", "chest_iso", "vertical_push", "triceps", "triceps"] },
+  backBi: { key: "backBi", name: "Back & Biceps", focus: "Lats · Upper back · Biceps", type: "strength", slots: ["vertical_pull", "horizontal_pull", "horizontal_pull", "rear_delt", "biceps", "biceps"] },
+  shoulderArms: { key: "shoulderArms", name: "Shoulders & Arms", focus: "Delts · Biceps · Triceps", type: "strength", slots: ["vertical_push", "shoulder_iso", "rear_delt", "biceps", "triceps", "core"] },
+  chest: { key: "chest", name: "Chest", focus: "Presses & flyes", type: "strength", slots: ["horizontal_push", "horizontal_push", "chest_iso", "horizontal_push", "chest_iso", "core"] },
+  back: { key: "back", name: "Back", focus: "Lats · Upper back", type: "strength", slots: ["vertical_pull", "horizontal_pull", "hinge", "horizontal_pull", "vertical_pull", "rear_delt"] },
+  shoulders: { key: "shoulders", name: "Shoulders", focus: "Front · Side · Rear delts", type: "strength", slots: ["vertical_push", "vertical_push", "shoulder_iso", "rear_delt", "rear_delt", "core"] },
+  arms: { key: "arms", name: "Arms", focus: "Biceps · Triceps", type: "strength", slots: ["biceps", "triceps", "biceps", "triceps", "triceps", "core"] },
 } satisfies Record<string, DayTemplate>;
 
 /** Preferred exercise order per pattern; the first one the user can do (equipment + level) wins. */
@@ -180,7 +190,67 @@ export function fitToDuration(input: ExercisePrescription[], minutes: number, ex
   return { exercises: list, fits: !over() };
 }
 
-function chooseTemplates(days: number, experience: Experience, goal: Goal): { split: string; templates: DayTemplate[] } {
+type Chosen = { split: string; templates: DayTemplate[]; note?: string };
+
+/** The structure the user picked, adapted to the number of days; too few days for a split falls back to full body. */
+function chosenStructure(days: number, split: Exclude<SplitPreference, "auto">): Chosen {
+  const T = TEMPLATES;
+  const tooFew = (min: number, name: string): Chosen => ({
+    ...chosenStructure(days, "full_body"),
+    note: `${name} needs at least ${min} training days a week, so ${days === 1 ? "your day is" : "your days are"} full body for now.`,
+  });
+  switch (split) {
+    case "full_body": {
+      const byDays: DayTemplate[][] = [
+        [T.fullA],
+        [T.fullA, T.fullB],
+        [T.fullA, T.fullB, T.fullC],
+        [T.fullA, T.fullB, T.fullC, T.fullA],
+        [T.fullA, T.fullB, T.conditioning, T.fullC, T.fullA],
+        [T.fullA, T.conditioning, T.fullB, T.mobility, T.fullC, T.conditioning],
+        [T.fullA, T.conditioning, T.fullB, T.mobility, T.fullC, T.conditioning, T.mobility],
+      ];
+      return { split: days >= 5 ? "Full body + conditioning" : "Full body", templates: byDays[days - 1] };
+    }
+    case "upper_lower": {
+      if (days < 2) return tooFew(2, "Upper / Lower");
+      const byDays: DayTemplate[][] = [
+        [T.upperA, T.lowerA],
+        [T.upperA, T.lowerA, T.fullB],
+        [T.upperA, T.lowerA, T.upperB, T.lowerB],
+        [T.upperA, T.lowerA, T.conditioning, T.upperB, T.lowerB],
+        [T.upperA, T.lowerA, T.upperB, T.lowerB, T.upperA, T.lowerA],
+        [T.upperA, T.lowerA, T.upperB, T.lowerB, T.upperA, T.lowerA, T.mobility],
+      ];
+      return { split: days === 3 ? "Upper / Lower + full body" : "Upper / Lower", templates: byDays[days - 2] };
+    }
+    case "ppl": {
+      if (days < 3) return tooFew(3, "Push / Pull / Legs");
+      const byDays: DayTemplate[][] = [
+        [T.push, T.pull, T.legs],
+        [T.push, T.pull, T.legs, T.upperA],
+        [T.push, T.pull, T.legs, T.upperA, T.lowerB],
+        [T.push, T.pull, T.legs, T.push, T.pull, T.legs],
+        [T.push, T.pull, T.legs, T.push, T.pull, T.legs, T.mobility],
+      ];
+      return { split: days === 4 || days === 5 ? "Push / Pull / Legs + Upper / Lower" : "Push / Pull / Legs", templates: byDays[days - 3] };
+    }
+    case "body_part": {
+      if (days < 3) return tooFew(3, "A body-part split");
+      const byDays: DayTemplate[][] = [
+        [T.chestTri, T.backBi, T.legs],
+        [T.chestTri, T.backBi, T.legs, T.shoulderArms],
+        [T.chest, T.back, T.legs, T.shoulders, T.arms],
+        [T.chest, T.back, T.legs, T.shoulders, T.arms, T.conditioning],
+        [T.chest, T.back, T.legs, T.shoulders, T.arms, T.conditioning, T.mobility],
+      ];
+      return { split: "Body-part split", templates: byDays[days - 3] };
+    }
+  }
+}
+
+function chooseTemplates(days: number, experience: Experience, goal: Goal): Chosen {
+  if (goal.split && goal.split !== "auto") return chosenStructure(days, goal.split);
   const cfg = goalConfig(goal.type);
   const T = TEMPLATES;
   const novice = experience === "beginner";
@@ -212,16 +282,68 @@ export interface GeneratedPlan {
   flags: SafetyFlag[];
 }
 
-export function generateWorkoutPlan(goal: Goal, access: EquipmentAccess): GeneratedPlan {
+/** The weekly structure (day names by weekday) a goal produces, for previews before a plan exists. */
+export function weekStructure(goal: Pick<Goal, "type" | "experience" | "daysPerWeek" | "split">): { split: string; days: { weekday: number; name: string; focus: string }[]; note?: string } {
+  const days = Math.min(7, Math.max(1, Math.round(goal.daysPerWeek)));
+  const { split, templates, note } = chooseTemplates(days, goal.experience, goal as Goal);
+  const seen = new Map<string, number>();
+  return {
+    split,
+    note,
+    days: templates.map((t, i) => {
+      const variant = seen.get(t.key) ?? 0;
+      seen.set(t.key, variant + 1);
+      return { weekday: WEEKDAY_SCHEDULE[days][i], name: variant > 0 && !/[ABC]$/.test(t.name) ? `${t.name} ${String.fromCharCode(65 + variant)}` : t.name, focus: t.focus };
+    }),
+  };
+}
+
+/** Body data that lets the strength test set levels and starting loads. */
+export interface PlanBody {
+  sex: Sex | null;
+  weightKg: number;
+}
+
+/** Below this many bodyweight pull-ups the plan uses an easier vertical pull (prescriptions start at 8 reps). */
+const PULL_UPS_NEEDED = 8;
+
+export function generateWorkoutPlan(goal: Goal, access: EquipmentAccess, body?: PlanBody): GeneratedPlan {
   const flags: SafetyFlag[] = [];
   const days = Math.min(7, Math.max(1, Math.round(goal.daysPerWeek)));
   const minutes = Math.min(MAX_SESSION_MINUTES, Math.max(MIN_SESSION_MINUTES, Math.round(goal.sessionMinutes)));
   const cfg = goalConfig(goal.type);
-  const { split, templates } = chooseTemplates(days, goal.experience, goal);
+  const strength = body ? strengthProfile(goal.strengthTests, body.sex, body.weightKg) : null;
+  const experience = trainingExperience(goal.experience, strength?.overall ?? null);
+  const { split, templates, note } = chooseTemplates(days, experience, goal);
 
-  if (goal.experience === "beginner" && days >= 5)
+  if (note) flags.push({ level: "info", message: note });
+  if (strength?.overall != null) {
+    const level = STRENGTH_LEVELS[strength.overall];
+    flags.push({ level: "info", message: `Strength test: overall ${level}. Starting weights for your main lifts come from it — use the first session to confirm them.` });
+    if (experience !== goal.experience)
+      flags.push({
+        level: "info",
+        message:
+          experience === "intermediate" && goal.experience === "advanced"
+            ? `Your strength test is at ${level} level, so exercise choice and volume are set for an intermediate lifter until your numbers catch up.`
+            : `Your strength test is already at ${level} level, so your plan uses intermediate exercises and volume.`,
+      });
+    if (strength.lagging.length)
+      flags.push({ level: "info", message: `${strength.lagging.map((l) => l.label).join(" and ")} ${strength.lagging.length === 1 ? "lags" : "lag"} behind your other lifts, so ${strength.lagging.length === 1 ? "it gets" : "they get"} an extra set.` });
+  }
+  if (experience === "beginner" && days >= 5 && (!goal.split || goal.split === "auto"))
     flags.push({ level: "info", message: "Beginners usually progress best on 3–4 lifting days, so lighter conditioning and recovery days are mixed in." });
+  if (experience === "beginner" && (goal.split === "body_part" || goal.split === "ppl") && days >= 3)
+    flags.push({ level: "info", message: "Training each muscle once a week works, but beginners usually progress faster hitting each muscle twice a week (full body or upper / lower)." });
   if (days === 7) flags.push({ level: "info", message: "Training every day: at least one session is easy active recovery so your body can adapt." });
+
+  const avoid = new Set<string>();
+  const pullUps = strength && body ? bodyweightPullUps(strength, body.weightKg) : null;
+  if (pullUps != null && pullUps < PULL_UPS_NEEDED) {
+    avoid.add("pull-up");
+    flags.push({ level: "info", message: `Pull-ups are swapped for an easier vertical pull until you can do ${PULL_UPS_NEEDED} clean reps (you tested ${pullUps}).` });
+  }
+  const laggingPatterns = new Set(strength?.lagging.map((l) => getExercise(l.exerciseId)?.pattern) ?? []);
 
   const seen = new Map<string, number>();
   const shortSessions: string[] = [];
@@ -230,16 +352,24 @@ export function generateWorkoutPlan(goal: Goal, access: EquipmentAccess): Genera
   const workoutDays: WorkoutDay[] = templates.map((t, i) => {
     const variant = seen.get(t.key) ?? 0;
     seen.set(t.key, variant + 1);
-    const used = new Set<string>();
+    const used = new Set<string>(avoid);
     const picked: ExercisePrescription[] = [];
     for (const pattern of t.slots) {
-      if (picked.length >= MAX_EXERCISES[goal.experience]) break;
-      const ex = pickExercise(pattern, access, goal.experience, used, variant);
+      if (picked.length >= MAX_EXERCISES[experience]) break;
+      const ex = pickExercise(pattern, access, experience, used, variant);
       if (!ex) continue;
       used.add(ex.id);
-      picked.push(prescribe(ex, cfg.repScheme, goal.experience));
+      const p = prescribe(ex, cfg.repScheme, experience);
+      picked.push(ex.compound && laggingPatterns.has(ex.pattern) ? { ...p, sets: Math.min(5, p.sets + 1) } : p);
     }
-    const { exercises, fits } = t.key === "mobility" ? { exercises: picked, fits: true } : fitToDuration(picked, minutes, goal.experience);
+    const fitted = t.key === "mobility" ? { exercises: picked, fits: true } : fitToDuration(picked, minutes, experience);
+    const fits = fitted.fits;
+    const exercises = strength?.lifts.length
+      ? fitted.exercises.map((p) => {
+          const startKg = getExercise(p.exerciseId)?.tracksWeight ? startingLoad(p.exerciseId, p.repsMin, p.rpeTarget, strength) : null;
+          return startKg != null ? { ...p, startKg } : p;
+        })
+      : fitted.exercises;
     if (!fits) shortSessions.push(t.name);
     const name = variant > 0 && !/[ABC]$/.test(t.name) ? `${t.name} ${String.fromCharCode(65 + variant)}` : t.name;
     return {
@@ -265,12 +395,13 @@ export function generateWorkoutPlan(goal: Goal, access: EquipmentAccess): Genera
       split,
       days: workoutDays,
       progression:
-        goal.experience === "beginner"
+        experience === "beginner"
           ? "Double progression: when every set reaches the top of the rep range at the target effort, add the smallest load jump."
           : "Double progression with RPE: progress load when all sets hit the top of the range at or below target RPE; hold or reduce when effort runs high.",
       notes: [
         `${days} session${days === 1 ? "" : "s"} per week · ${minutes} min each including warm-up, rest and transitions.`,
         `Rep focus: ${cfg.repScheme.compound[0]}–${cfg.repScheme.compound[1]} on main lifts, ${cfg.repScheme.isolation[0]}–${cfg.repScheme.isolation[1]} on accessories.`,
+        ...(strength?.overall != null ? [`Strength level from your test: ${STRENGTH_LEVELS[strength.overall]}.`] : []),
       ],
     },
   };
@@ -314,15 +445,20 @@ function baseSuggestion(prescription: ExercisePrescription, lastSets: WorkoutSet
   const ex = getExercise(prescription.exerciseId);
   const tracksWeight = ex?.tracksWeight ?? true;
   const working = (lastSets ?? []).filter((s) => s.reps > 0);
-  if (working.length === 0)
+  if (working.length === 0) {
+    const reserve = Math.max(1, Math.round(10 - prescription.rpeTarget));
+    const start = tracksWeight ? (prescription.startKg ?? null) : null;
     return {
       action: "start",
-      weightKg: null,
+      weightKg: start,
       repsTarget: prescription.repsMin,
-      reason: tracksWeight
-        ? `First time: choose a load you could lift for about ${Math.max(1, Math.round(10 - prescription.rpeTarget))} more reps (RPE ${prescription.rpeTarget}).`
-        : `First time: aim for ${prescription.repsMin}–${prescription.repsMax} clean reps.`,
+      reason: !tracksWeight
+        ? `First time: aim for ${prescription.repsMin}–${prescription.repsMax} clean reps.`
+        : start != null
+          ? `Starting weight from your strength test. It should leave about ${reserve} reps in reserve — adjust if it feels much easier or harder.`
+          : `First time: choose a load you could lift for about ${reserve} more reps (RPE ${prescription.rpeTarget}).`,
     };
+  }
 
   const top = Math.max(...working.map((s) => s.weightKg));
   const atTop = working.filter((s) => s.weightKg === top);

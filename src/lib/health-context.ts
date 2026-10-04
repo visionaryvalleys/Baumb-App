@@ -1,7 +1,8 @@
 import { activePlanOn } from "@/calculations/calendar";
 import { currentAge } from "@/calculations/energy";
 import { calculateDailyNutrition, mealLabel } from "@/calculations/nutrition";
-import { GOALS } from "@/data/goals";
+import { STRENGTH_LEVELS, strengthProfile } from "@/calculations/strength";
+import { EXPERIENCE_DETAILS, EXPERIENCE_LABELS, GOALS } from "@/data/goals";
 import { addDays, todayKey } from "./date";
 import type { AppState } from "./types";
 
@@ -32,7 +33,7 @@ export function buildHealthContext(s: AppState): string {
   } else {
     const g = s.goal;
     lines.push(
-      `Goal: ${GOALS[g.type]?.label ?? g.type}${g.targetWeightKg ? `, target weight ${g.targetWeightKg} kg` : ""}${g.targetBodyFatPct ? `, target body fat ${g.targetBodyFatPct}%` : ""}; ${g.experience}; trains ${g.daysPerWeek} days/week, ${g.sessionMinutes} min per session.`,
+      `Goal: ${GOALS[g.type]?.label ?? g.type}${g.targetWeightKg ? `, target weight ${g.targetWeightKg} kg` : ""}${g.targetBodyFatPct ? `, target body fat ${g.targetBodyFatPct}%` : ""}; experience ${EXPERIENCE_LABELS[g.experience]} (${EXPERIENCE_DETAILS[g.experience].toLowerCase()}); trains ${g.daysPerWeek} days/week, ${g.sessionMinutes} min per session.`,
     );
     const plan = activePlanOn(s.plans, today) ?? s.plans.find((x) => x.id === s.activePlanId) ?? s.plans.at(-1);
     if (plan) {
@@ -41,6 +42,12 @@ export function buildHealthContext(s: AppState): string {
       lines.push(
         `Plan V${plan.version} targets per day: ${n.calories} kcal, protein ${n.proteinG} g, carbs ${n.carbsG} g, fat ${n.fatG} g, fibre ${n.fiberG} g, ${t.steps} steps, sleep ${t.sleepHours[0]}–${t.sleepHours[1]} h. BMR ${t.bmr}, TDEE ${t.tdee} kcal, planned change ${t.weeklyRateKg} kg/week.`,
       );
+      lines.push(`Workout structure: ${plan.workout.split}; ${plan.workout.days.map((d) => d.name).join(", ")}.`);
+      const strength = strengthProfile(g.strengthTests, p.sex, plan.bodyWeightKg);
+      if (strength.lifts.length)
+        lines.push(
+          `Strength test (overall ${STRENGTH_LEVELS[strength.overall!]}): ${strength.lifts.map((l) => `${l.label} ${STRENGTH_LEVELS[l.level]}${l.oneRepMaxKg ? ` (est. 1RM ${l.oneRepMaxKg} kg)` : ""}`).join("; ")}.`,
+        );
     }
   }
 
