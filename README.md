@@ -6,8 +6,8 @@ A personal transformation app: onboarding builds a goal-specific calorie, macro,
 
 | Route             | What it is                                                                                                   |
 | ----------------- | ------------------------------------------------------------------------------------------------------------ |
-| `/`               | Hero showcase: Your Transformation, Today's Performance, Today's Plan (live data, or a demo athlete)          |
-| `/signup`, `/signin` | Create an account or sign in; every other app route requires a session                                    |
+| `/`               | Logo splash, then straight to sign in (or the dashboard when already signed in)                              |
+| `/signup`, `/signin` | Create an account or sign in, set directly on the gym backdrop; every other app route requires a session  |
 | `/onboarding`     | About you → body & timezone → goal (8 types) → target → training week → calculated plan preview              |
 | `/dashboard`      | Transformation ring and window, today's plan, calories / balance / protein / steps, energy breakdown          |
 | `/plan`           | Calorie explanation, macros, steps, safety flags, 7-day schedule, adaptive review, plan version history       |
@@ -80,7 +80,7 @@ New users sign up and are taken through onboarding. To explore with data, open *
 ```
 src/
   app/
-    page.tsx              Hero showcase
+    page.tsx              Logo splash → sign in
     (app)/                App routes sharing the BAUMB shell
     (auth)/               Sign in / sign up
     api/                  Auth and data route handlers
@@ -88,7 +88,7 @@ src/
   calculations/           Pure calculation engine + *.test.ts
   services/plan.ts        Plan version creation and adaptive adjustments
   data/                   Goal configs, built-in foods, Indian food catalogue (seed for dbo.Foods)
-  components/             Feature views (dashboard, plan, nutrition, workout, …), shared UI, charts, showcase
+  components/             Feature views (dashboard, plan, nutrition, workout, …), shared UI, charts, splash
   lib/                    Types, store, sample data, exercise catalog, date/unit helpers, hooks
   assets/baumb/           Imagery
 db/schema.sql             SQL Server tables

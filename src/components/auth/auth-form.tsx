@@ -9,6 +9,11 @@ import { ensureSession, signIn, signUp, useSession } from "@/lib/session";
 
 type Mode = "signin" | "signup";
 
+/** Fields float on the photograph: translucent and blurred instead of sitting in a card. */
+const FIELD =
+  "h-12 w-full rounded-control border border-white/15 bg-black/35 px-4 text-[15px] text-white placeholder:text-white/35 outline-none backdrop-blur-md transition focus:border-brand/70 focus:bg-black/45 focus:ring-4 focus:ring-brand/20";
+const LABEL = "mb-1.5 block text-[12px] font-medium uppercase tracking-[0.12em] text-white/60";
+
 /** Only same-site paths, so a crafted link can't bounce users to another site after sign-in. */
 function safeNext(raw: string | null, fallback: string) {
   return raw && raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/signin") && !raw.startsWith("/signup") ? raw : fallback;
@@ -55,32 +60,31 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const otherHref = params.get("next") ? `${other.href}?next=${encodeURIComponent(params.get("next")!)}` : other.href;
 
   return (
-    <div>
+    <div className="text-center animate-fade-slide-up anim-delay-200">
       <p className="eyebrow">{mode === "signin" ? "Welcome back" : "Train. Track. Transform."}</p>
-      <h1 className="mt-3 text-[40px] font-light leading-[1.02] tracking-[-0.035em] text-white sm:text-[46px]">
-        {mode === "signin" ? "Sign " : "Create your"}
-        {mode === "signup" && <br />}
+      <h1 className="mt-3 text-[38px] font-light leading-[1.05] tracking-[-0.035em] text-white [text-shadow:0_2px_24px_rgb(0_0_0/0.6)] sm:text-[44px]">
+        {mode === "signin" ? "Sign " : "Create your "}
         <span className="font-semibold">{mode === "signin" ? "in" : "account"}</span>
       </h1>
 
-      <form onSubmit={submit} noValidate className="glass mt-8 space-y-5 rounded-card p-6 sm:p-7">
+      <form onSubmit={submit} noValidate className="mt-8 space-y-4 text-left">
         {mode === "signup" && (
           <div>
-            <label htmlFor="name" className="label">Name</label>
-            <input id="name" className="field" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} />
+            <label htmlFor="name" className={LABEL}>Name</label>
+            <input id="name" className={FIELD} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} />
           </div>
         )}
         <div>
-          <label htmlFor="email" className="label">Email</label>
-          <input id="email" type="email" inputMode="email" className="field" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <label htmlFor="email" className={LABEL}>Email</label>
+          <input id="email" type="email" inputMode="email" className={FIELD} autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div>
-          <label htmlFor="password" className="label">Password</label>
+          <label htmlFor="password" className={LABEL}>Password</label>
           <div className="relative">
             <input
               id="password"
               type={show ? "text" : "password"}
-              className="field pr-11"
+              className={`${FIELD} pr-12`}
               autoComplete={mode === "signin" ? "current-password" : "new-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -91,28 +95,28 @@ export function AuthForm({ mode }: { mode: Mode }) {
             </button>
           </div>
           {mode === "signup" && (
-            <p id="password-hint" className="mt-1.5 text-xs text-white/45">
+            <p id="password-hint" className="mt-1.5 text-xs text-white/55">
               At least {PASSWORD_MIN} characters, with a letter and a number.
             </p>
           )}
         </div>
 
         {error && (
-          <p role="alert" className="rounded-control border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-red-200">
+          <p role="alert" className="rounded-control border border-danger/40 bg-danger/15 px-3.5 py-2.5 text-sm text-red-100 backdrop-blur-md">
             {error}
           </p>
         )}
 
-        <button type="submit" className="btn-primary h-12 w-full" disabled={busy}>
+        <button type="submit" className="btn-primary mt-2 h-12 w-full" disabled={busy}>
           {busy ? (mode === "signin" ? "Signing in…" : "Creating account…") : mode === "signin" ? "Sign in" : "Create account"}
           {!busy && <ArrowRight className="size-4" aria-hidden />}
         </button>
-        <p className="flex items-center justify-center gap-1.5 text-[11px] text-white/40">
+        <p className="flex items-center justify-center gap-1.5 text-[11px] text-white/50">
           <Lock className="size-3" aria-hidden /> Your data is saved to your BAUMB account database.
         </p>
       </form>
 
-      <p className="mt-6 text-center text-sm text-white/60">
+      <p className="mt-7 text-center text-sm text-white/70">
         {other.prompt}{" "}
         <Link href={otherHref} className="font-semibold text-brand hover:underline">
           {other.label}
