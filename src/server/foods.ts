@@ -7,7 +7,7 @@ const CACHE_MS = 10 * 60_000;
 /** 12 parameters per row; SQL Server allows 2,100 per request. */
 const BATCH = 150;
 
-interface FoodRow {
+export interface FoodRow {
   Id: string;
   Name: string;
   Aliases: string;
@@ -24,7 +24,12 @@ interface FoodRow {
 
 const cache = globalThis as unknown as { baumbFoods?: { at: number; foods: Promise<Food[]> } };
 
-function toFood(r: FoodRow): Food {
+export const FOOD_COLUMNS = "Id, Name, Aliases, Category, Calories, ProteinG, CarbsG, FatG, FiberG, ServingsJson, Source, Priority";
+
+/** Foods the AI added (ids start with this) are fetched one by one when typed, not shipped in the catalogue. */
+export const AI_FOOD_PREFIX = "ai-";
+
+export function toFood(r: FoodRow): Food {
   let servings: FoodServing[] = [];
   try {
     servings = JSON.parse(r.ServingsJson) as FoodServing[];
@@ -79,8 +84,9 @@ async function load(): Promise<Food[]> {
   if (inserted) console.info(`[foods] Added ${inserted} foods to dbo.Foods`);
   const rows = await pool
     .request()
-    .query<FoodRow>("SELECT Id, Name, Aliases, Category, Calories, ProteinG, CarbsG, FatG, FiberG, ServingsJson, Source, Priority FROM dbo.Foods ORDER BY Priority DESC, Name");
-  return rows.recordset.map(toFood);
+    .query<FoodRow>(`SELECT ${FOOD_COLUMNS} FROM dbo.Foods WHERE Id NOT LIKE '${AI_FOOD_PREFIX}%'`);
+  // Sorted here, not with ORDER BY: a sort needs a SQL Server memory grant, which waits indefinitely when the server is short of memory.
+  return rows.recordset.map(toFood).sort((a, b) => (b.priority ?? 1) - (a.priority ?? 1) || a.name.localeCompare(b.name));
 }
 
 /** The food catalogue from SQL Server, seeded on first use and cached per server process. */

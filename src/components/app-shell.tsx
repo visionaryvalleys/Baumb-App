@@ -10,6 +10,7 @@ import { DEFAULT_ACCENT, actions, getState, resolveAccent, useAppState, useHydra
 import { useRecordKeeper } from "@/lib/use-records";
 import { Backdrop } from "./backdrop";
 import { BaumbLogo, MenuButton, MenuOverlay, ProfileButton } from "./brand";
+import { HealthChat } from "./health-chat";
 import { NotificationBell } from "./notifications";
 import { EmptyState, PageSkeleton, cn } from "./ui";
 
@@ -140,6 +141,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main key={pathname} className="relative z-10 mx-auto w-full max-w-6xl px-5 pb-24 pt-8 animate-fade-slide-up sm:px-8 sm:pt-12">
         {session.auth === "error" ? <SessionProblem message={session.message} /> : !ready ? <PageSkeleton /> : gated ? <OnboardingGate /> : children}
+        {ready && session.auth !== "error" && !pathname.startsWith("/onboarding") && <HealthChat />}
       </main>
 
       <MenuOverlay

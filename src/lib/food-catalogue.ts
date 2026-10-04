@@ -12,12 +12,29 @@ interface CatalogueState {
 
 const EMPTY: CatalogueState = { foods: [], status: "idle" };
 let current: CatalogueState = EMPTY;
+let base: Food[] = [];
+/** Foods the AI resolved for this user; fetched on demand, so they aren't part of the downloaded catalogue. */
+const extras = new Map<string, Food>();
 let pending: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
+function withExtras(foods: Food[]): Food[] {
+  if (!extras.size) return foods;
+  const ids = new Set(foods.map((f) => f.id));
+  return [...foods, ...[...extras.values()].filter((f) => !ids.has(f.id))];
+}
+
 function set(next: CatalogueState) {
-  current = next;
+  base = next.foods;
+  current = { ...next, foods: withExtras(base) };
   listeners.forEach((l) => l());
+}
+
+export function addCatalogueFoods(foods: Food[]) {
+  const fresh = foods.filter((f) => extras.get(f.id) !== f);
+  if (!fresh.length) return;
+  for (const f of fresh) extras.set(f.id, f);
+  set({ ...current, foods: base });
 }
 
 function readCache(): Food[] | null {
@@ -34,7 +51,7 @@ export function loadFoodCatalogue(): Promise<void> {
   if (current.status === "ready") return Promise.resolve();
   pending ??= (async () => {
     const cached = readCache();
-    set({ foods: cached ?? current.foods, status: "loading" });
+    set({ foods: cached ?? base, status: "loading" });
     try {
       const res = await fetch("/api/foods", { credentials: "same-origin" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

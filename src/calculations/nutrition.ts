@@ -57,6 +57,33 @@ export function calculateItemNutrition(food: Food, grams: number): NutritionProf
   };
 }
 
+export type MealItemPortion = Pick<MealItem, "servingId" | "servingLabel" | "quantity" | "grams" | "nutrition">;
+
+/**
+ * A logged item at a new quantity or serving. Recalculated from the food's per-100 g values when the
+ * food is known; otherwise the logged nutrition is scaled by weight (nutrition is linear in grams).
+ */
+export function resizeMealItem(item: MealItem, food: Food | undefined, servingId: string | null, quantity: number): MealItemPortion | null {
+  if (!Number.isFinite(quantity) || quantity <= 0) return null;
+  if (food) {
+    const serving = servingId ? food.servings.find((s) => s.id === servingId) : undefined;
+    const grams = round1(gramsForServing(food, serving?.id ?? null, quantity));
+    return { servingId: serving?.id ?? null, servingLabel: serving?.label ?? "g", quantity, grams, nutrition: calculateItemNutrition(food, grams) };
+  }
+  if (item.grams <= 0 || item.quantity <= 0) return null;
+  const sameServing = servingId !== null && servingId === item.servingId;
+  const grams = round1(sameServing ? (item.grams / item.quantity) * quantity : quantity);
+  const f = grams / item.grams;
+  const n = item.nutrition;
+  return {
+    servingId: sameServing ? item.servingId : null,
+    servingLabel: sameServing ? item.servingLabel : "g",
+    quantity,
+    grams,
+    nutrition: { calories: Math.round(n.calories * f), proteinG: round1(n.proteinG * f), carbsG: round1(n.carbsG * f), fatG: round1(n.fatG * f), fiberG: round1(n.fiberG * f) },
+  };
+}
+
 export function sumNutrition(items: { nutrition: NutritionProfile }[]): NutritionProfile {
   const t = items.reduce(
     (acc, { nutrition: n }) => ({

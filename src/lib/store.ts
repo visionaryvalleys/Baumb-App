@@ -328,6 +328,9 @@ export const actions = {
       mealSlots: s.meals.some((m) => m.meal === id) ? s.mealSlots.map((m) => (m.id === id ? { ...m, archived: true } : m)) : s.mealSlots.filter((m) => m.id !== id),
     }));
   },
+  updateMealItem(id: string, patch: Partial<Pick<MealItem, "servingId" | "servingLabel" | "quantity" | "grams" | "nutrition">>) {
+    setState((s) => ({ ...s, meals: s.meals.map((m) => (m.id === id ? { ...m, ...patch } : m)) }));
+  },
   deleteMealItem(id: string) {
     setState((s) => ({ ...s, meals: s.meals.filter((m) => m.id !== id) }));
   },

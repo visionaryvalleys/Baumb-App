@@ -1,9 +1,10 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
-import { Plus, Sparkles, X } from "lucide-react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, BadgeCheck, Loader2, Plus, Sparkles, X } from "lucide-react";
 import { parseFoodText, resolvePortion, type ParsedFood } from "@/calculations/food-parser";
 import { calculateItemNutrition, gramsForServing, sumNutrition } from "@/calculations/nutrition";
+import { type AiCheckStatus, aiCheckFor, requestAiChecks, useAiChecks } from "@/lib/ai-foods";
 import { minutesToTime, timeToMinutes, zonedInstant } from "@/lib/date";
 import { actions, newId, useAppState } from "@/lib/store";
 import type { Food, LocalDate, MealSlot, NutritionProfile } from "@/lib/types";
@@ -26,10 +27,16 @@ interface Row {
   quantity: string;
   grams: number;
   nutrition: NutritionProfile | null;
+  /** null when the user picked the food themselves or it's one of their own foods. */
+  check: AiCheckStatus | null;
 }
 
 function buildRow(parsed: ParsedFood, key: string, edit: RowEdit, pool: Food[]): Row {
-  const food = (edit.foodId && pool.find((f) => f.id === edit.foodId)) || parsed.food;
+  const manual = edit.foodId ? pool.find((f) => f.id === edit.foodId) : undefined;
+  const own = parsed.food?.custom ? parsed.food : undefined;
+  const check = manual || own ? null : aiCheckFor(parsed.name || parsed.text);
+  const aiFood = check?.food ? (pool.find((f) => f.id === check.food!.id) ?? check.food) : null;
+  const food = manual ?? own ?? aiFood ?? parsed.food;
   const base = food ? (food === parsed.food ? parsed.portion : resolvePortion(food, parsed.quantity, parsed.unit)) : null;
   const servingId = edit.servingId !== undefined ? edit.servingId : (base?.servingId ?? null);
   const quantity = edit.quantity ?? String(base?.quantity ?? parsed.quantity);
@@ -44,7 +51,25 @@ function buildRow(parsed: ParsedFood, key: string, edit: RowEdit, pool: Food[]):
     quantity,
     grams,
     nutrition: food && grams > 0 ? calculateItemNutrition(food, grams) : null,
+    check: check?.status ?? null,
   };
+}
+
+function AiBadge({ status }: { status: AiCheckStatus }) {
+  const view = {
+    checking: { icon: Loader2, text: "Checking with AI…", tone: "text-white/45", spin: true },
+    matched: { icon: BadgeCheck, text: "AI verified · database values", tone: "text-emerald-300/90", spin: false },
+    estimated: { icon: Sparkles, text: "Calculated by AI · saved for next time", tone: "text-brand", spin: false },
+    not_food: { icon: AlertTriangle, text: "AI doesn't recognise this as food — check the match", tone: "text-amber-300/90", spin: false },
+    unavailable: { icon: AlertTriangle, text: "Database value · AI check unavailable right now", tone: "text-white/40", spin: false },
+  }[status];
+  const Icon = view.icon;
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${view.tone}`}>
+      <Icon className={`size-3.5 ${view.spin ? "animate-spin" : ""}`} aria-hidden />
+      {view.text}
+    </span>
+  );
 }
 
 const sourceTag = (f: Food) => (f.custom ? "my food" : f.priority === 2 ? "NIN" : f.id.startsWith("indb-") ? "INDB" : "");
@@ -59,6 +84,7 @@ export function MealFoodEntry({ slot, date, pool, loading, onDone }: { slot: Mea
   const [edits, setEdits] = useState<Record<string, RowEdit>>({});
   const [creating, setCreating] = useState<string | null>(null);
 
+  useAiChecks();
   const parsed = useMemo(() => parseFoodText(text, pool), [text, pool]);
   const rows = parsed
     .map((p, i) => ({ p, key: `${i}:${p.text}` }))
@@ -66,12 +92,20 @@ export function MealFoodEntry({ slot, date, pool, loading, onDone }: { slot: Mea
     .map(({ p, key }) => buildRow(p, key, edits[key] ?? {}, pool));
   const ready = rows.filter((r) => r.food && r.nutrition);
   const total = ready.length ? sumNutrition(ready.map((r) => ({ nutrition: r.nutrition! }))) : null;
+  const checking = rows.some((r) => r.check === "checking");
+
+  const names = parsed.map((p) => p.name || p.text).join("\n");
+  useEffect(() => {
+    if (!names) return;
+    const t = setTimeout(() => requestAiChecks(names.split("\n")), 600);
+    return () => clearTimeout(t);
+  }, [names]);
 
   const edit = (key: string, patch: RowEdit) => setEdits((all) => ({ ...all, [key]: { ...all[key], ...patch } }));
 
   function add(e: FormEvent) {
     e.preventDefault();
-    if (!ready.length) return;
+    if (!ready.length || checking) return;
     const tz = profile.timezone;
     const at = zonedInstant(date, timeToMinutes(time), tz);
     actions.addMealItems(
@@ -123,7 +157,7 @@ export function MealFoodEntry({ slot, date, pool, loading, onDone }: { slot: Mea
       </form>
       {!text.trim() && (
         <p className="text-xs leading-relaxed text-white/45">
-          Write it the way you&apos;d say it — pieces, katori, cup, glass, slice or grams all work. Calories, protein, carbs, fat and fibre are filled in from the ICMR-NIN based Indian food database.
+          Write it the way you&apos;d say it — pieces, katori, cup, glass, slice or grams all work. Calories, protein, carbs, fat and fibre come from the ICMR-NIN based Indian food database, and AI checks every match — foods the database doesn&apos;t have are calculated by AI and saved. Change any quantity or serving and everything recalculates.
           {loading && " Loading the food database…"}
         </p>
       )}
@@ -188,7 +222,19 @@ export function MealFoodEntry({ slot, date, pool, loading, onDone }: { slot: Mea
                     </span>
                     {r.food.source && <span className="truncate text-[10px] text-white/30">{r.food.source}</span>}
                   </div>
+                  {r.check && (
+                    <div className="mt-1.5">
+                      <AiBadge status={r.check} />
+                    </div>
+                  )}
                 </>
+              ) : r.check === "checking" ? (
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-white/60">
+                    Looking up <span className="font-medium text-white">“{r.parsed.name || r.parsed.text}”</span>
+                  </span>
+                  <AiBadge status="checking" />
+                </div>
               ) : (
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <span className="text-white/60">
@@ -232,8 +278,9 @@ export function MealFoodEntry({ slot, date, pool, loading, onDone }: { slot: Mea
           Time
         </label>
         <input id={`time-${slot.id}`} type="time" className="field h-10 w-28 py-1.5 text-sm [color-scheme:dark]" value={time} onChange={(e) => setTime(e.target.value)} />
-        <button type="submit" form={formId} className="btn-primary h-10" disabled={!ready.length}>
-          <Plus className="size-4" aria-hidden /> {ready.length > 1 ? `Add ${ready.length} items` : "Add"}
+        <button type="submit" form={formId} className="btn-primary h-10" disabled={!ready.length || checking}>
+          {checking ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />}
+          {checking ? "Checking…" : ready.length > 1 ? `Add ${ready.length} items` : "Add"}
         </button>
         <button type="button" className="btn-ghost h-10" onClick={onDone}>
           Cancel

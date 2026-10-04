@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";
-import { MAX_MEAL_SLOTS, activeMealSlots } from "@/calculations/nutrition";
+import { MAX_MEAL_SLOTS, activeMealSlots, resizeMealItem } from "@/calculations/nutrition";
 import { localMinutes, minutesToTime, timeToMinutes } from "@/lib/date";
 import { actions, newId, useAppState } from "@/lib/store";
 import type { Food, LocalDate, MealItem, MealSlot, NutritionProfile } from "@/lib/types";
@@ -18,26 +18,106 @@ const SUGGESTIONS: { name: string; minutes: number }[] = [
   { name: "Supper", minutes: 22 * 60 },
 ];
 
-function ItemList({ items, known }: { items: MealItem[]; known: (id: string) => boolean }) {
+function ItemEditor({ item, food, onClose }: { item: MealItem; food: Food | undefined; onClose: () => void }) {
+  const [servingId, setServingId] = useState<string | null>(item.servingId);
+  const [quantity, setQuantity] = useState(String(item.servingId ? item.quantity : item.grams));
+  const servings = food ? food.servings : item.servingId ? [{ id: item.servingId, label: item.servingLabel, grams: item.grams / item.quantity }] : [];
+  const next = resizeMealItem(item, food, servingId, Number(quantity));
+
+  function save(e: FormEvent) {
+    e.preventDefault();
+    if (!next) return;
+    actions.updateMealItem(item.id, next);
+    onClose();
+  }
+
+  return (
+    <form onSubmit={save} className="mt-2 rounded-xl bg-white/[0.03] p-3 ring-1 ring-inset ring-white/[0.06] animate-fade-in">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          autoFocus
+          type="number"
+          inputMode="decimal"
+          min={0}
+          step={servingId ? 0.5 : 10}
+          className="field h-10 w-24 py-1.5 text-sm tabular-nums"
+          value={quantity}
+          onChange={(e) => setQuantity(e.target.value)}
+          aria-label={`Quantity of ${item.foodName}`}
+        />
+        <select
+          className="field h-10 min-w-0 flex-1 py-1.5 text-sm"
+          value={servingId ?? "g"}
+          onChange={(e) => {
+            const id = e.target.value === "g" ? null : e.target.value;
+            setServingId(id);
+            setQuantity(id ? "1" : String(Math.round(next?.grams ?? item.grams)));
+          }}
+          aria-label={`Serving for ${item.foodName}`}
+        >
+          {servings.map((s) => (
+            <option key={s.id} value={s.id} className="bg-bm-night">
+              {s.label} ({Math.round(s.grams * 10) / 10} g)
+            </option>
+          ))}
+          <option value="g" className="bg-bm-night">
+            grams
+          </option>
+        </select>
+        <button type="submit" className="btn-primary h-10" disabled={!next}>
+          <Check className="size-4" aria-hidden /> Save
+        </button>
+        <button type="button" className="btn-ghost h-10" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+      <p className="mt-2 text-xs tabular-nums text-white/55">
+        {next ? (
+          <>
+            <span className="font-semibold text-white">{next.nutrition.calories} kcal</span> · P {next.nutrition.proteinG} g · C {next.nutrition.carbsG} g · F {next.nutrition.fatG} g · Fibre {next.nutrition.fiberG} g ·{" "}
+            <span className="text-white/35">{Math.round(next.grams)} g</span>
+          </>
+        ) : (
+          "Enter a quantity above zero."
+        )}
+      </p>
+    </form>
+  );
+}
+
+function ItemList({ items, known, findFood }: { items: MealItem[]; known: (id: string) => boolean; findFood?: (id: string) => Food | undefined }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
   return (
     <ul className="divide-y divide-line">
       {items.map((item) => (
-        <li key={item.id} className="group flex items-center justify-between gap-3 py-3">
-          <div className="min-w-0">
-            <div className="truncate text-sm font-medium text-white">
-              {item.foodName}
-              {!known(item.foodId) && <span className="ml-2 text-[10px] uppercase text-white/35">archived</span>}
+        <li key={item.id} className="group py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium text-white">
+                {item.foodName}
+                {!known(item.foodId) && <span className="ml-2 text-[10px] uppercase text-white/35">archived</span>}
+              </div>
+              <div className="text-xs text-white/45">
+                {item.servingId ? `${item.quantity} × ${item.servingLabel}` : `${item.grams} g`} · {minutesToTime(localMinutes(item.timestamp, item.timezone))} · P {item.nutrition.proteinG} g · C {item.nutrition.carbsG} g · F {item.nutrition.fatG} g · Fibre {item.nutrition.fiberG} g
+              </div>
             </div>
-            <div className="text-xs text-white/45">
-              {item.servingId ? `${item.quantity} × ${item.servingLabel}` : `${item.grams} g`} · {minutesToTime(localMinutes(item.timestamp, item.timezone))} · P {item.nutrition.proteinG} g · C {item.nutrition.carbsG} g · F {item.nutrition.fatG} g · Fibre {item.nutrition.fiberG} g
+            <div className="flex items-center gap-1">
+              <span className="mr-2 text-sm font-semibold tabular-nums text-white">{item.nutrition.calories}</span>
+              <button
+                type="button"
+                onClick={() => setEditingId(editingId === item.id ? null : item.id)}
+                className="rounded-lg p-2 text-white/30 transition hover:bg-white/[0.06] hover:text-white"
+                aria-label={`Change amount of ${item.foodName}`}
+                aria-expanded={editingId === item.id}
+              >
+                <Pencil className="size-4" aria-hidden />
+              </button>
+              <button type="button" onClick={() => actions.deleteMealItem(item.id)} className="rounded-lg p-2 text-white/30 transition hover:bg-white/[0.06] hover:text-red-300" aria-label={`Remove ${item.foodName}`}>
+                <Trash2 className="size-4" aria-hidden />
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold tabular-nums text-white">{item.nutrition.calories}</span>
-            <button type="button" onClick={() => actions.deleteMealItem(item.id)} className="rounded-lg p-2 text-white/30 transition hover:bg-white/[0.06] hover:text-red-300" aria-label={`Remove ${item.foodName}`}>
-              <Trash2 className="size-4" aria-hidden />
-            </button>
-          </div>
+          {editingId === item.id && <ItemEditor item={item} food={findFood?.(item.foodId)} onClose={() => setEditingId(null)} />}
         </li>
       ))}
     </ul>
@@ -108,7 +188,7 @@ export function MealCard({
         <span className="text-sm font-semibold tabular-nums text-white">{group ? `${group.totals.calories.toLocaleString()} kcal` : <span className="font-normal text-white/35">—</span>}</span>
       </div>
       {editing && <SlotEditor slot={slot} onClose={() => setEditing(false)} />}
-      {group ? <ItemList items={group.items} known={known} /> : !open && <p className="text-sm text-white/40">Nothing logged yet.</p>}
+      {group ? <ItemList items={group.items} known={known} findFood={(id) => pool.find((f) => f.id === id)} /> : !open && <p className="text-sm text-white/40">Nothing logged yet.</p>}
       {open ? (
         <MealFoodEntry slot={slot} date={date} pool={pool} loading={loading} onDone={() => onOpenChange(false)} />
       ) : (

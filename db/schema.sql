@@ -58,3 +58,17 @@ CREATE TABLE dbo.Foods (
   CreatedAt    DATETIME2(3)   NOT NULL CONSTRAINT DF_Foods_CreatedAt DEFAULT SYSUTCDATETIME()
 );
 GO
+
+-- Every food phrase users type, normalised (lowercase, singular, no quantity: "5 Idlis" -> "idli"),
+-- mapped to one row in dbo.Foods — an existing food the AI confirmed, or a food the AI added (Id 'ai-…').
+-- FoodId NULL marks a phrase that isn't food. Looked up by primary key, so it stays fast at any size.
+IF OBJECT_ID('dbo.FoodKeys', 'U') IS NULL
+BEGIN
+  CREATE TABLE dbo.FoodKeys (
+    KeyText   NVARCHAR(100) NOT NULL CONSTRAINT PK_FoodKeys PRIMARY KEY,
+    FoodId    NVARCHAR(64)  NULL CONSTRAINT FK_FoodKeys_Foods REFERENCES dbo.Foods (Id),
+    CreatedAt DATETIME2(3)  NOT NULL CONSTRAINT DF_FoodKeys_CreatedAt DEFAULT SYSUTCDATETIME()
+  );
+  CREATE INDEX IX_FoodKeys_FoodId ON dbo.FoodKeys (FoodId);
+END
+GO

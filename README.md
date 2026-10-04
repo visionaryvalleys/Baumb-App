@@ -11,7 +11,7 @@ A personal transformation app: onboarding builds a goal-specific calorie, macro,
 | `/onboarding`     | About you → body & timezone → goal (8 types) → target → training week → calculated plan preview              |
 | `/dashboard`      | Transformation ring and window, today's plan, calories / balance / protein / steps, energy breakdown          |
 | `/plan`           | Calorie explanation, macros, steps, safety flags, 7-day schedule, adaptive review, plan version history       |
-| `/nutrition`      | Your own meals of the day (Breakfast, Lunch, Snacks, Dinner by default; add Pre-workout, Post-workout or any other, up to 10), each with inline "Add food": type "5 vada, 3 dosa, 1 katori sambar" and calories, protein, carbs, fat and fibre are calculated from the Indian food database. Daily totals vs targets, calories vs goal (surplus moves the goal date, never adds workouts), energy for the day, quick add, vacation card |
+| `/nutrition`      | Your own meals of the day (Breakfast, Lunch, Snacks, Dinner by default; add Pre-workout, Post-workout or any other, up to 10), each with inline "Add food": type "5 vada, 3 dosa, 1 katori sambar" and calories, protein, carbs, fat and fibre are calculated from the Indian food database and checked by AI (see below). Logged items can be edited (amount or serving) and their nutrition recalculates. Daily totals vs targets, calories vs goal (surplus moves the goal date, never adds workouts), energy for the day, quick add, vacation card |
 | `/workout`        | Today's session with load suggestions (double progression + RPE, adjusted for recovery, weekly volume, calorie deficit, low logged intake and time away after a break) |
 | `/activity`       | Steps (manual / phone / wearable / health app, optional device calories) and recovery (sleep, HR, HRV)        |
 | `/progress`       | Weight trends and chart, body measurements (plus your own custom ones), progress photos with before/after compare, consistency, volume, strength records |
@@ -24,6 +24,8 @@ A personal transformation app: onboarding builds a goal-specific calorie, macro,
 | `/settings`       | Account and sync status, sign out, accent colour, units, reminders on/off, JSON export / import, sample data, reset, calculation log |
 
 The header bell shows in-app reminders derived from your data (weigh-ins, unlogged food, planned workouts, events, vacations, weekly reviews, plan check-ins, estimate changes); dismissals are remembered per occurrence.
+
+**BAUMB Coach**, an AI chat about health, food, training, sleep and recovery, sits at the bottom of every signed-in page. Answers are streamed and grounded in a short summary of the user's own profile, plan, today's food and the last 7 days (`src/lib/health-context.ts`). The coach keeps to health topics, respects the plan's calorie floors and sends medical questions to a doctor.
 
 ## Calculation engine
 
@@ -41,11 +43,20 @@ Values in the UI are labelled **recorded**, **calculated**, **estimated** or **p
 
 ## Accounts and data storage
 
-- **Database**: SQL Server (tested with 2014 Express) through the `mssql` driver. Tables are in `db/schema.sql`: `Users` (email, name, scrypt password hash), `Sessions` (SHA-256 of the session token, expiry), `UserData` (each user's app data as one JSON document with a revision number) and `Foods` (the shared food catalogue, per 100 g, with servings and source).
+- **Database**: SQL Server (tested with 2014 Express) through the `mssql` driver. Tables are in `db/schema.sql`: `Users` (email, name, scrypt password hash), `Sessions` (SHA-256 of the session token, expiry), `UserData` (each user's app data as one JSON document with a revision number), `Foods` (the shared food catalogue, per 100 g, with servings and source) and `FoodKeys` (each normalised food phrase that has been checked, pointing to its `Foods` row, or `NULL` for "not a food").
 - **Food catalogue**: `GET /api/foods` inserts any foods from `src/data/indian-foods.json` that are missing from `dbo.Foods` (existing rows are never overwritten, so corrections made in the table stick) and serves the table. The browser keeps a copy so logging works offline.
 - **Sessions**: a random token in an HTTP-only `baumb_session` cookie, valid for 30 days. `src/proxy.ts` sends visitors without a session to `/signin`; the landing page stays public.
 - **Sync**: every change is saved to the browser immediately and to the database about a second later. If the network or database is down, changes are kept and retried; if two devices edit at once, the newer saved copy on the server wins.
-- **API**: `POST /api/auth/signup`, `POST /api/auth/signin`, `POST /api/auth/signout`, `GET /api/auth/me`, `GET`/`PUT /api/data`, `GET /api/foods`. Sign-in and sign-up are rate limited, and mutating requests must be same-origin JSON.
+- **API**: `POST /api/auth/signup`, `POST /api/auth/signin`, `POST /api/auth/signout`, `GET /api/auth/me`, `GET`/`PUT /api/data`, `GET /api/foods`, `POST /api/foods/resolve`, `POST /api/ai/chat`. Sign-in, sign-up and the AI routes are rate limited per user, and mutating requests must be same-origin JSON.
+
+### AI food check and coach (Anthropic Claude)
+
+Set `ANTHROPIC_API_KEY` in `.env.local` and restart (other settings are in `.env.example`). Without a key the app works as before, using database values, and the coach says it isn't switched on.
+
+- **One row per food, not per portion.** The quantity is parsed in the browser ("5 idli" → 5 × 1 idli), and only the food name is looked up, normalised to a key (`idli`). Nutrition is stored per 100 g with named servings, so every amount is a multiplication in the app.
+- **Lookup order:** the browser's saved results → server memory (LRU, 50k keys) → `dbo.FoodKeys` (primary-key lookup) → Claude, only for a phrase nobody has entered before. The answer is saved, so the next user with the same phrase (or a spelling the AI recognised) gets it from the database.
+- **Accuracy:** Claude is given the closest catalogue matches and either confirms one (values stay the database's IFCT/INDB/NIN numbers) or, for a food that isn't there, returns per-100 g values from IFCT 2017 / INDB first, then USDA FoodData Central, with its reference and confidence. Every AI answer must pass checks before it is used or stored: calories must agree with protein, carbs, fat, fibre and alcohol (Atwater, within 15%), nutrients can't exceed 100 g per 100 g, and servings must be realistic. Low-confidence answers are shown but not saved. Values are standard recipes, so homemade dishes can differ, and every item can be edited.
+- **Load:** identical concurrent lookups share one request, different new foods arriving together are batched into one Claude call, AI calls are capped (`AI_MAX_CONCURRENCY`, with a queue that returns 503 when full), and results are cached at every level, so repeat foods cost no AI calls. The chat streams responses and has per-user minute and daily limits.
 
 ### Database setup (Windows, SQL Server Express)
 
@@ -83,8 +94,8 @@ src/
     page.tsx              Logo splash → sign in
     (app)/                App routes sharing the BAUMB shell
     (auth)/               Sign in / sign up
-    api/                  Auth and data route handlers
-  server/                 Database pool, password hashing, sessions, request helpers
+    api/                  Auth, data, food and AI route handlers
+  server/                 Database pool, password hashing, sessions, request helpers, Claude client, AI food resolver, caches and limits
   calculations/           Pure calculation engine + *.test.ts
   services/plan.ts        Plan version creation and adaptive adjustments
   data/                   Goal configs, built-in foods, Indian food catalogue (seed for dbo.Foods)
