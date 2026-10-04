@@ -13,7 +13,14 @@ export class HttpError extends Error {
 /** Mutations must be same-origin JSON requests, which a cross-site form can't forge. */
 export function assertSameOrigin(req: NextRequest) {
   const origin = req.headers.get("origin");
-  if (origin && origin !== req.nextUrl.origin) throw new HttpError(403, "Cross-origin request rejected.");
+  if (origin) {
+    let originHost: string | null = null;
+    try {
+      originHost = new URL(origin).host;
+    } catch {}
+    // Compare with the Host the browser used (e.g. a phone on the LAN), not the address the server was started on.
+    if (originHost !== (req.headers.get("host") ?? req.nextUrl.host)) throw new HttpError(403, "Cross-origin request rejected.");
+  }
   if (!req.headers.get("content-type")?.includes("application/json")) throw new HttpError(415, "Expected JSON.");
 }
 
