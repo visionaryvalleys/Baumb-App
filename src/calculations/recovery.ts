@@ -79,7 +79,7 @@ export function calculateVolumeTrend(workouts: Workout[], muscle: MuscleGroup, d
   const setsIn = (from: LocalDate, to: LocalDate) =>
     workouts
       .filter((w) => w.date >= from && w.date <= to)
-      .reduce((n, w) => n + w.exercises.filter((e) => getExercise(e.exerciseId)?.muscle === muscle).reduce((m, e) => m + e.sets.filter((s) => s.reps > 0).length, 0), 0);
+      .reduce((n, w) => n + w.exercises.filter((e) => getExercise(e.exerciseId)?.muscle === muscle).reduce((m, e) => m + e.sets.filter((s) => s.reps > 0 && !s.warmup).length, 0), 0);
 
   const thisWeekSets = setsIn(addDays(date, -6), date);
   const prior = [1, 2, 3].map((k) => setsIn(addDays(date, -6 - 7 * k), addDays(date, -7 * k)));

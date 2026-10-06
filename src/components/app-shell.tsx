@@ -31,6 +31,7 @@ const MENU = [
   { href: "/plan", label: "My Plan" },
   { href: "/nutrition", label: "Nutrition" },
   { href: "/workout", label: "Workout" },
+  { href: "/board", label: "Board" },
   { href: "/activity", label: "Activity & Recovery" },
   { href: "/progress", label: "Progress" },
   { href: "/calendar", label: "Calendar" },

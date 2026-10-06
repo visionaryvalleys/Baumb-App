@@ -49,3 +49,23 @@ CREATE TABLE IF NOT EXISTS food_keys (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS food_keys_food_id ON food_keys (food_id);
+
+-- Public workout counts for the shared board. The journal itself stays in user_data.
+CREATE TABLE IF NOT EXISTS board_scores (
+  user_id       UUID PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+  display_name  TEXT NOT NULL,
+  workout_count INT NOT NULL DEFAULT 0,
+  workout_days  INT NOT NULL DEFAULT 0,
+  eligible      BOOLEAN NOT NULL DEFAULT FALSE,
+  g_balance     INT NOT NULL DEFAULT 0,
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS board_award (
+  id              INT PRIMARY KEY CHECK (id = 1),
+  winner_user_id  UUID,
+  winner_name     TEXT,
+  workout_count   INT NOT NULL DEFAULT 0,
+  announced_at    TIMESTAMPTZ
+);
+INSERT INTO board_award (id) VALUES (1) ON CONFLICT (id) DO NOTHING;

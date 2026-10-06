@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { DEFAULT_MEAL_SLOTS } from "@/calculations/nutrition";
 import { deviceTimezone } from "./date";
+import { gBalance } from "./g-system";
 import type {
   AppState,
   AuditKind,
@@ -83,6 +84,7 @@ export const EMPTY_STATE: AppState = {
   weeklyReviews: [],
   audit: [],
   dismissedNotifications: [],
+  redemptions: [],
   settings: DEFAULT_SETTINGS,
 };
 
@@ -114,6 +116,7 @@ export function normalizeState(raw: Partial<AppState> | null | undefined): AppSt
     weeklyReviews: raw.weeklyReviews ?? [],
     audit: raw.audit ?? [],
     dismissedNotifications: raw.dismissedNotifications ?? [],
+    redemptions: raw.redemptions ?? [],
   };
 }
 
@@ -476,5 +479,15 @@ export const actions = {
   },
   reset() {
     setState(() => ({ ...EMPTY_STATE, profile: { ...DEFAULT_PROFILE, timezone: deviceTimezone() } }));
+  },
+
+  redeemReward(item: { id: string; name: string; cost: number }) {
+    setState((s) => {
+      if (gBalance(s.workouts, s.redemptions) < item.cost) return s;
+      return {
+        ...s,
+        redemptions: [...s.redemptions, { id: newId(), itemId: item.id, name: item.name, cost: item.cost, at: Date.now() }],
+      };
+    });
   },
 };

@@ -7,12 +7,12 @@ const FALLBACK_BODY_KG = 70;
 export function workoutVolumeKg(w: Workout): number {
   return w.exercises.reduce((total, ex) => {
     if (!getExercise(ex.exerciseId)?.tracksWeight) return total;
-    return total + ex.sets.reduce((s, set) => s + set.reps * set.weightKg, 0);
+    return total + ex.sets.reduce((s, set) => (set.warmup ? s : s + set.reps * set.weightKg), 0);
   }, 0);
 }
 
 export function workoutSetCount(w: Workout): number {
-  return w.exercises.reduce((n, ex) => n + ex.sets.length, 0);
+  return w.exercises.reduce((n, ex) => n + ex.sets.filter((set) => !set.warmup).length, 0);
 }
 
 export function estimateCalories(w: Workout, bodyKg = FALLBACK_BODY_KG): number {
@@ -26,7 +26,8 @@ export function lastPerformance(workouts: Workout[], exerciseId: string, beforeD
   for (const w of workouts) {
     if (beforeDate && w.date >= beforeDate) continue;
     const ex = w.exercises.find((e) => e.exerciseId === exerciseId);
-    if (ex && ex.sets.length && (!best || w.date > best.date)) best = { date: w.date, sets: ex.sets };
+    const working = ex?.sets.filter((set) => !set.warmup && set.reps > 0) ?? [];
+    if (working.length && (!best || w.date > best.date)) best = { date: w.date, sets: working };
   }
   return best;
 }

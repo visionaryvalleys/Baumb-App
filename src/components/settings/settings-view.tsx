@@ -3,6 +3,7 @@
 import { type ChangeEvent, useRef, useState } from "react";
 import { Bell, Check, Download, Palette, RotateCcw, Sparkles, Upload } from "lucide-react";
 import { buildSampleState } from "@/lib/sample";
+import { publishBoard } from "@/lib/board-client";
 import { DEFAULT_ACCENT, actions, getState, migrateLegacy, resolveAccent, useAppState } from "@/lib/store";
 import type { AppState } from "@/lib/types";
 import { Card, CardTitle, Segmented, cn } from "../ui";
@@ -28,6 +29,7 @@ function looksLikeState(v: unknown): v is Partial<AppState> {
 
 export function SettingsView() {
   const state = useAppState();
+  const [resetOpen, setResetOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
@@ -153,19 +155,33 @@ export function SettingsView() {
           >
             <Sparkles className="size-4" aria-hidden /> Load sample data
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm("Permanently delete all your BAUMB data — on this device and in your account? Your account itself stays.")) {
-                actions.reset();
-                setMessage({ tone: "ok", text: "All data cleared." });
-              }
-            }}
-            className="btn-danger justify-start"
-          >
+          <button type="button" onClick={() => setResetOpen(true)} className="btn-danger justify-start">
             <RotateCcw className="size-4" aria-hidden /> Reset all data
           </button>
         </div>
+        {resetOpen && (
+          <div role="alertdialog" aria-labelledby="reset-title" className="mt-4 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-4">
+            <p id="reset-title" className="text-[16px] font-semibold text-white">This returns BAUMB to the start.</p>
+            <p className="mt-2 text-sm leading-relaxed text-white/70">Workouts, meals, your plan, weigh-ins, photos and G coins are cleared on this device and in your account. Your sign-in stays. This cannot be undone.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" className="btn-ghost" onClick={() => setResetOpen(false)}>
+                Keep my data
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={() => {
+                  actions.reset();
+                  void publishBoard(getState());
+                  setResetOpen(false);
+                  setMessage({ tone: "ok", text: "BAUMB is back at the start." });
+                }}
+              >
+                Reset everything
+              </button>
+            </div>
+          </div>
+        )}
         <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={importData} />
         {message && (
           <p role="status" className={cn("mt-3 text-sm", message.tone === "ok" ? "text-brand" : "text-red-300")}>

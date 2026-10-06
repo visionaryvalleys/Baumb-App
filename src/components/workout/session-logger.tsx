@@ -2,37 +2,33 @@
 
 import Link from "next/link";
 import { type FormEvent, useMemo, useState } from "react";
-import { Activity, ArrowRight, Check, Clock, Dumbbell, Info, Moon, Palmtree, Plus, TrendingUp, X } from "lucide-react";
+import { Activity, ArrowRight, Check, ChevronDown, Clock, Dumbbell, Lock, Minus, Moon, Palmtree, Plus } from "lucide-react";
 import { calculateReadiness, calculateVolumeTrend, type ReadinessResult } from "@/calculations/recovery";
 import { calculateIntakeImpact } from "@/calculations/intake-impact";
-import { suggestNextLoad, type ProgressionSuggestion } from "@/calculations/workout";
+import { suggestNextLoad } from "@/calculations/workout";
 import { WEEKDAY_NAMES, addDays, daysBetween, formatDate, weekdayIndex } from "@/lib/date";
 import { getExercise } from "@/lib/exercises";
 import { useDaySummary, useToday, useUnit } from "@/lib/hooks";
 import { lastPerformance } from "@/lib/stats";
-import { actions, newId, useAppState } from "@/lib/store";
+import { publishBoard } from "@/lib/board-client";
+import { actions, getState, newId, useAppState } from "@/lib/store";
 import type { PlanVersion, Unit, WorkoutDay } from "@/lib/types";
 import { fromDisplayWeight, toDisplayWeight } from "@/lib/units";
 import { Card, CardTitle, EmptyState, KindTag, Segmented, cn } from "../ui";
 
-interface DraftSet {
+interface WorkingDraft {
   weight: string;
   reps: string;
-  rpe: string;
+  done: boolean;
 }
 
-const ACTION_LABEL: Record<ProgressionSuggestion["action"], string> = {
-  start: "First session",
-  increase_load: "Add load",
-  increase_reps: "Add reps",
-  hold: "Hold",
-  deload: "Deload",
-};
-
-function fmtRest(sec: number) {
-  if (sec <= 0) return "no rest";
-  return sec >= 60 ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")} rest` : `${sec}s rest`;
+interface ExerciseDraft {
+  warmupWeight: string;
+  warmupDone: boolean;
+  sets: WorkingDraft[];
 }
+
+const WARMUP_REPS = 8;
 
 const READINESS_STYLE: Record<ReadinessResult["status"], string> = {
   good: "bg-mint/15 text-mint",
@@ -69,6 +65,151 @@ function ReadinessCard({ readiness }: { readiness: ReadinessResult }) {
   );
 }
 
+function WeightControl({ label, value, unit, onChange, onStep }: { label: string; value: string; unit: string; onChange: (value: string) => void; onStep: (delta: number) => void }) {
+  return (
+    <div>
+      <span className="label">{label}</span>
+      <div className="flex items-center gap-2">
+        <button type="button" className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/[0.06] text-white ring-1 ring-inset ring-white/10" aria-label={`Decrease ${label}`} onClick={() => onStep(-0.5)}>
+          <Minus className="size-4" aria-hidden />
+        </button>
+        <input type="number" inputMode="decimal" step="0.5" min={0} className="field h-11 text-center text-[17px] tabular-nums" value={value} aria-label={label} onChange={(e) => onChange(e.target.value)} />
+        <button type="button" className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/[0.06] text-white ring-1 ring-inset ring-white/10" aria-label={`Increase ${label}`} onClick={() => onStep(0.5)}>
+          <Plus className="size-4" aria-hidden />
+        </button>
+      </div>
+      <p className="mt-1 text-center text-[11px] uppercase tracking-[0.14em] text-white/40">{unit}</p>
+    </div>
+  );
+}
+
+function ExerciseStage({
+  day,
+  unit,
+  active,
+  menuOpen,
+  drafts,
+  onToggleMenu,
+  onPick,
+  onWarmupWeight,
+  onWarmupStep,
+  onWarmupDone,
+  onSetWeight,
+  onSetReps,
+  onSetStep,
+  onSetDone,
+}: {
+  day: WorkoutDay;
+  unit: Unit;
+  active: number;
+  menuOpen: boolean;
+  drafts: ExerciseDraft[];
+  onToggleMenu: () => void;
+  onPick: (index: number) => void;
+  onWarmupWeight: (value: string) => void;
+  onWarmupStep: (delta: number) => void;
+  onWarmupDone: () => void;
+  onSetWeight: (index: number, value: string) => void;
+  onSetReps: (index: number, value: string) => void;
+  onSetStep: (index: number, delta: number) => void;
+  onSetDone: (index: number) => void;
+}) {
+  const prescription = day.exercises[active];
+  const draft = drafts[active];
+  const exercise = getExercise(prescription.exerciseId);
+  const tracksWeight = exercise?.tracksWeight !== false;
+  const visibleSets = draft.sets.filter((_, index) => draft.sets.slice(0, index).every((set) => set.done) && (index === 0 ? draft.warmupDone : true));
+
+  return (
+    <Card className="relative lg:col-span-2">
+      <div className="flex items-start justify-between gap-3 pr-14">
+        <div>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-white/45">Exercise {active + 1} of {day.exercises.length}</p>
+          <h2 className="mt-1 text-[28px] font-semibold leading-none tracking-[-0.03em] text-white">{exercise?.name}</h2>
+        </div>
+      </div>
+      <button type="button" className="absolute right-5 top-5 grid size-11 place-items-center rounded-2xl bg-white/[0.08] text-white ring-1 ring-inset ring-white/15" aria-label="Exercises" aria-expanded={menuOpen} onClick={onToggleMenu}>
+        <ChevronDown className={cn("size-5 transition", menuOpen && "rotate-180")} aria-hidden />
+      </button>
+      {menuOpen && (
+        <ul className="absolute right-5 top-[4.25rem] z-20 w-64 overflow-hidden rounded-2xl bg-[#12161e]/95 p-1.5 shadow-lift ring-1 ring-white/10 backdrop-blur-xl">
+          {day.exercises.map((item, index) => {
+            const name = getExercise(item.exerciseId)?.name ?? "Exercise";
+            const progress = drafts[index];
+            const doneSets = progress.sets.filter((set) => set.done).length;
+            return (
+              <li key={item.exerciseId}>
+                <button type="button" className={cn("flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left", index === active ? "bg-white/[0.08] text-white" : "text-white/75 hover:bg-white/[0.05]")} onClick={() => onPick(index)}>
+                  <span className="text-[14px] font-medium">{name}</span>
+                  <span className="text-[11px] uppercase tracking-[0.12em] text-white/40">{progress.warmupDone ? `Set ${doneSets}/3` : "Warm-up"}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <div className="mt-6 rounded-[1.4rem] bg-white/[0.04] p-4 ring-1 ring-inset ring-white/10">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-brand">Warm-up</p>
+          {draft.warmupDone && <Check className="size-4 text-brand" aria-hidden />}
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_1fr]">
+          <div>
+            <span className="label">Reps</span>
+            <div className="flex h-11 items-center justify-center gap-2 rounded-control bg-white/[0.04] text-[17px] font-semibold tabular-nums text-white ring-1 ring-inset ring-white/10">
+              <Lock className="size-3.5 text-white/40" aria-hidden /> {WARMUP_REPS}
+            </div>
+          </div>
+          {tracksWeight ? (
+            <WeightControl label="Weight" unit={unit} value={draft.warmupWeight} onChange={onWarmupWeight} onStep={onWarmupStep} />
+          ) : (
+            <div>
+              <span className="label">Weight</span>
+              <div className="flex h-11 items-center justify-center rounded-control text-sm text-white/45 ring-1 ring-inset ring-white/10">Bodyweight</div>
+            </div>
+          )}
+        </div>
+        {!draft.warmupDone && (
+          <button type="button" className="btn-primary mt-4 h-12 w-full" onClick={onWarmupDone}>
+            Warm-up done
+          </button>
+        )}
+      </div>
+
+      <div className="mt-3 grid gap-3">
+        {visibleSets.map((set, index) => (
+          <div key={index} className="animate-fade-in rounded-[1.4rem] bg-white/[0.04] p-4 ring-1 ring-inset ring-white/10">
+            <div className="flex items-center justify-between">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-white/70">Set {index + 1}</p>
+              {set.done && <Check className="size-4 text-brand" aria-hidden />}
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {tracksWeight ? (
+                <WeightControl label="Weight" unit={unit} value={set.weight} onChange={(value) => onSetWeight(index, value)} onStep={(delta) => onSetStep(index, delta)} />
+              ) : (
+                <div>
+                  <span className="label">Weight</span>
+                  <div className="flex h-11 items-center justify-center rounded-control text-sm text-white/45 ring-1 ring-inset ring-white/10">Bodyweight</div>
+                </div>
+              )}
+              <div>
+                <span className="label">Reps</span>
+                <input type="number" inputMode="numeric" min={1} className="field h-11 text-center text-[17px] tabular-nums" value={set.reps} aria-label={`Set ${index + 1} reps`} disabled={set.done} onChange={(e) => onSetReps(index, e.target.value)} />
+              </div>
+            </div>
+            {!set.done && (
+              <button type="button" className="btn-primary mt-4 h-12 w-full" disabled={Number(set.reps) <= 0} onClick={() => onSetDone(index)}>
+                Complete set {index + 1}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: WorkoutDay; unit: Unit; date: string }) {
   const { workouts, profile, recovery, meals, plans } = useAppState();
   const readiness = useMemo(() => calculateReadiness(recovery, date, plan.targets.sleepHours), [recovery, date, plan]);
@@ -88,37 +229,61 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
       }),
     [day, workouts, date, readiness, plan, intake.lowFuel],
   );
-  const [sets, setSets] = useState<DraftSet[][]>(() =>
-    day.exercises.map((p, i) => {
+  const [drafts, setDrafts] = useState<ExerciseDraft[]>(() =>
+    day.exercises.map((_, i) => {
       const s = suggestions[i];
-      return Array.from({ length: Math.max(1, p.sets + s.setsDelta) }, () => ({
-        weight: s.weightKg != null && s.weightKg > 0 ? String(toDisplayWeight(s.weightKg, unit)) : "",
-        reps: String(s.repsTarget),
-        rpe: "",
-      }));
+      const weight = s.weightKg != null && s.weightKg > 0 ? String(toDisplayWeight(s.weightKg, unit)) : "";
+      const warmKg = s.weightKg != null && s.weightKg > 0 ? Math.max(0, Math.round((s.weightKg * 0.5) / 0.5) * 0.5) : 0;
+      return {
+        warmupWeight: warmKg > 0 ? String(toDisplayWeight(warmKg, unit)) : weight,
+        warmupDone: false,
+        sets: [0, 1, 2].map(() => ({ weight, reps: String(s.repsTarget), done: false })),
+      };
     }),
   );
+  const [active, setActive] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [duration, setDuration] = useState(String(day.estimatedMinutes));
   const [notes, setNotes] = useState("");
   const [saved, setSaved] = useState(false);
 
-  const update = (ei: number, si: number, patch: Partial<DraftSet>) =>
-    setSets((all) => all.map((ex, i) => (i === ei ? ex.map((s, j) => (j === si ? { ...s, ...patch } : s)) : ex)));
+  const patchExercise = (ei: number, patch: Partial<ExerciseDraft>) => setDrafts((all) => all.map((ex, i) => (i === ei ? { ...ex, ...patch } : ex)));
+  const patchSet = (ei: number, si: number, patch: Partial<WorkingDraft>) =>
+    setDrafts((all) => all.map((ex, i) => (i === ei ? { ...ex, sets: ex.sets.map((set, j) => (j === si ? { ...set, ...patch } : set)) } : ex)));
+  const stepWeight = (ei: number, field: "warmup" | number, delta: number) => {
+    setDrafts((all) =>
+      all.map((ex, i) => {
+        if (i !== ei) return ex;
+        if (field === "warmup") {
+          const next = Math.max(0, Math.round(((Number(ex.warmupWeight) || 0) + delta) * 2) / 2);
+          return { ...ex, warmupWeight: String(next) };
+        }
+        return {
+          ...ex,
+          sets: ex.sets.map((set, j) => (j === field ? { ...set, weight: String(Math.max(0, Math.round(((Number(set.weight) || 0) + delta) * 2) / 2)) } : set)),
+        };
+      }),
+    );
+  };
 
   function save(e: FormEvent) {
     e.preventDefault();
-    const exercises = day.exercises.map((p, i) => ({
-      exerciseId: p.exerciseId,
-      planned: { sets: p.sets, repsMin: p.repsMin, repsMax: p.repsMax, weightKg: suggestions[i].weightKg, restSec: p.restSec, rpeTarget: p.rpeTarget },
-      sets: sets[i]
-        .map((s) => ({
-          reps: Math.max(0, Math.round(Number(s.reps) || 0)),
-          weightKg: Math.max(0, fromDisplayWeight(Number(s.weight) || 0, unit)),
-          rpe: s.rpe.trim() ? Math.min(10, Math.max(1, Number(s.rpe))) : null,
-        }))
-        .filter((s) => s.reps > 0),
-    }));
-    const complete = exercises.every((x, i) => x.sets.length >= day.exercises[i].sets);
+    const exercises = day.exercises.map((p, i) => {
+      const draft = drafts[i];
+      const logged = [
+        ...(draft.warmupDone ? [{ reps: WARMUP_REPS, weightKg: Math.max(0, fromDisplayWeight(Number(draft.warmupWeight) || 0, unit)), warmup: true }] : []),
+        ...draft.sets.filter((set) => set.done).map((set) => ({
+          reps: Math.max(0, Math.round(Number(set.reps) || 0)),
+          weightKg: Math.max(0, fromDisplayWeight(Number(set.weight) || 0, unit)),
+        })),
+      ].filter((set) => set.reps > 0);
+      return {
+        exerciseId: p.exerciseId,
+        planned: { sets: 3, repsMin: p.repsMin, repsMax: p.repsMax, weightKg: suggestions[i].weightKg, restSec: p.restSec, rpeTarget: p.rpeTarget },
+        sets: logged,
+      };
+    });
+    const complete = drafts.every((draft) => draft.warmupDone && draft.sets.every((set) => set.done && Number(set.reps) > 0));
     actions.addWorkout({
       id: newId(),
       name: day.name,
@@ -134,6 +299,7 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
       planDayId: day.id,
       status: complete ? "completed" : "partial",
     });
+    void publishBoard(getState());
     setSaved(true);
   }
 
@@ -151,66 +317,25 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
 
   return (
     <form onSubmit={save} className="grid gap-4 lg:grid-cols-3">
-      <div className="space-y-4 lg:col-span-2">
-        {day.exercises.map((p, ei) => {
-          const ex = getExercise(p.exerciseId);
-          const s = suggestions[ei];
-          const timed = ex?.name.includes("(minutes)") ? "Min" : ex?.name.includes("(seconds)") ? "Sec" : "Reps";
-          return (
-            <Card key={p.exerciseId}>
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div className="flex min-w-0 items-start gap-3.5">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-sm font-semibold tabular-nums text-white/80 ring-1 ring-inset ring-white/10">{ei + 1}</span>
-                  <div className="min-w-0">
-                    <div className="text-[19px] font-semibold leading-tight tracking-[-0.01em] text-white">{ex?.name}</div>
-                    <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-white/70">
-                      <span className="rounded-md bg-white/[0.06] px-2 py-1 tabular-nums">
-                        {p.sets} × {p.repsMin}–{p.repsMax}
-                        {s.setsDelta !== 0 && <span className="text-white"> ({p.sets + s.setsDelta} sets today)</span>}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 tabular-nums">
-                        <Clock className="size-3 text-white/45" aria-hidden /> {fmtRest(p.restSec)}
-                      </span>
-                      <span className="rounded-md bg-white/[0.06] px-2 py-1 tabular-nums">RPE {p.rpeTarget}</span>
-                    </div>
-                  </div>
-                </div>
-                <span className={cn("inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-wider", s.action === "increase_load" ? "bg-brand/15 text-brand" : s.action === "deload" ? "bg-danger/15 text-red-200" : "bg-white/[0.08] text-white/75")}>
-                  <TrendingUp className="size-3" aria-hidden /> {ACTION_LABEL[s.action]}
-                </span>
-              </div>
-              <p className="panel mb-4 flex gap-2 px-3 py-2.5 text-xs leading-relaxed text-white/60">
-                <Info className="mt-px size-3.5 shrink-0 text-white/40" aria-hidden /> {s.reason}
-              </p>
-              <div className="grid grid-cols-[2.25rem_1fr_1fr_1fr_2.25rem] items-center gap-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">
-                <span>Set</span>
-                <span>{ex?.tracksWeight ? `Weight (${unit})` : ""}</span>
-                <span>{timed}</span>
-                <span>RPE</span>
-                <span />
-              </div>
-              {sets[ei].map((set, si) => (
-                <div key={si} className="mt-2 grid grid-cols-[2.25rem_1fr_1fr_1fr_2.25rem] items-center gap-2 rounded-xl px-1 animate-fade-in">
-                  <span className="grid size-8 place-items-center rounded-full bg-white/[0.05] text-sm font-semibold tabular-nums text-white/70">{si + 1}</span>
-                  {ex?.tracksWeight ? (
-                    <input type="number" inputMode="decimal" step="0.5" min={0} className="field h-11 py-2 text-[15px] tabular-nums" value={set.weight} placeholder="0" aria-label={`${ex.name} set ${si + 1} weight`} onChange={(e) => update(ei, si, { weight: e.target.value })} />
-                  ) : (
-                    <span className="text-xs text-white/40">Bodyweight</span>
-                  )}
-                  <input type="number" inputMode="numeric" min={0} className="field h-11 py-2 text-[15px] tabular-nums" value={set.reps} aria-label={`${ex?.name} set ${si + 1} ${timed}`} onChange={(e) => update(ei, si, { reps: e.target.value })} />
-                  <input type="number" inputMode="decimal" min={1} max={10} step="0.5" className="field h-11 py-2 text-[15px] tabular-nums" value={set.rpe} placeholder={String(p.rpeTarget)} aria-label={`${ex?.name} set ${si + 1} RPE`} onChange={(e) => update(ei, si, { rpe: e.target.value })} />
-                  <button type="button" onClick={() => setSets((all) => all.map((x, i) => (i === ei ? x.filter((_, j) => j !== si) : x)))} className="grid size-9 place-items-center rounded-lg text-white/35 hover:bg-white/[0.06] hover:text-white" aria-label={`Remove set ${si + 1}`}>
-                    <X className="size-4" aria-hidden />
-                  </button>
-                </div>
-              ))}
-              <button type="button" onClick={() => setSets((all) => all.map((x, i) => (i === ei ? [...x, { ...(x.at(-1) ?? { weight: "", reps: String(p.repsMin), rpe: "" }) }] : x)))} className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-brand hover:bg-brand/10">
-                <Plus className="size-3.5" aria-hidden /> Add set
-              </button>
-            </Card>
-          );
-        })}
-      </div>
+      <ExerciseStage
+        day={day}
+        unit={unit}
+        active={active}
+        menuOpen={menuOpen}
+        drafts={drafts}
+        onToggleMenu={() => setMenuOpen((open) => !open)}
+        onPick={(index) => {
+          setActive(index);
+          setMenuOpen(false);
+        }}
+        onWarmupWeight={(value) => patchExercise(active, { warmupWeight: value })}
+        onWarmupStep={(delta) => stepWeight(active, "warmup", delta)}
+        onWarmupDone={() => patchExercise(active, { warmupDone: true })}
+        onSetWeight={(si, value) => patchSet(active, si, { weight: value })}
+        onSetReps={(si, value) => patchSet(active, si, { reps: value })}
+        onSetStep={(si, delta) => stepWeight(active, si, delta)}
+        onSetDone={(si) => patchSet(active, si, { done: true })}
+      />
       <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
         <ReadinessCard readiness={readiness} />
         <Card>
@@ -223,7 +348,7 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
         <button type="submit" className="btn-primary h-14 w-full text-sm">
           <Check className="size-4" aria-hidden /> Finish workout
         </button>
-        <p className="px-1 text-xs leading-relaxed text-white/45">RPE = how hard the set felt (10 = no reps left). Suggestions combine your last session, RPE, this week&apos;s volume, recovery and your plan&apos;s calorie balance.</p>
+        <p className="px-1 text-xs leading-relaxed text-white/45">Every exercise starts with one warm-up of 8 reps. Set 2 appears after set 1, and set 3 after set 2.</p>
       </div>
     </form>
   );

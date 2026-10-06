@@ -283,6 +283,16 @@ export interface WorkoutSet {
   /** Always stored in kilograms. */
   weightKg: number;
   rpe?: number | null;
+  /** A warm-up is logged with the session and left out of working-set totals. */
+  warmup?: boolean;
+}
+
+export interface Redemption {
+  id: string;
+  itemId: string;
+  name: string;
+  cost: number;
+  at: number;
 }
 
 export interface PlannedExercise {
@@ -530,5 +540,7 @@ export interface AppState {
   weeklyReviews: WeeklyReviewRecord[];
   audit: CalculationAudit[];
   dismissedNotifications: string[];
+  /** G coins spent in the reward shop. */
+  redemptions: Redemption[];
   settings: Settings;
 }
