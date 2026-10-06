@@ -4,13 +4,13 @@ import { matchFoods } from "@/calculations/food-parser";
 import { type AiFoodDraft, validateAiFood } from "@/calculations/food-validation";
 import type { Food } from "@/lib/types";
 import { FOOD_EFFORT, aiEnabled, aiJson } from "./ai";
-import { db, sql } from "./db";
-import { AI_FOOD_PREFIX, FOOD_COLUMNS, type FoodRow, getFoodCatalogue, toFood } from "./foods";
+import { isMissingRelation, isUniqueViolation, query } from "./db";
+import { AI_FOOD_PREFIX, FOOD_COLUMNS, FOOD_JOIN_COLUMNS, type FoodRow, getFoodCatalogue, toFood } from "./foods";
 import { LruCache, Semaphore } from "./limits";
 
 /**
  * Turns a typed food phrase into one stored food, once for all users:
- *   memory (LRU)  →  dbo.FoodKeys (phrase → food, primary-key lookup)  →  the AI model (only for phrases never seen).
+ *   memory (LRU)  →  food_keys (phrase → food, primary-key lookup)  →  the AI model (only for phrases never seen).
  * Quantities are never stored — "5 idli" and "2 idlis" both resolve the key "idli" and the app multiplies.
  * Concurrent requests for the same phrase share one AI call, and different new phrases are batched together.
  */
@@ -62,31 +62,25 @@ function tableReady() {
 }
 
 function missingTable(err: unknown) {
-  const e = err as { number?: number; message?: string; originalError?: { info?: { number?: number } } };
-  const missing = e.number === 208 || e.originalError?.info?.number === 208 || /Invalid object name 'dbo\.FoodKeys'/i.test(e.message ?? "");
+  const missing = isMissingRelation(err);
   if (missing) {
     state.tableMissingAt = Date.now();
-    console.warn("[food-ai] dbo.FoodKeys is missing; run db/schema.sql. AI answers are kept in memory only until then.");
+    console.warn("[food-ai] food_keys is missing; run db/schema.sql. AI answers are kept in memory only until then.");
   }
   return missing;
 }
 
-const duplicate = (err: unknown) => [2627, 2601].includes((err as { number?: number }).number ?? 0);
-
 async function lookupStored(keys: string[]): Promise<Map<string, Known>> {
   const out = new Map<string, Known>();
   if (!keys.length || !tableReady()) return out;
-  const pool = await db();
-  const request = pool.request();
-  keys.forEach((k, i) => request.input(`k${i}`, sql.NVarChar(100), k));
-  const cols = FOOD_COLUMNS.split(", ")
-    .map((c) => `f.${c}`)
-    .join(", ");
   try {
-    const rows = await request.query<FoodRow & { KeyText: string; FoodId: string | null }>(
-      `SELECT k.KeyText, k.FoodId, ${cols} FROM dbo.FoodKeys k LEFT JOIN dbo.Foods f ON f.Id = k.FoodId WHERE k.KeyText IN (${keys.map((_, i) => `@k${i}`).join(",")})`,
+    const rows = await query<FoodRow & { KeyText: string; FoodId: string | null }>(
+      `SELECT k.key_text AS "KeyText", k.food_id AS "FoodId", ${FOOD_JOIN_COLUMNS}
+       FROM food_keys k LEFT JOIN foods f ON f.id = k.food_id
+       WHERE k.key_text = ANY($1::text[])`,
+      [keys],
     );
-    for (const r of rows.recordset) {
+    for (const r of rows) {
       if (r.FoodId == null) out.set(r.KeyText, { status: "not_food", food: null });
       else if (r.Id) out.set(r.KeyText, { status: statusOf(r.FoodId), food: toFood(r) });
     }
@@ -96,54 +90,48 @@ async function lookupStored(keys: string[]): Promise<Map<string, Known>> {
   return out;
 }
 
-function keyValues(request: sql.Request, keys: string[]) {
-  keys.forEach((k, i) => request.input(`k${i}`, sql.NVarChar(100), k));
-  return keys.map((_, i) => `(@k${i})`).join(",");
-}
-
 /** Links phrases to a food (or to "not a food" when foodId is null). First write wins, so every user sees the same answer. */
 async function saveKeys(foodId: string | null, keys: string[]) {
   if (!keys.length || !tableReady()) return;
-  const pool = await db();
-  const request = pool.request().input("id", sql.NVarChar(64), foodId);
-  const values = keyValues(request, keys);
   try {
-    await request.query(`INSERT INTO dbo.FoodKeys (KeyText, FoodId) SELECT v.k, @id FROM (VALUES ${values}) AS v (k) WHERE NOT EXISTS (SELECT 1 FROM dbo.FoodKeys x WHERE x.KeyText = v.k)`);
+    await query(
+      `INSERT INTO food_keys (key_text, food_id)
+       SELECT k, $1 FROM UNNEST($2::text[]) AS k
+       WHERE NOT EXISTS (SELECT 1 FROM food_keys x WHERE x.key_text = k)`,
+      [foodId, keys],
+    );
   } catch (err) {
-    if (!duplicate(err) && !missingTable(err)) throw err;
+    if (!isUniqueViolation(err) && !missingTable(err)) throw err;
   }
 }
 
 /** Stores a new food once (by canonical name) with all its phrases, and returns the stored row. */
 async function saveFood(food: Food, keys: string[], attempt = 0): Promise<Food> {
   if (!tableReady()) return food;
-  const pool = await db();
-  const request = pool
-    .request()
-    .input("id", sql.NVarChar(64), food.id)
-    .input("n", sql.NVarChar(200), food.name)
-    .input("a", sql.NVarChar(1000), (food.aliases ?? []).join("|").slice(0, 1000))
-    .input("c", sql.NVarChar(60), food.category)
-    .input("k", sql.Decimal(7, 1), food.per100g.calories)
-    .input("p", sql.Decimal(6, 2), food.per100g.proteinG)
-    .input("cb", sql.Decimal(6, 2), food.per100g.carbsG)
-    .input("f", sql.Decimal(6, 2), food.per100g.fatG)
-    .input("fb", sql.Decimal(6, 2), food.per100g.fiberG)
-    .input("s", sql.NVarChar(1000), JSON.stringify(food.servings))
-    .input("src", sql.NVarChar(200), (food.source ?? "").slice(0, 200));
-  const values = keyValues(request, keys);
   try {
-    const r = await request.query<FoodRow>(
-      `INSERT INTO dbo.Foods (Id, Name, Aliases, Category, Calories, ProteinG, CarbsG, FatG, FiberG, ServingsJson, Source, Priority)
-         SELECT @id, @n, @a, @c, @k, @p, @cb, @f, @fb, @s, @src, 1 WHERE NOT EXISTS (SELECT 1 FROM dbo.Foods WHERE Id = @id);
-       INSERT INTO dbo.FoodKeys (KeyText, FoodId)
-         SELECT v.k, @id FROM (VALUES ${values}) AS v (k) WHERE NOT EXISTS (SELECT 1 FROM dbo.FoodKeys x WHERE x.KeyText = v.k);
-       SELECT ${FOOD_COLUMNS} FROM dbo.Foods WHERE Id = @id;`,
+    await query(
+      `INSERT INTO foods (id, name, aliases, category, calories, protein_g, carbs_g, fat_g, fiber_g, servings_json, source, priority)
+       SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 1
+       WHERE NOT EXISTS (SELECT 1 FROM foods WHERE id = $1)`,
+      [
+        food.id,
+        food.name.slice(0, 200),
+        (food.aliases ?? []).join("|").slice(0, 1000),
+        food.category.slice(0, 60),
+        food.per100g.calories,
+        food.per100g.proteinG,
+        food.per100g.carbsG,
+        food.per100g.fatG,
+        food.per100g.fiberG,
+        JSON.stringify(food.servings),
+        (food.source ?? "").slice(0, 200),
+      ],
     );
-    const row = r.recordset[0];
-    return row ? toFood(row) : food;
+    await saveKeys(food.id, keys);
+    const rows = await query<FoodRow>(`SELECT ${FOOD_COLUMNS} FROM foods WHERE id = $1`, [food.id]);
+    return rows[0] ? toFood(rows[0]) : food;
   } catch (err) {
-    if (duplicate(err) && attempt === 0) return saveFood(food, keys, 1);
+    if (isUniqueViolation(err) && attempt === 0) return saveFood(food, keys, 1);
     if (missingTable(err)) return food;
     throw err;
   }

@@ -11,11 +11,12 @@ import { useRecordKeeper } from "@/lib/use-records";
 import { Backdrop } from "./backdrop";
 import { BaumbLogo, MenuButton, MenuOverlay, ProfileButton } from "./brand";
 import { NotificationBell } from "./notifications";
+import { JournalLock } from "./journal-lock";
 import { EmptyState, PageSkeleton, cn } from "./ui";
+import { VoiceLog } from "./voice-log";
 
 const NAV = [
   { href: "/dashboard", label: "Home" },
-  { href: "/trainer", label: "Trainer" },
   { href: "/plan", label: "Plan" },
   { href: "/nutrition", label: "Nutrition" },
   { href: "/workout", label: "Workout" },
@@ -26,7 +27,6 @@ const NAV = [
 
 const MENU = [
   { href: "/dashboard", label: "Home" },
-  { href: "/trainer", label: "BAUMB Trainer" },
   { href: "/transformation", label: "Transformation" },
   { href: "/plan", label: "My Plan" },
   { href: "/nutrition", label: "Nutrition" },
@@ -95,10 +95,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const current = activeHref(pathname, NAV);
   useAccent();
-  useRecordKeeper(session.ready);
+  useRecordKeeper(session.ready && !session.locked);
 
   useEffect(() => {
     void ensureSession();
+    const orientation = screen.orientation as ScreenOrientation & { lock?: (next: "portrait-primary") => Promise<void> };
+    void orientation.lock?.("portrait-primary").catch(() => undefined);
   }, []);
   useEffect(() => {
     if (session.auth === "unauthenticated") router.replace(`/signin?next=${encodeURIComponent(pathname)}`);
@@ -130,11 +132,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="flex items-center">
-            {current !== "/trainer" && (
-              <Link href="/trainer" className="mr-2 inline-flex min-h-10 items-center rounded-full px-3.5 text-[14px] font-semibold text-white ring-1 ring-inset ring-brand/40 transition hover:bg-brand/10 sm:mr-3 xl:hidden">
-                Trainer
-              </Link>
-            )}
             <Link href="/nutrition" className="btn-primary mr-3 hidden min-h-10 whitespace-nowrap rounded-full px-4 sm:inline-flex">
               <Plus className="size-4" aria-hidden /> Log meal
             </Link>
@@ -146,8 +143,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <main key={pathname} className="relative z-10 mx-auto w-full max-w-6xl px-5 pb-24 pt-8 animate-fade-slide-up sm:px-8 sm:pt-12">
-        {session.auth === "error" ? <SessionProblem message={session.message} /> : !ready ? <PageSkeleton /> : gated ? <OnboardingGate /> : children}
+        {session.auth === "error" ? <SessionProblem message={session.message} /> : !ready ? <PageSkeleton /> : session.locked ? <JournalLock /> : gated ? <OnboardingGate /> : children}
       </main>
+
+      {ready && onboarded && !session.locked && <VoiceLog />}
+      <div className="portrait-gate fixed inset-0 z-[80] hidden items-center justify-center bg-base/80 p-10 backdrop-blur-2xl">
+        <p className="text-center text-[22px] font-medium tracking-[-0.03em] text-white">Turn your phone upright</p>
+      </div>
 
       <MenuOverlay
         fixed

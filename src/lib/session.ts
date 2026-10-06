@@ -1,6 +1,8 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { isJournalEnvelope, type JournalEnvelope } from "./journal-envelope";
+import { clearJournalKey, createJournalKey, decryptHeld, dropJournalKey, encryptJournal, holdEnvelope, journalReady, openJournal, pendingEnvelope } from "./journal-crypto";
 import { applyRemoteState, clearLocalState, getState, onLocalChange } from "./store";
 import type { AppState } from "./types";
 
@@ -18,12 +20,14 @@ export interface SessionSnapshot {
   user: AccountUser | null;
   /** True once the account's data has been loaded into the app. */
   ready: boolean;
+  /** The server holds ciphertext and this browser has not unlocked it yet. */
+  locked: boolean;
   sync: SyncStatus;
   lastSavedAt: number | null;
   message: string | null;
 }
 
-const INITIAL: SessionSnapshot = { auth: "loading", user: null, ready: false, sync: "idle", lastSavedAt: null, message: null };
+const INITIAL: SessionSnapshot = { auth: "loading", user: null, ready: false, locked: false, sync: "idle", lastSavedAt: null, message: null };
 const OWNER_KEY = "baumb:owner";
 const SAVE_DELAY_MS = 800;
 const RETRY_MS = 5_000;
@@ -95,9 +99,25 @@ function scheduleSave(delay = SAVE_DELAY_MS) {
   }, delay);
 }
 
+async function incoming(value: unknown): Promise<"applied" | "locked" | "plain"> {
+  if (!isJournalEnvelope(value)) return "plain";
+  if (!journalReady()) {
+    holdEnvelope(value);
+    return "locked";
+  }
+  try {
+    applyRemoteState(await decryptHeld(value));
+    return "applied";
+  } catch {
+    dropJournalKey();
+    holdEnvelope(value);
+    return "locked";
+  }
+}
+
 async function save(): Promise<void> {
   const user = snapshot.user;
-  if (!user || !snapshot.ready) return;
+  if (!user || !snapshot.ready || snapshot.locked) return;
   if (inFlight) {
     again = true;
     return inFlight;
@@ -105,20 +125,34 @@ async function save(): Promise<void> {
   inFlight = (async () => {
     set({ sync: "saving" });
     try {
-      const { status, body } = await api<{ revision?: number; state?: AppState | null; error?: string }>("/api/data", {
+      let payload: AppState | JournalEnvelope = getState();
+      if (journalReady()) {
+        try {
+          payload = await encryptJournal(getState());
+        } catch {
+          set({ sync: "error", message: "The journal stayed on this device. It was not saved without encryption." });
+          return;
+        }
+      }
+      const { status, body } = await api<{ revision?: number; state?: AppState | JournalEnvelope | null; error?: string }>("/api/data", {
         method: "PUT",
-        body: JSON.stringify({ state: getState(), baseRevision: revision(user.id) }),
+        body: JSON.stringify({ state: payload, baseRevision: revision(user.id) }),
       });
       if (status === 200 && body.revision != null) {
         writeLocal(revKey(user.id), String(body.revision));
         if (!again) writeLocal(dirtyKey(user.id), null);
         set({ sync: "saved", lastSavedAt: Date.now(), message: null });
       } else if (status === 409) {
-        if (body.state) applyRemoteState(body.state);
+        const kind = body.state ? await incoming(body.state) : "plain";
+        if (kind === "plain" && body.state) applyRemoteState(body.state as AppState);
         writeLocal(revKey(user.id), String(body.revision ?? 0));
         writeLocal(dirtyKey(user.id), null);
         again = false;
-        set({ sync: "saved", lastSavedAt: Date.now(), message: "Newer data from another device was loaded." });
+        if (kind === "locked") {
+          stopListening?.();
+          stopListening = null;
+          set({ locked: true, sync: "idle", message: "A newer encrypted journal needs the passphrase." });
+        } else set({ sync: "saved", lastSavedAt: Date.now(), message: "Newer data from another device was loaded." });
       } else if (status === 401) {
         set({ ...INITIAL, auth: "unauthenticated" });
       } else {
@@ -167,9 +201,17 @@ function startListening(userId: string) {
 /** Loads the account's saved data, or uploads this browser's data for a brand-new account. */
 async function loadAccount(user: AccountUser) {
   set({ auth: "authenticated", user, ready: false, message: null });
-  const { status, body } = await api<{ state: AppState | null; revision: number; error?: string }>("/api/data");
+  const { status, body } = await api<{ state: AppState | JournalEnvelope | null; revision: number; error?: string }>("/api/data");
   if (status !== 200) {
-    set({ auth: status === 401 ? "unauthenticated" : "error", ready: false, message: body.error ?? "Couldn't load your data." });
+    set({ auth: status === 401 ? "unauthenticated" : "error", ready: false, locked: false, message: body.error ?? "Couldn't load your data." });
+    return;
+  }
+
+  if (isJournalEnvelope(body.state) && !journalReady()) {
+    holdEnvelope(body.state);
+    writeLocal(revKey(user.id), String(body.revision));
+    writeLocal(OWNER_KEY, user.id);
+    set({ ready: true, locked: true, sync: "idle", lastSavedAt: null, message: null });
     return;
   }
 
@@ -179,7 +221,14 @@ async function loadAccount(user: AccountUser) {
   const unsynced = owner === user.id && readLocal(dirtyKey(user.id)) === "1" && revision(user.id) === body.revision;
 
   if (body.state && !unsynced) {
-    applyRemoteState(body.state);
+    const kind = await incoming(body.state);
+    if (kind === "locked") {
+      writeLocal(revKey(user.id), String(body.revision));
+      writeLocal(OWNER_KEY, user.id);
+      set({ ready: true, locked: true, sync: "idle", message: "A newer encrypted journal needs the passphrase." });
+      return;
+    }
+    if (kind === "plain") applyRemoteState(body.state as AppState);
     writeLocal(dirtyKey(user.id), null);
   } else if (!body.state && !ownLocal) {
     clearLocalState();
@@ -191,7 +240,7 @@ async function loadAccount(user: AccountUser) {
   }
   writeLocal(revKey(user.id), String(body.revision));
   writeLocal(OWNER_KEY, user.id);
-  set({ ready: true, sync: "saved", lastSavedAt: body.state ? Date.now() : null });
+  set({ ready: true, locked: false, sync: "saved", lastSavedAt: body.state ? Date.now() : null });
   startListening(user.id);
 
   if (unsynced || (!body.state && ownLocal && local.onboarded)) await save();
@@ -253,8 +302,38 @@ export async function signOut() {
   }
   writeLocal(OWNER_KEY, null);
   clearLocalState();
+  clearJournalKey();
   started = Promise.resolve();
   set({ ...INITIAL, auth: "unauthenticated" });
+}
+
+/** Creates the device key and saves the journal as ciphertext. The passphrase is not stored. */
+export async function setupJournal(passphrase: string): Promise<string | null> {
+  if (passphrase.trim().length < 10) return "Use at least 10 characters.";
+  if (!snapshot.user || snapshot.locked) return "Sign in before encrypting the journal.";
+  try {
+    await createJournalKey(passphrase);
+    scheduleSave(0);
+    return null;
+  } catch {
+    return "Couldn't create the journal key on this device.";
+  }
+}
+
+/** Opens a saved envelope and starts syncing again. */
+export async function unlockJournal(passphrase: string): Promise<string | null> {
+  const envelope = pendingEnvelope();
+  const user = snapshot.user;
+  if (!envelope || !user) return "There is no locked journal to open.";
+  try {
+    const state = await openJournal(envelope, passphrase);
+    applyRemoteState(state);
+    set({ locked: false, ready: true, message: null });
+    startListening(user.id);
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : "That passphrase did not open the journal.";
+  }
 }
 
 /** Saves immediately (e.g. before navigating away from a settings change). */

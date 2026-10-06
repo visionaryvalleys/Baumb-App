@@ -1,25 +1,58 @@
 import "server-only";
-import sql from "mssql";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { Pool, type QueryResultRow } from "pg";
 
-const config: sql.config = {
-  server: process.env.DB_SERVER ?? "localhost",
-  port: Number(process.env.DB_PORT ?? 1433),
-  database: process.env.DB_NAME ?? "baumb",
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  options: { encrypt: process.env.DB_ENCRYPT === "true", trustServerCertificate: true },
-  pool: { max: 10, idleTimeoutMillis: 30_000 },
-};
+const schemaSql = readFileSync(join(process.cwd(), "db", "schema.sql"), "utf8");
 
-/** One pool per server process; survives dev hot reloads. */
-const globalForDb = globalThis as unknown as { baumbPool?: Promise<sql.ConnectionPool> };
+const globalForDb = globalThis as unknown as { baumbPool?: Pool; baumbSchema?: Promise<void> };
 
-export function db(): Promise<sql.ConnectionPool> {
-  globalForDb.baumbPool ??= new sql.ConnectionPool(config).connect().catch((err) => {
-    globalForDb.baumbPool = undefined;
+function connectionString(): string {
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) {
+    const err = new Error("DATABASE_URL is not set");
+    (err as { code?: string }).code = "ECONNREFUSED";
     throw err;
-  });
+  }
+  return url;
+}
+
+function pool(): Pool {
+  if (!globalForDb.baumbPool) {
+    const url = connectionString();
+    const local = /localhost|127\.0\.0\.1/.test(url);
+    const connection = url.replace(/([?&])sslmode=[^&]*&?/i, "$1").replace(/[?&]$/, "");
+    globalForDb.baumbPool = new Pool({
+      connectionString: connection,
+      max: 10,
+      idleTimeoutMillis: 30_000,
+      ssl: local ? undefined : { rejectUnauthorized: false },
+    });
+  }
   return globalForDb.baumbPool;
 }
 
-export { sql };
+async function ensureSchema(): Promise<void> {
+  globalForDb.baumbSchema ??= pool()
+    .query(schemaSql)
+    .then(() => undefined)
+    .catch((err) => {
+      globalForDb.baumbSchema = undefined;
+      throw err;
+    });
+  return globalForDb.baumbSchema;
+}
+
+export async function query<T extends QueryResultRow = QueryResultRow>(text: string, params: unknown[] = []): Promise<T[]> {
+  await ensureSchema();
+  const result = await pool().query<T>(text, params);
+  return result.rows;
+}
+
+export function isUniqueViolation(err: unknown): boolean {
+  return (err as { code?: string }).code === "23505";
+}
+
+export function isMissingRelation(err: unknown): boolean {
+  return (err as { code?: string }).code === "42P01";
+}

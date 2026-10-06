@@ -7,7 +7,7 @@ function n(calories: number, proteinG: number, carbsG: number, fatG: number, fib
 
 /**
  * Built-in foods (values per 100 g, rounded from USDA FoodData Central), used alongside the
- * Indian food catalogue served from SQL Server (`/api/foods`).
+ * Indian food catalogue served from Postgres (`/api/foods`).
  */
 export const FOODS: Food[] = [
   { id: "chicken-breast", name: "Chicken breast, cooked", category: "Protein", per100g: n(165, 31, 0, 3.6, 0), servings: [{ id: "fillet", label: "1 fillet", grams: 150 }] },
@@ -59,7 +59,7 @@ export const FOODS: Food[] = [
 
 const BY_ID = new Map(FOODS.map((f) => [f.id, f]));
 
-/** Custom foods first, then the SQL Server catalogue, then the built-in list; ids are unique. */
+/** Custom foods first, then the Postgres catalogue, then the built-in list; ids are unique. */
 export function foodPool(custom: Food[] = [], catalogue: Food[] = []): Food[] {
   const seen = new Set<string>();
   return [...custom, ...catalogue, ...FOODS].filter((f) => !seen.has(f.id) && (seen.add(f.id), true));

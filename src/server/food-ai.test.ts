@@ -14,25 +14,21 @@ const idli: Food = {
 };
 
 const queries: string[] = [];
-vi.mock("./db", () => {
-  const request = () => {
-    const req = {
-      input: () => req,
-      query: async (text: string) => {
-        queries.push(text);
-        if (text.includes("FROM dbo.FoodKeys k")) return { recordset: [] };
-        const row = { Id: "ai-paneer-tikka", Name: "Paneer tikka", Aliases: "", Category: "Snacks", Calories: 250, ProteinG: 15, CarbsG: 6, FatG: 18, FiberG: 1.5, ServingsJson: '[{"id":"s1","label":"1 piece","grams":30}]', Source: "AI", Priority: 1 };
-        return { recordset: text.includes("INSERT INTO dbo.Foods") ? [row] : [] };
-      },
-    };
-    return req;
-  };
-  return { db: async () => ({ request }), sql: { NVarChar: () => "nvarchar", Decimal: () => "decimal" } };
-});
+vi.mock("./db", () => ({
+  query: async (text: string) => {
+    queries.push(text);
+    if (text.includes("FROM food_keys")) return [];
+    if (!text.includes("INSERT INTO foods")) return [];
+    return [{ Id: "ai-paneer-tikka", Name: "Paneer tikka", Aliases: "", Category: "Snacks", Calories: 250, ProteinG: 15, CarbsG: 6, FatG: 18, FiberG: 1.5, ServingsJson: '[{"id":"s1","label":"1 piece","grams":30}]', Source: "AI", Priority: 1 }];
+  },
+  isUniqueViolation: () => false,
+  isMissingRelation: () => false,
+}));
 
 vi.mock("./foods", async () => ({
   AI_FOOD_PREFIX: "ai-",
   FOOD_COLUMNS: "Id, Name, Aliases, Category, Calories, ProteinG, CarbsG, FatG, FiberG, ServingsJson, Source, Priority",
+  FOOD_JOIN_COLUMNS: "f.Id",
   getFoodCatalogue: async () => [idli],
   toFood: (r: Record<string, unknown>) => ({ id: r.Id, name: r.Name, aliases: [], category: r.Category, per100g: { calories: r.Calories, proteinG: r.ProteinG, carbsG: r.CarbsG, fatG: r.FatG, fiberG: r.FiberG }, servings: JSON.parse(r.ServingsJson as string), source: r.Source, priority: r.Priority }),
 }));
@@ -62,7 +58,7 @@ describe("resolveFoods", () => {
     const results = await Promise.all(Array.from({ length: 50 }, (_, i) => resolveFoods([i % 2 ? "idlis" : "Idli"])));
     expect(aiJson).toHaveBeenCalledTimes(1);
     expect(results.every((r) => r[0].status === "matched" && r[0].food?.id === "nin-idli")).toBe(true);
-    expect(queries.some((q) => q.includes("INSERT INTO dbo.FoodKeys"))).toBe(true);
+    expect(queries.some((q) => q.includes("INSERT INTO food_keys"))).toBe(true);
 
     const again = await resolveFoods(["idli"]);
     expect(again[0].status).toBe("matched");
@@ -93,7 +89,7 @@ describe("resolveFoods", () => {
     answer([{ ...blank, key: "mystery curry", kind: "new", name: "Mystery curry", per100g: { calories: 900, proteinG: 1, carbsG: 1, fatG: 1, fiberG: 0, alcoholG: 0 }, servings: [{ label: "1 katori", grams: 150 }] }]);
     const [r] = await resolveFoods(["mystery curry"]);
     expect(r.status).toBe("unavailable");
-    expect(queries.some((q) => q.includes("INSERT INTO dbo.Foods"))).toBe(false);
+    expect(queries.some((q) => q.includes("INSERT INTO foods"))).toBe(false);
   });
 
   it("reuses the answer for every spelling of a food already resolved above", async () => {

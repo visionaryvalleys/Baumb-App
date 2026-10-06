@@ -35,9 +35,11 @@ async function compress(file: File): Promise<{ dataUrl: string; width: number; h
 }
 
 function Photo({ photo, className }: { photo: ProgressPhoto; className?: string }) {
+  const src = photo.dataUrl || (photo.objectKey ? `/api/photos/${encodeURIComponent(photo.id)}` : "");
+  if (!src) return null;
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- local data URLs can't use next/image optimisation
-    <img src={photo.dataUrl} alt={`${photo.pose} progress photo, ${formatDate(photo.date)}`} width={photo.width} height={photo.height} className={cn("h-full w-full object-cover", className)} />
+    // eslint-disable-next-line @next/next/no-img-element -- data URLs and private account photos can't use next/image optimisation
+    <img src={src} alt={`${photo.pose} progress photo, ${formatDate(photo.date)}`} width={photo.width} height={photo.height} className={cn("h-full w-full object-cover", className)} />
   );
 }
 
@@ -100,7 +102,7 @@ export function ProgressPhotos() {
         </p>
       )}
       <p className="flex items-center gap-1.5 text-xs text-white/45">
-        <Lock className="size-3.5" aria-hidden /> Optional and private. Photos are downscaled on this device and saved only to your BAUMB account. They are included in backups you export.
+        <Lock className="size-3.5" aria-hidden /> Optional and private. Photos are downscaled on this device and saved to your account. They are included in backups you export.
       </p>
 
       {photos.length === 0 ? (

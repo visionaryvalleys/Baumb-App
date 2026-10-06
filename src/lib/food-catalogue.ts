@@ -46,7 +46,7 @@ function readCache(): Food[] | null {
   }
 }
 
-/** Foods come from the SQL Server catalogue (/api/foods). A local copy keeps logging working offline. */
+/** Foods come from the Postgres catalogue (/api/foods). A local copy keeps logging working offline. */
 export function loadFoodCatalogue(): Promise<void> {
   if (current.status === "ready") return Promise.resolve();
   pending ??= (async () => {

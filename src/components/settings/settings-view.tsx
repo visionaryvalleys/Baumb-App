@@ -6,6 +6,7 @@ import { buildSampleState } from "@/lib/sample";
 import { DEFAULT_ACCENT, actions, getState, migrateLegacy, resolveAccent, useAppState } from "@/lib/store";
 import type { AppState } from "@/lib/types";
 import { Card, CardTitle, Segmented, cn } from "../ui";
+import { JournalSetupCard } from "../journal-lock";
 import { AccountCard } from "./account-card";
 import { CalculationLog } from "./calculation-log";
 
@@ -30,8 +31,26 @@ export function SettingsView() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
-  function exportData() {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  async function exportData() {
+    const photos = await Promise.all(
+      state.photos.map(async (photo) => {
+        if (photo.dataUrl || !photo.objectKey) return photo;
+        try {
+          const res = await fetch(`/api/photos/${encodeURIComponent(photo.id)}`);
+          if (!res.ok) return photo;
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(reader.error);
+            void res.blob().then((blob) => reader.readAsDataURL(blob));
+          });
+          return { ...photo, dataUrl };
+        } catch {
+          return photo;
+        }
+      }),
+    );
+    const blob = new Blob([JSON.stringify({ ...state, photos }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -59,6 +78,7 @@ export function SettingsView() {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <AccountCard />
+      <JournalSetupCard />
 
       <Card>
         <CardTitle action={<Palette className="size-4 text-white/50" aria-hidden />}>Accent colour</CardTitle>
@@ -115,7 +135,7 @@ export function SettingsView() {
       <Card className="lg:col-span-2">
         <CardTitle>Your data</CardTitle>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <button type="button" onClick={exportData} className="btn-ghost justify-start">
+          <button type="button" onClick={() => void exportData()} className="btn-ghost justify-start">
             <Download className="size-4" aria-hidden /> Export backup
           </button>
           <button type="button" onClick={() => fileRef.current?.click()} className="btn-ghost justify-start">

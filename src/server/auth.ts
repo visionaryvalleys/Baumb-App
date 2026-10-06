@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { db, sql } from "./db";
+import { query } from "./db";
 
 export const SESSION_COOKIE = "baumb_session";
 const SESSION_DAYS = 30;
@@ -37,14 +37,10 @@ const hashToken = (token: string) => createHash("sha256").update(token).digest("
 export async function createSession(userId: string, userAgent: string | null): Promise<void> {
   const token = randomBytes(32).toString("base64url");
   const expires = new Date(Date.now() + SESSION_DAYS * 86_400_000);
-  const pool = await db();
-  await pool
-    .request()
-    .input("hash", sql.Char(64), hashToken(token))
-    .input("userId", sql.UniqueIdentifier, userId)
-    .input("expires", sql.DateTime2(3), expires)
-    .input("ua", sql.NVarChar(300), userAgent?.slice(0, 300) ?? null)
-    .query("INSERT INTO dbo.Sessions (TokenHash, UserId, ExpiresAt, UserAgent) VALUES (@hash, @userId, @expires, @ua); UPDATE dbo.Users SET LastSignInAt = SYSUTCDATETIME() WHERE Id = @userId;");
+  const hash = hashToken(token);
+  const ua = userAgent?.slice(0, 300) ?? null;
+  await query("INSERT INTO sessions (token_hash, user_id, expires_at, user_agent) VALUES ($1, $2, $3, $4)", [hash, userId, expires, ua]);
+  await query("UPDATE users SET last_sign_in_at = now() WHERE id = $1", [userId]);
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -57,23 +53,19 @@ export async function createSession(userId: string, userAgent: string | null): P
 export async function getSessionUser(): Promise<SessionUser | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  const pool = await db();
-  const result = await pool
-    .request()
-    .input("hash", sql.Char(64), hashToken(token))
-    .query<{ Id: string; Email: string; Name: string }>(
-      "SELECT u.Id, u.Email, u.Name FROM dbo.Sessions s JOIN dbo.Users u ON u.Id = s.UserId WHERE s.TokenHash = @hash AND s.ExpiresAt > SYSUTCDATETIME()",
-    );
-  const row = result.recordset[0];
-  return row ? { id: row.Id.toLowerCase(), email: row.Email, name: row.Name } : null;
+  const rows = await query<{ id: string; email: string; name: string }>(
+    "SELECT u.id, u.email, u.name FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.expires_at > now()",
+    [hashToken(token)],
+  );
+  const row = rows[0];
+  return row ? { id: row.id.toLowerCase(), email: row.email, name: row.name } : null;
 }
 
 export async function destroySession(): Promise<void> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (token) {
-    const pool = await db();
-    await pool.request().input("hash", sql.Char(64), hashToken(token)).query("DELETE FROM dbo.Sessions WHERE TokenHash = @hash OR ExpiresAt < SYSUTCDATETIME()");
+    await query("DELETE FROM sessions WHERE token_hash = $1 OR expires_at < now()", [hashToken(token)]);
   }
   store.delete(SESSION_COOKIE);
 }

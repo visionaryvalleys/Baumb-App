@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { normalizeEmail, validateEmail, validateName, validatePassword } from "@/lib/auth-validation";
 import { createSession, hashPassword } from "@/server/auth";
-import { db, sql } from "@/server/db";
+import { isUniqueViolation, query } from "@/server/db";
 import { HttpError, assertSameOrigin, clientKey, errorResponse, rateLimit, readJson } from "@/server/http";
 
 export async function POST(req: NextRequest) {
@@ -15,19 +15,13 @@ export async function POST(req: NextRequest) {
     const problem = validateName(name) ?? validateEmail(email) ?? validatePassword(password);
     if (problem) throw new HttpError(400, problem);
 
-    const pool = await db();
     const passwordHash = await hashPassword(password);
     let id: string;
     try {
-      const result = await pool
-        .request()
-        .input("email", sql.NVarChar(254), email)
-        .input("name", sql.NVarChar(100), name)
-        .input("hash", sql.VarChar(200), passwordHash)
-        .query<{ Id: string }>("INSERT INTO dbo.Users (Email, Name, PasswordHash) OUTPUT inserted.Id VALUES (@email, @name, @hash)");
-      id = result.recordset[0].Id.toLowerCase();
+      const rows = await query<{ id: string }>("INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id", [email, name, passwordHash]);
+      id = rows[0].id.toLowerCase();
     } catch (err) {
-      if ((err as { number?: number }).number === 2627) throw new HttpError(409, "An account with this email already exists. Sign in instead.");
+      if (isUniqueViolation(err)) throw new HttpError(409, "An account with this email already exists. Sign in instead.");
       throw err;
     }
     await createSession(id, req.headers.get("user-agent"));

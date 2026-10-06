@@ -250,6 +250,42 @@ body {
   border-radius: var(--radius-control);
 }
 
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheetDown {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@utility animate-sheet-up {
+  animation: sheetUp 0.45s var(--ease-snap) both;
+}
+
+@utility animate-sheet-down {
+  animation: sheetDown 0.4s var(--ease-snap) forwards;
+}
+
+.portrait-gate {
+  display: none;
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (hover: none) and (pointer: coarse) {
+  .portrait-gate {
+    display: flex;
+  }
+}
+
 @utility glass-button {
   border-radius: var(--radius-control);
   background: rgb(255 255 255 / 0.06);

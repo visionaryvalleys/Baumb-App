@@ -18,10 +18,16 @@ export const metadata: Metadata = {
     template: "%s · BAUMB",
   },
   description: "BAUMB is your training log: workouts, personal records, body weight, and weekly goals in one place.",
+  applicationName: "BAUMB",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "BAUMB" },
 };
 
 export const viewport: Viewport = {
   themeColor: "#08090c",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

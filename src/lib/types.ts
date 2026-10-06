@@ -122,8 +122,10 @@ export type PhotoPose = "front" | "side" | "back" | "other";
 export interface ProgressPhoto extends Timestamped {
   id: string;
   pose: PhotoPose;
-  /** Downscaled JPEG data URL, stored with the rest of the account data. */
-  dataUrl: string;
+  /** Downscaled JPEG data URL. Present on this device until the photo is stored, and in exported backups. */
+  dataUrl?: string;
+  /** Object-storage key once the photo has been saved with the account. */
+  objectKey?: string;
   width: number;
   height: number;
   note: string;

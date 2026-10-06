@@ -103,7 +103,7 @@ function Turn({ turn }: { turn: ChatTurn }) {
   );
 }
 
-function Composer({ id, onSend, streaming = false }: { id: string; onSend: (text: string) => void; streaming?: boolean }) {
+function Composer({ id, onSend, streaming = false, placeholder = "Ask about your food, training, sleep or recovery…" }: { id: string; onSend: (text: string) => void; streaming?: boolean; placeholder?: string }) {
   const [draft, setDraft] = useState("");
 
   function submit(e: FormEvent) {
@@ -124,7 +124,7 @@ function Composer({ id, onSend, streaming = false }: { id: string; onSend: (text
         rows={Math.min(5, Math.max(1, draft.split("\n").length))}
         maxLength={2000}
         className="field min-h-[3.25rem] resize-none py-3.5 pr-14 leading-relaxed"
-        placeholder="Ask about your food, training, sleep or recovery…"
+        placeholder={placeholder}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
@@ -223,6 +223,38 @@ export function TrainerChat() {
       <div className="mx-auto w-full max-w-3xl">
         <Composer id="trainer-input" onSend={send} streaming={streaming} />
         <p className="mt-2 text-center text-[11px] text-white/35">{DISCLAIMER}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Conversation used by the floating trainer button. */
+export function TrainerSheet() {
+  const session = useSession();
+  const { turns, streaming } = useTrainerChat(session.user?.id ?? null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const lastContent = turns.at(-1)?.content;
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [turns.length, lastContent]);
+
+  return (
+    <div>
+      <div ref={listRef} className="max-h-[38dvh] space-y-4 overflow-y-auto overscroll-contain pr-1" aria-live="polite">
+        {turns.length > 0 ? turns.map((turn) => <Turn key={turn.id} turn={turn} />) : null}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {SUGGESTIONS.map((item) => (
+          <button key={item.question} type="button" onClick={() => ask(item.question)} className="rounded-2xl bg-white/[0.05] px-3 py-2.5 text-left ring-1 ring-inset ring-white/10">
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">{item.topic}</span>
+            <span className="mt-1 block text-[13px] leading-snug text-white/80">{item.question}</span>
+          </button>
+        ))}
+      </div>
+      <div className="mt-3">
+        <Composer id="trainer-sheet" onSend={(text) => ask(text)} streaming={streaming} placeholder="Ask" />
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 # BAUMB — Fitness App
 
-A personal transformation app: onboarding builds a goal-specific calorie, macro, step and workout plan, daily logging tracks what actually happened, and a projection engine estimates how long it will take to reach your target. Accounts and everything users enter are stored in SQL Server, with an offline cache in the browser, and a cinematic, motorsport-inspired UI. Built with Next.js 16 (App Router, Turbopack), React 19, TypeScript, Tailwind CSS v4 and Vitest.
+A personal transformation app: onboarding builds a goal-specific calorie, macro, step and workout plan, daily logging tracks what actually happened, and a projection engine estimates how long it will take to reach your target. Accounts and everything users enter are stored in Neon Postgres, progress photos in Cloudflare R2, with an offline cache in the browser, and a cinematic, motorsport-inspired UI. Built with Next.js 16 (App Router, Turbopack), React 19, TypeScript, Tailwind CSS v4 and Vitest.
 
 ## Modules
 
@@ -46,27 +46,31 @@ Values in the UI are labelled **recorded**, **calculated**, **estimated** or **p
 
 ## Accounts and data storage
 
-- **Database**: SQL Server (tested with 2014 Express) through the `mssql` driver. Tables are in `db/schema.sql`: `Users` (email, name, scrypt password hash), `Sessions` (SHA-256 of the session token, expiry), `UserData` (each user's app data as one JSON document with a revision number), `Foods` (the shared food catalogue, per 100 g, with servings and source) and `FoodKeys` (each normalised food phrase that has been checked, pointing to its `Foods` row, or `NULL` for "not a food").
-- **Food catalogue**: `GET /api/foods` inserts any foods from `src/data/indian-foods.json` that are missing from `dbo.Foods` (existing rows are never overwritten, so corrections made in the table stick) and serves the table. The browser keeps a copy so logging works offline.
+- **Database**: Neon Postgres through the `pg` driver. Tables are in `db/schema.sql` and are created on first connection: `users` (email, name, scrypt password hash), `sessions` (SHA-256 of the session token, expiry), `user_data` (each user's app data as one JSON document with a revision number), `foods` (the shared food catalogue, per 100 g, with servings and source) and `food_keys` (each normalised food phrase that has been checked, pointing to its `foods` row, or `NULL` for "not a food").
+- **Photos**: progress photos are stored in Cloudflare R2 (`users/<id>/<photo>.jpg`). The account document keeps the key. Without R2 credentials, photo bytes stay inside that document.
+- **Food catalogue**: `GET /api/foods` inserts any foods from `src/data/indian-foods.json` that are missing from `foods` (existing rows are never overwritten, so corrections made in the table stick) and serves the table. The browser keeps a copy so logging works offline.
 - **Sessions**: a random token in an HTTP-only `baumb_session` cookie, valid for 30 days. `src/proxy.ts` sends visitors without a session to `/signin`; the landing page stays public.
 - **Sync**: every change is saved to the browser immediately and to the database about a second later. If the network or database is down, changes are kept and retried; if two devices edit at once, the newer saved copy on the server wins.
-- **API**: `POST /api/auth/signup`, `POST /api/auth/signin`, `POST /api/auth/signout`, `GET /api/auth/me`, `GET`/`PUT /api/data`, `GET /api/foods`, `POST /api/foods/resolve`, `POST /api/ai/chat`. Sign-in, sign-up and the AI routes are rate limited per user, and mutating requests must be same-origin JSON.
+- **API**: `POST /api/auth/signup`, `POST /api/auth/signin`, `POST /api/auth/signout`, `GET /api/auth/me`, `GET`/`PUT /api/data`, `GET /api/photos/[id]`, `GET /api/foods`, `POST /api/foods/resolve`, `POST /api/ai/chat`. Sign-in, sign-up and the AI routes are rate limited per user, and mutating requests must be same-origin JSON.
 
 ### AI food check and BAUMB Trainer (Gemini, OpenAI or Anthropic)
 
 Set `GEMINI_API_KEY` (model `gemini-3.8-flash` by default; Google AI Studio has a free tier), `OPENAI_API_KEY` (model `gpt-6.1-sol`, through the Responses API) or `ANTHROPIC_API_KEY` (Claude) in `.env.local` and restart; other settings are in `.env.example`. When several are set the order is Gemini, OpenAI, Anthropic, unless `AI_PROVIDER` says otherwise. Without a key the app works as before, using database values, and the trainer says it isn't switched on. The UI never mentions AI, models or the database: food rows show only the published source of their values, and the trainer speaks as BAUMB Trainer.
 
 - **One row per food, not per portion.** The quantity is parsed in the browser ("5 idli" → 5 × 1 idli), and only the food name is looked up, normalised to a key (`idli`). Nutrition is stored per 100 g with named servings, so every amount is a multiplication in the app.
-- **Lookup order:** the browser's saved results → server memory (LRU, 50k keys) → `dbo.FoodKeys` (primary-key lookup) → the AI model, only for a phrase nobody has entered before. The answer is saved, so the next user with the same phrase (or a spelling the AI recognised) gets it from the database.
+- **Lookup order:** the browser's saved results → server memory (LRU, 50k keys) → `food_keys` (primary-key lookup) → the AI model, only for a phrase nobody has entered before. The answer is saved, so the next user with the same phrase (or a spelling the AI recognised) gets it from the database.
 - **Accuracy:** the model is given the closest catalogue matches and either confirms one (values stay the database's IFCT/INDB/NIN numbers) or, for a food that isn't there, returns per-100 g values from IFCT 2017 / INDB first, then USDA FoodData Central, with its reference and confidence. Every AI answer must pass checks before it is used or stored: calories must agree with protein, carbs, fat, fibre and alcohol (Atwater, within 15%), nutrients can't exceed 100 g per 100 g, and servings must be realistic. Low-confidence answers are shown but not saved. Values are standard recipes, so homemade dishes can differ, and every item can be edited.
 - **Load:** identical concurrent lookups share one request, different new foods arriving together are batched into one AI call, the fixed instructions come first so the provider's prompt cache is reused, AI calls are capped (`AI_MAX_CONCURRENCY`, with a queue that returns 503 when full), and results are cached at every level, so repeat foods cost no AI calls. The chat streams responses and has per-user minute and daily limits.
 
-### Database setup (Windows, SQL Server Express)
+### Database setup (Neon Postgres)
 
-1. Enable TCP/IP on port 1433 (run once, as administrator): `powershell -ExecutionPolicy Bypass -File scripts/enable-sqlserver-tcp.ps1`
-2. Create the `baumb` database, the `baumb_app` login and the tables, and write `.env.local`: `powershell -ExecutionPolicy Bypass -File scripts/setup-database.ps1`
+1. Create a free project at [neon.com](https://neon.com). No credit card is required.
+2. Copy `.env.example` to `.env.local` and set `DATABASE_URL` to the project's pooled connection string.
+3. Start the app. `db/schema.sql` is applied on the first connection.
 
-For another server, create the database yourself, run `db/schema.sql`, and copy `.env.example` to `.env.local` with your connection details.
+### Progress photos (Cloudflare R2)
+
+Create a bucket and an API token that can read and write objects, then set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET` in `.env.local`. The free allowance is 10 GB, and downloads are free. Leave those values blank to keep photos inside the Postgres document instead.
 
 ### Indian food data
 
@@ -105,8 +109,8 @@ src/
   components/             Feature views (dashboard, plan, nutrition, workout, …), shared UI, charts, splash
   lib/                    Types, store, sample data, exercise catalog, date/unit helpers, hooks
   assets/baumb/           Imagery
-db/schema.sql             SQL Server tables
-scripts/                  SQL Server setup scripts, Indian food dataset builder
+db/schema.sql             Postgres tables (applied on first connection)
+scripts/                  Indian food dataset builder
 ```
 
 ## Design system
