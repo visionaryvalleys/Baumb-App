@@ -11,8 +11,8 @@ import {
   AboutFields,
   BodyFields,
   GoalPicker,
+  HealthFields,
   TargetFields,
-  StrengthFields,
   TrainingFields,
   draftToGoal,
   draftToProfile,
@@ -21,7 +21,7 @@ import {
   profileToDraft,
   validateAbout,
   validateBody,
-  validateStrength,
+  validateHealth,
   validateTarget,
   type Errors,
   type GoalDraft,
@@ -43,7 +43,7 @@ function Editor({ notice, onSaved }: { notice: Notice | null; onSaved: (n: Notic
   const setGoal = <K extends keyof GoalDraft>(k: K, v: GoalDraft[K]) => setG((p) => ({ ...p, [k]: v }));
 
   function validate() {
-    const e = { ...validateAbout(d), ...validateBody(d), ...validateTarget(g, d.unitSystem), ...validateStrength(g) };
+    const e = { ...validateAbout(d), ...validateBody(d), ...validateHealth(d), ...validateTarget(g, d.unitSystem) };
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -54,6 +54,7 @@ function Editor({ notice, onSaved }: { notice: Notice | null; onSaved: (n: Notic
     const profile = draftToProfile(d, ageRecordedOn);
     const weightKg = draftWeightKg(d)!;
     actions.updateProfile(profile);
+    if (profile.mealsPerDay) actions.setMealsPerDay(profile.mealsPerDay);
     if (!latest || Math.abs(latest.weightKg - weightKg) >= 0.05)
       actions.logWeight({ id: newId(), date: today, weightKg: Math.round(weightKg * 10) / 10, timestamp: Date.now(), timezone: profile.timezone, source: "manual" });
 
@@ -98,12 +99,12 @@ function Editor({ notice, onSaved }: { notice: Notice | null; onSaved: (n: Notic
         </div>
       </Card>
       <Card>
-        <CardTitle>Training setup</CardTitle>
-        <TrainingFields g={g} set={setGoal} d={d} setProfile={setProfile} />
+        <CardTitle>Eating, injuries and health</CardTitle>
+        <HealthFields d={d} set={setProfile} errors={errors} />
       </Card>
       <Card>
-        <CardTitle>Strength test</CardTitle>
-        <StrengthFields g={g} set={setGoal} d={d} errors={errors} />
+        <CardTitle>Training setup</CardTitle>
+        <TrainingFields g={g} set={setGoal} d={d} setProfile={setProfile} />
       </Card>
       <div className="glass sticky bottom-4 z-20 flex flex-wrap items-center justify-between gap-3 rounded-card p-4 shadow-lift sm:px-5">
         <p className="text-sm text-white/60" role="status">

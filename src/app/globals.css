@@ -1,45 +1,52 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-jetbrains), "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --font-mono: var(--font-jetbrains), "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --font-display: var(--font-stencil), "Big Shoulders Stencil", "Arial Narrow", sans-serif;
 }
 
 @theme {
-  /* Surfaces, darkest to most elevated */
-  --color-base: #08090c;
-  --color-base-2: #0d1015;
-  --color-card: #11151c;
-  --color-elevated: #161b23;
-  --color-line: rgb(255 255 255 / 0.08);
-  --color-line-strong: rgb(255 255 255 / 0.14);
+  /* Surfaces match the stencil grid: charcoal paper, hairline cells. */
+  --color-base: #121211;
+  --color-base-2: #1c1c1b;
+  --color-card: #1c1c1b;
+  --color-elevated: #232322;
+  --color-line: rgb(236 235 230 / 0.14);
+  --color-line-strong: rgb(236 235 230 / 0.22);
 
   /* Text */
-  --color-fg: #f3f5f9;
-  --color-muted: #a1a9b8;
-  --color-subtle: #6b7383;
+  --color-fg: #ecebe6;
+  --color-muted: #8a8984;
+  --color-subtle: #7c7c77;
 
   /* Accents. `brand` follows the user's accent setting. */
-  --color-brand: #4d8dff;
-  --color-brand-strong: color-mix(in oklab, var(--color-brand) 82%, white);
+  --color-brand: #ff6a1a;
+  --color-brand-strong: color-mix(in oklab, var(--color-brand) 88%, white);
   --color-cyan: #38d6ee;
   --color-violet: #8b7cf6;
   --color-mint: #3ddc97;
-  --color-danger: #f26d6d;
+  --color-danger: #fb923c;
 
   /* Legacy names kept so existing classes resolve to the new palette */
-  --color-bm-night: #08090c;
-  --color-bm-dark: #161b23;
+  --color-bm-night: #121211;
+  --color-bm-dark: #1c1c1b;
   --color-bm-yellow: var(--color-brand);
   --color-bm-red: var(--color-danger);
-  --color-surface: rgb(17 21 28 / 0.72);
-  --color-surface-raised: rgb(255 255 255 / 0.05);
+  --color-surface: #1c1c1b;
+  --color-surface-raised: rgb(236 235 230 / 0.05);
 
-  --radius-card: 1.25rem;
-  --radius-control: 0.75rem;
+  --breakpoint-sm: 240rem;
+  --breakpoint-md: 240rem;
+  --breakpoint-lg: 240rem;
+  --breakpoint-xl: 240rem;
+  --breakpoint-2xl: 240rem;
 
-  --shadow-card: inset 0 1px 0 0 rgb(255 255 255 / 0.05), 0 24px 48px -28px rgb(0 0 0 / 0.75);
-  --shadow-lift: inset 0 1px 0 0 rgb(255 255 255 / 0.07), 0 28px 60px -30px rgb(0 0 0 / 0.85);
+  --radius-card: 0px;
+  --radius-control: 2px;
+
+  --shadow-card: none;
+  --shadow-lift: none;
 
   --blur-glass: 20px;
 
@@ -214,9 +221,9 @@
 }
 
 body {
-  background: var(--color-base);
+  background: #0c0c0b;
   color: var(--color-fg);
-  font-feature-settings: "cv11", "ss01";
+  font-feature-settings: "ss02";
 }
 
 ::selection {
@@ -234,13 +241,11 @@ body {
   scrollbar-color: rgb(255 255 255 / 0.14) transparent;
 }
 
-/* Translucent card surface: used for primary content cards over the aurora. */
+/* Flat grid cell. Hairline border, no blur. */
 @utility glass {
-  background: linear-gradient(180deg, rgb(22 27 35 / 0.74), rgb(17 21 28 / 0.66));
+  background: var(--color-card);
   border: 1px solid var(--color-line);
-  box-shadow: var(--shadow-card);
-  backdrop-filter: blur(var(--blur-glass)) saturate(140%);
-  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  box-shadow: none;
 }
 
 /* Quiet inset panel inside a card. */
@@ -276,22 +281,10 @@ body {
   animation: sheetDown 0.4s var(--ease-snap) forwards;
 }
 
-.portrait-gate {
-  display: none;
-}
-
-@media (orientation: landscape) and (max-height: 500px) and (hover: none) and (pointer: coarse) {
-  .portrait-gate {
-    display: flex;
-  }
-}
-
 @utility glass-button {
   border-radius: var(--radius-control);
-  background: rgb(255 255 255 / 0.06);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.09);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--color-line-strong);
 }
 
 @utility text-fade-down {
@@ -302,7 +295,7 @@ body {
 }
 
 @utility eyebrow {
-  @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50;
+  @apply text-[11px] font-medium uppercase tracking-[0.16em] text-muted;
 }
 
 input[type="number"]::-webkit-inner-spin-button,
@@ -326,7 +319,7 @@ input[type="number"] {
 }
 
 @utility field {
-  @apply w-full rounded-control border border-line-strong bg-base-2/80 px-3.5 py-2.5 text-sm text-white placeholder:text-white/35 outline-none transition focus:border-brand/70 focus:bg-base-2 focus:ring-4 focus:ring-brand/15 disabled:opacity-50 aria-invalid:border-danger/70;
+  @apply w-full rounded-control border border-line-strong bg-base px-3.5 py-2.5 text-base text-fg placeholder:text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 disabled:opacity-50 aria-invalid:border-danger/70;
 }
 
 @utility btn-base {
@@ -338,7 +331,7 @@ input[type="number"] {
 }
 
 @utility btn-primary {
-  @apply btn-base bg-brand text-[13px] uppercase tracking-[0.06em] text-[#05070b] shadow-[0_10px_30px_-14px_var(--color-brand)] hover:bg-brand-strong;
+  @apply btn-base bg-brand text-[12px] uppercase tracking-[0.14em] text-[#111110] hover:bg-brand-strong;
 }
 
 @utility btn-ghost {
@@ -350,5 +343,5 @@ input[type="number"] {
 }
 
 @utility label {
-  @apply mb-1.5 block text-[13px] font-medium text-white/60;
+  @apply mb-1.5 block text-[11px] font-medium uppercase tracking-[0.14em] text-muted;
 }

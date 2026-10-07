@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
-import { activeMealSlots, calculateDailyNutrition, calculateItemNutrition, gramsForServing, mealLabel, mealSlotForTime, nutritionProgress } from "@/calculations/nutrition";
+import { DEFAULT_MEAL_PLAN, buildMealPlan } from "@/calculations/meal-plan";
+import { activeMealSlots, calculateDailyNutrition, calculateItemNutrition, gramsForServing, intakeAbnormal, mealLabel, mealSlotForTime, nutritionProgress, quantityForGrams } from "@/calculations/nutrition";
 import { findFood, foodPool } from "@/data/foods";
 import { useFoodCatalogue } from "@/lib/food-catalogue";
 import { localMinutes, zonedInstant } from "@/lib/date";
+import type { MealItem } from "@/lib/types";
 import { useDaySummary, useToday } from "@/lib/hooks";
 import { actions, newId, useAppState } from "@/lib/store";
 import { ProgressRing } from "../charts";
@@ -18,7 +20,7 @@ import { MealPlanCard } from "./meal-plan-card";
 import { VacationCard } from "./vacation-card";
 
 export function NutritionView() {
-  const { meals, customFoods, mealSlots, profile } = useAppState();
+  const { meals, customFoods, mealSlots, mealPlan, profile } = useAppState();
   const catalogue = useFoodCatalogue();
   const today = useToday();
   const [date, setDate] = useState(today);
@@ -34,6 +36,55 @@ export function NutritionView() {
   const target = summary.info.plan?.targets.nutrition;
   const progress = target ? nutritionProgress(day.totals, target) : null;
   const cal = progress?.[0];
+  const suggestion = useMemo(() => {
+    if (!target || !summary.info.plan) return null;
+    return buildMealPlan(target, slots, summary.info.plan.goal.type, mealPlan ?? DEFAULT_MEAL_PLAN, pool);
+  }, [mealPlan, pool, slots, summary.info.plan, target]);
+  const abnormal = (() => {
+    if (!day.totals || !cal) return null;
+    if (day.totals.calories > cal.target * 1.25) return intakeAbnormal(day.totals.calories, cal.target);
+    const mealNote = suggestion?.meals
+      .map((meal) => {
+        const logged = day.byMeal[meal.slot.id];
+        if (!logged) return null;
+        const note = intakeAbnormal(logged.totals.calories, meal.target.calories);
+        return note ? `${meal.slot.name}: ${note}` : null;
+      })
+      .find((note) => note);
+    if (mealNote) return mealNote;
+    const finished = suggestion?.meals.every((meal) => day.byMeal[meal.slot.id]);
+    return finished ? intakeAbnormal(day.totals.calories, cal.target) : null;
+  })();
+  const seeded = useRef("");
+
+  useEffect(() => {
+    if (date !== today || profile.mealsPerDay == null || !suggestion || day.totals) return;
+    if (catalogue.status === "idle" || catalogue.status === "loading") return;
+    const key = `${date}:${profile.mealsPerDay}:${mealPlan?.diet ?? "nonveg"}`;
+    if (seeded.current === key) return;
+    seeded.current = key;
+    const plan = suggestion;
+    const items: MealItem[] = plan.meals.flatMap((meal) =>
+      meal.items.map((item, i) => {
+        const serving = item.unitGrams ? item.food.servings[0] : undefined;
+        return {
+          id: newId(),
+          foodId: item.food.id,
+          foodName: item.food.name,
+          servingId: serving ? serving.id : null,
+          servingLabel: serving ? serving.label : "g",
+          quantity: serving ? quantityForGrams(serving.grams, item.grams) : item.grams,
+          grams: item.grams,
+          meal: meal.slot.id,
+          timestamp: zonedInstant(date, meal.slot.minutes, profile.timezone) + i,
+          timezone: profile.timezone,
+          date,
+          nutrition: item.nutrition,
+        };
+      }),
+    );
+    if (items.length) actions.addMealItems(items);
+  }, [catalogue.status, date, day.totals, mealPlan?.diet, profile.mealsPerDay, profile.timezone, suggestion, today]);
 
   return (
     <div className="space-y-4">
@@ -48,9 +99,38 @@ export function NutritionView() {
         <div className="space-y-4 lg:col-span-2">
           {addingMeal && <AddMealForm onDone={() => setAddingMeal(false)} />}
 
+          {profile.mealsPerDay == null && (
+            <Card>
+              <CardTitle>How many times do you eat?</CardTitle>
+              <p className="mb-4 text-sm leading-relaxed text-white/60">Answer this first. The meals below are then filled with foods that are easy to buy in India, sized to your BMI and goal.</p>
+              <Segmented value={0} onChange={(n) => actions.setMealsPerDay(n)} options={[2, 3, 4, 5].map((n) => ({ value: n, label: String(n) }))} />
+            </Card>
+          )}
+
+          {target && summary.info.plan && profile.mealsPerDay != null && (
+            <MealPlanCard date={date} today={today} target={target} goal={summary.info.plan.goal.type} foods={pool} trainingDay={!!summary.info.planned && summary.info.planned.type !== "mobility"} />
+          )}
+
+          {slots.map((slot) => (
+            <MealCard
+              key={slot.id}
+              slot={slot}
+              group={day.byMeal[slot.id]}
+              date={date}
+              pool={pool}
+              loading={catalogue.status === "loading" && catalogue.foods.length === 0}
+              known={known}
+              open={openSlot === slot.id}
+              onOpenChange={(open) => setOpenSlot(open ? slot.id : null)}
+            />
+          ))}
+          {pastGroups.map(([meal, group]) => (
+            <PastMealCard key={meal} label={mealLabel(meal, mealSlots)} group={group!} known={known} />
+          ))}
+
           <Card>
             <CardTitle action={day.totals ? <KindTag kind="recorded" /> : <KindTag kind="missing" />}>Daily totals</CardTitle>
-            <div className="flex flex-col items-center gap-8 sm:flex-row">
+            <div className="flex flex-col items-center gap-8">
               <ProgressRing value={cal?.value ?? 0} max={cal?.target ?? 1} size={150} stroke={10}>
                 <div>
                   <div className="text-[34px] font-semibold leading-none tracking-[-0.04em] tabular-nums text-white">{day.totals ? day.totals.calories.toLocaleString() : "—"}</div>
@@ -76,29 +156,9 @@ export function NutritionView() {
                 {!progress && <p className="text-sm text-white/50">Complete onboarding to get nutrition targets.</p>}
               </div>
             </div>
+            {abnormal && <p className="mt-4 text-sm leading-relaxed text-brand">{abnormal}</p>}
             {!day.totals && <p className="mt-4 text-sm text-white/50">Nothing logged for this day. Missing days are shown as missing — never as 0 kcal.</p>}
           </Card>
-
-          {target && summary.info.plan && (
-            <MealPlanCard date={date} today={today} target={target} goal={summary.info.plan.goal.type} foods={pool} trainingDay={!!summary.info.planned && summary.info.planned.type !== "mobility"} />
-          )}
-
-          {slots.map((slot) => (
-            <MealCard
-              key={slot.id}
-              slot={slot}
-              group={day.byMeal[slot.id]}
-              date={date}
-              pool={pool}
-              loading={catalogue.status === "loading" && catalogue.foods.length === 0}
-              known={known}
-              open={openSlot === slot.id}
-              onOpenChange={(open) => setOpenSlot(open ? slot.id : null)}
-            />
-          ))}
-          {pastGroups.map(([meal, group]) => (
-            <PastMealCard key={meal} label={mealLabel(meal, mealSlots)} group={group!} known={known} />
-          ))}
         </div>
 
         <div className="space-y-4">

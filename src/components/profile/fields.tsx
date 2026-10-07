@@ -5,7 +5,7 @@ import { EQUIPMENT_LABELS, EXPERIENCE_DETAILS, EXPERIENCE_LABELS, GOAL_LIST, LIF
 import { STRENGTH_LEVELS, strengthProfile, strengthTestLifts, type StrengthLevel } from "@/calculations/strength";
 import { MAX_SESSION_MINUTES, MIN_SESSION_MINUTES, weekStructure } from "@/calculations/workout";
 import { WEEKDAY_SHORT, deviceTimezone } from "@/lib/date";
-import type { EquipmentAccess, Experience, Goal, GoalType, Lifestyle, Profile, Sex, SplitPreference, StrengthTest, UnitSystem } from "@/lib/types";
+import type { EquipmentAccess, Experience, Goal, GoalType, HealthCondition, InjuryArea, Lifestyle, Profile, Sex, SplitPreference, StrengthTest, UnitSystem } from "@/lib/types";
 import { cmToFeetInches, feetInchesToCm, fromDisplayWeight, toDisplayWeight, weightUnit } from "@/lib/units";
 import { Segmented, SectionLabel, cn } from "../ui";
 
@@ -22,6 +22,9 @@ export interface ProfileDraft {
   timezone: string;
   lifestyle: Lifestyle;
   equipment: EquipmentAccess;
+  mealsPerDay: number | null;
+  injuries: InjuryArea[];
+  conditions: HealthCondition[];
 }
 
 export interface GoalDraft {
@@ -53,6 +56,9 @@ export function profileToDraft(p: Profile, weightKg: number | null): ProfileDraf
     timezone: p.timezone || deviceTimezone(),
     lifestyle: p.lifestyle,
     equipment: p.equipment,
+    mealsPerDay: p.mealsPerDay ?? null,
+    injuries: p.injuries ?? [],
+    conditions: p.conditions ?? [],
   };
 }
 
@@ -129,7 +135,43 @@ export function draftToProfile(d: ProfileDraft, ageRecordedOn: string): Profile 
     timezone: d.timezone,
     lifestyle: d.lifestyle,
     equipment: d.equipment,
+    mealsPerDay: d.mealsPerDay,
+    injuries: d.injuries,
+    conditions: d.conditions,
   };
+}
+
+export function validateHealth(d: ProfileDraft): Errors {
+  const e: Errors = {};
+  if (d.mealsPerDay == null) e.mealsPerDay = "Choose how many times you eat in a day";
+  if (d.injuries.length === 0) e.injuries = "Choose any injuries, or None";
+  if (d.conditions.length === 0) e.conditions = "Choose any conditions, or None";
+  return e;
+}
+
+const INJURY_OPTIONS: { value: InjuryArea; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "knee", label: "Knee" },
+  { value: "back", label: "Back" },
+  { value: "shoulder", label: "Shoulder" },
+  { value: "wrist", label: "Wrist" },
+  { value: "ankle", label: "Ankle" },
+  { value: "hip", label: "Hip" },
+];
+
+const CONDITION_OPTIONS: { value: HealthCondition; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "diabetes", label: "Diabetes" },
+  { value: "blood_pressure", label: "Blood pressure" },
+  { value: "heart", label: "Heart" },
+  { value: "thyroid", label: "Thyroid" },
+  { value: "asthma", label: "Asthma" },
+];
+
+function toggleExclusive<T extends string>(current: T[], value: T, none: T): T[] {
+  if (value === none) return current.length === 1 && current[0] === none ? [] : [none];
+  const without = current.filter((item) => item !== none && item !== value);
+  return current.includes(value) ? without : [...without, value];
 }
 
 export function validateStrength(g: GoalDraft): Errors {
@@ -380,6 +422,52 @@ function WeekPreview({ g }: { g: GoalDraft }) {
         })}
       </ol>
       {week.note && <p className="mt-3 text-xs text-white/55">{week.note}</p>}
+    </div>
+  );
+}
+
+export function HealthFields({ d, set, errors }: { d: ProfileDraft; set: Setter<ProfileDraft>; errors: Errors }) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <span className="label">How many times do you eat in a day?</span>
+        <Segmented
+          value={d.mealsPerDay ?? 0}
+          onChange={(v) => set("mealsPerDay", v)}
+          options={[2, 3, 4, 5].map((n) => ({ value: n, label: String(n) }))}
+        />
+        <FieldError msg={errors.mealsPerDay} />
+        <p className="mt-2 text-xs leading-relaxed text-white/45">This comes first. Breakfast, lunch and dinner are then filled with foods that are easy to get in India, sized to your BMI and goal.</p>
+      </div>
+      <div>
+        <span className="label">Any injuries?</span>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Injuries">
+          {INJURY_OPTIONS.map((option) => {
+            const on = d.injuries.includes(option.value);
+            return (
+              <button key={option.value} type="button" aria-pressed={on} className={cn("btn-ghost h-10 px-3 text-sm", on && "bg-brand text-[#121211]")} onClick={() => set("injuries", toggleExclusive(d.injuries, option.value, "none"))}>
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <FieldError msg={errors.injuries} />
+      </div>
+      <div>
+        <span className="label">Any of these conditions?</span>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Health conditions">
+          {CONDITION_OPTIONS.map((option) => {
+            const on = d.conditions.includes(option.value);
+            return (
+              <button key={option.value} type="button" aria-pressed={on} className={cn("btn-ghost h-10 px-3 text-sm", on && "bg-brand text-[#121211]")} onClick={() => set("conditions", toggleExclusive(d.conditions, option.value, "none"))}>
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <FieldError msg={errors.conditions} />
+        <p className="mt-2 text-xs leading-relaxed text-white/45">The workout plan leaves out movements that load an injury, and keeps the effort modest for heart, blood pressure, diabetes, thyroid and asthma. This is not medical care.</p>
+      </div>
     </div>
   );
 }

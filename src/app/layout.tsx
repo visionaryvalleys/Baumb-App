@@ -1,14 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Inter } from "next/font/google";
+import { Big_Shoulders_Stencil, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const mono = JetBrains_Mono({
+  variable: "--font-jetbrains",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const stencil = Big_Shoulders_Stencil({
+  variable: "--font-stencil",
   subsets: ["latin"],
 });
 
@@ -24,16 +24,17 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#08090c",
+  themeColor: "#121211",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${inter.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full bg-base font-sans">{children}</body>
+    <html lang="en" className={`${mono.variable} ${stencil.variable} h-full antialiased`}>
+      <body className="min-h-full bg-[#0c0c0b] font-mono text-fg">{children}</body>
     </html>
   );
 }

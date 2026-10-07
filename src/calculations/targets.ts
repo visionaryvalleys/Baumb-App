@@ -1,5 +1,5 @@
 import { goalConfig } from "@/data/goals";
-import type { Goal, Lifestyle, PlanTargets, SafetyFlag, Sex } from "@/lib/types";
+import type { Goal, HealthCondition, Lifestyle, PlanTargets, SafetyFlag, Sex } from "@/lib/types";
 import { KCAL_PER_KG, LIFESTYLE_STEPS, calculateBMR, estimatePlannedTDEE } from "./energy";
 
 export const MAX_DEFICIT_KCAL = 1000;
@@ -17,6 +17,7 @@ export interface TargetInput {
   sex: Sex;
   lifestyle: Lifestyle;
   goal: Pick<Goal, "type" | "targetWeightKg" | "targetBodyFatPct" | "daysPerWeek" | "sessionMinutes">;
+  conditions?: HealthCondition[];
 }
 
 export interface TargetResult {
@@ -44,6 +45,21 @@ export function resolveDirection(input: TargetInput, flags: SafetyFlag[]): Direc
   }
   if (direction === "gain" && !cfg.gainRatePct) {
     flags.push({ level: "info", message: `${cfg.label} isn't built around weight gain, so calories are set near maintenance.` });
+    return "maintain";
+  }
+  const index = bmi(input.weightKg, input.heightCm);
+  if (direction === "loss" && index < 18.5) {
+    flags.push({
+      level: "warning",
+      message: `Your BMI is ${index.toFixed(1)}, which is below the healthy range. Eating less than maintenance would be abnormal here, so calories stay at maintenance. Please speak with a doctor before trying to lose weight.`,
+    });
+    return "maintain";
+  }
+  if (direction === "gain" && index >= 30) {
+    flags.push({
+      level: "warning",
+      message: `Your BMI is ${index.toFixed(1)}. Adding a calorie surplus on top of that would not be a healthy next step, so calories stay at maintenance.`,
+    });
     return "maintain";
   }
   return direction;
@@ -106,11 +122,17 @@ export function calculateTargets(input: TargetInput): TargetResult | null {
   let rate = (rangeKg[0] + rangeKg[1]) / 2;
   let adjustment = (rate * KCAL_PER_KG) / 7;
 
+  const sensitive = (input.conditions ?? []).some((c) => c === "heart" || c === "diabetes" || c === "thyroid" || c === "blood_pressure");
   if (direction === "loss") {
-    const maxDeficit = Math.min(MAX_DEFICIT_KCAL, tdee * MAX_DEFICIT_RATIO);
+    const maxDeficit = sensitive ? Math.min(400, tdee * 0.15) : Math.min(MAX_DEFICIT_KCAL, tdee * MAX_DEFICIT_RATIO);
     if (-adjustment > maxDeficit) {
       adjustment = -maxDeficit;
-      flags.push({ level: "info", message: `Deficit capped at ${Math.round(maxDeficit)} kcal/day to protect muscle, energy and recovery.` });
+      flags.push({
+        level: sensitive ? "warning" : "info",
+        message: sensitive
+          ? `Deficit kept to ${Math.round(maxDeficit)} kcal/day because of a condition you reported. A deeper cut would not be safe to suggest here.`
+          : `Deficit capped at ${Math.round(maxDeficit)} kcal/day to protect muscle, energy and recovery.`,
+      });
     }
   } else if (direction === "gain") {
     const maxSurplus = Math.min(MAX_SURPLUS_KCAL, tdee * MAX_SURPLUS_RATIO);

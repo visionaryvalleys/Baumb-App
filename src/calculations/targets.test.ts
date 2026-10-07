@@ -57,6 +57,12 @@ describe("calculateTargets", () => {
     expect(lean.flags.some((f) => f.message.includes("body-fat"))).toBe(true);
   });
 
+  it("will not cut calories when BMI is already underweight", () => {
+    const r = calculateTargets(input("fat_loss", { weightKg: 45, heightCm: 175 }))!;
+    expect(r.direction).toBe("maintain");
+    expect(r.flags.some((f) => /abnormal/.test(f.message))).toBe(true);
+  });
+
   it("uses an adjusted weight for protein at high body weight", () => {
     const r = calculateTargets(input("fat_loss", { weightKg: 140, heightCm: 175 }))!;
     expect(r.targets.nutrition.proteinG).toBeLessThan(2.0 * 140);

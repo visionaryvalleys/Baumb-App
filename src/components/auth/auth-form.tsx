@@ -9,10 +9,9 @@ import { ensureSession, signIn, signUp, useSession } from "@/lib/session";
 
 type Mode = "signin" | "signup";
 
-/** Fields float on the photograph: translucent and blurred instead of sitting in a card. */
 const FIELD =
-  "h-12 w-full rounded-control border border-white/15 bg-black/35 px-4 text-[15px] text-white placeholder:text-white/35 outline-none backdrop-blur-md transition focus:border-brand/70 focus:bg-black/45 focus:ring-4 focus:ring-brand/20";
-const LABEL = "mb-1.5 block text-[12px] font-medium uppercase tracking-[0.12em] text-white/60";
+  "h-12 w-full rounded-control border border-line-strong bg-base px-4 text-base text-fg placeholder:text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30";
+const LABEL = "mb-1.5 block text-[11px] font-medium uppercase tracking-[0.14em] text-muted";
 
 /** Only same-site paths, so a crafted link can't bounce users to another site after sign-in. */
 function safeNext(raw: string | null, fallback: string) {
@@ -62,7 +61,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   return (
     <div className="text-center animate-fade-slide-up anim-delay-200">
       <p className="eyebrow">{mode === "signin" ? "Welcome back" : "Train. Track. Transform."}</p>
-      <h1 className="mt-3 text-[38px] font-light leading-[1.05] tracking-[-0.035em] text-white [text-shadow:0_2px_24px_rgb(0_0_0/0.6)] sm:text-[44px]">
+      <h1 className="mt-3 font-display text-[56px] font-medium uppercase leading-[0.82] tracking-[-0.03em] text-fg sm:text-[68px]">
         {mode === "signin" ? "Sign " : "Create your "}
         <span className="font-semibold">{mode === "signin" ? "in" : "account"}</span>
       </h1>

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Dumbbell, History } from "lucide-react";
-import { SessionLogger } from "@/components/workout/session-logger";
+import { Dumbbell } from "lucide-react";
+import { RewardsBoard } from "@/components/board/rewards";
 import { PageHeader } from "@/components/ui";
+import { SessionLogger } from "@/components/workout/session-logger";
+import { WorkoutList } from "@/components/workout-list";
 
 export const metadata: Metadata = { title: "Workout" };
 
@@ -11,26 +12,17 @@ export default function WorkoutPage() {
     <>
       <PageHeader
         icon={Dumbbell}
-        subtitle="Planned vs actual · Progressive overload"
-        title={
-          <>
-            Today&apos;s
-            <br />
-            <span className="font-semibold">Session</span>
-          </>
-        }
-        action={
-          <div className="flex gap-2">
-            <Link href="/workouts" className="btn-ghost">
-              <History className="size-4" aria-hidden /> History
-            </Link>
-            <Link href="/workouts/new" className="btn-ghost">
-              Freeform log
-            </Link>
-          </div>
-        }
+        subtitle="Board · Session · Week"
+        title={<span className="font-semibold">Workout</span>}
       />
-      <SessionLogger />
+      <div className="space-y-8">
+        <RewardsBoard listOnly />
+        <SessionLogger />
+        <section>
+          <h2 className="mb-4 text-[12px] font-semibold uppercase tracking-[0.16em] text-white/45">History</h2>
+          <WorkoutList />
+        </section>
+      </div>
     </>
   );
 }

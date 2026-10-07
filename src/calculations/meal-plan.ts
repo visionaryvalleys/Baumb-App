@@ -69,6 +69,7 @@ const CANDIDATES: Record<MealKind, Partial<Record<MealRole, Candidate[]>>> = {
       e("nin-boiled-egg", { whole: true }),
       v("ifct-l003"),
       v("tofu"),
+      v("nin-dal"),
       v("lentils"),
       v("chickpeas"),
       v("indb-asc164"),
@@ -92,19 +93,19 @@ const CANDIDATES: Record<MealKind, Partial<Record<MealRole, Candidate[]>>> = {
  */
 const STYLE_FIRST: Record<Style, Partial<Record<MealKind, Partial<Record<MealRole, string[]>>>>> = {
   lean: {
-    breakfast: { protein: ["greek-yogurt", "egg-white", "nin-boiled-egg"], carb: ["oats", "nin-idli"], fruit: ["apple"] },
-    main: { protein: ["chicken-breast", "indb-asc251", "tofu"], carb: ["nin-phulka", "brown-rice"], veg: ["nin-veg-dry", "broccoli"] },
-    snack: { protein: ["greek-yogurt"], fruit: ["apple"] },
+    breakfast: { protein: ["nin-boiled-egg", "egg-white", "greek-yogurt", "ifct-l003"], carb: ["nin-idli", "nin-upma", "nin-poha", "oats"], fruit: ["banana", "apple"] },
+    main: { protein: ["chicken-breast", "nin-chicken-curry", "tofu", "greek-yogurt", "nin-boiled-egg", "ifct-l003", "nin-dal"], carb: ["nin-phulka", "nin-rice"], veg: ["nin-veg-dry", "nin-sambar"] },
+    snack: { protein: ["greek-yogurt", "nin-boiled-egg", "ifct-l003"], fruit: ["banana"] },
   },
   mass: {
-    breakfast: { protein: ["nin-boiled-egg", "greek-yogurt"], carb: ["oats", "nin-poha"], fruit: ["banana"] },
-    main: { protein: ["chicken-breast", "nin-boiled-egg", "tofu"], carb: ["nin-rice", "nin-phulka"], veg: ["nin-veg-dry"], fat: ["almonds"] },
-    snack: { protein: ["whey", "greek-yogurt"], fruit: ["banana"], fat: ["peanut-butter"] },
+    breakfast: { protein: ["nin-boiled-egg", "greek-yogurt", "ifct-l003"], carb: ["nin-poha", "nin-idli", "oats"], fruit: ["banana"] },
+    main: { protein: ["chicken-breast", "nin-chicken-curry", "nin-boiled-egg", "tofu", "greek-yogurt", "ifct-l003", "nin-dal"], carb: ["nin-rice", "nin-phulka"], veg: ["nin-veg-dry"], fat: ["almonds"] },
+    snack: { protein: ["nin-boiled-egg", "whey", "greek-yogurt"], fruit: ["banana"], fat: ["peanut-butter"] },
   },
   balanced: {
-    breakfast: { protein: ["nin-boiled-egg", "greek-yogurt"], carb: ["oats", "nin-idli"], fruit: ["banana"] },
-    main: { protein: ["nin-chicken-curry", "chicken-breast", "tofu"], carb: ["nin-phulka", "nin-rice"], veg: ["nin-veg-dry"] },
-    snack: { protein: ["greek-yogurt"], fruit: ["apple"], fat: ["almonds"] },
+    breakfast: { protein: ["nin-boiled-egg", "greek-yogurt", "ifct-l003"], carb: ["nin-idli", "nin-poha", "oats"], fruit: ["banana"] },
+    main: { protein: ["chicken-breast", "nin-chicken-curry", "nin-boiled-egg", "tofu", "greek-yogurt", "ifct-l003", "nin-dal"], carb: ["nin-phulka", "nin-rice"], veg: ["nin-veg-dry", "nin-sambar"] },
+    snack: { protein: ["greek-yogurt", "nin-boiled-egg", "ifct-l003"], fruit: ["banana"], fat: ["almonds"] },
   },
 };
 

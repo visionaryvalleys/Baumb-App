@@ -3,21 +3,24 @@
 import Link from "next/link";
 import { ArrowRight, UserRound } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect } from "react";
-import { Aurora } from "./backdrop";
 import { cn } from "./ui";
 
 export function BaumbLogo({ className, href = "/" }: { className?: string; href?: string }) {
   return (
-    <Link href={href} className={cn("flex h-8 items-center gap-2.5 rounded-lg", className)} aria-label="BAUMB home">
-      <span className="grid size-8 place-items-center rounded-[10px] bg-brand text-[15px] font-bold leading-none text-[#05070b] shadow-[0_6px_20px_-8px_var(--color-brand)]">B</span>
-      <span className="text-[17px] font-semibold leading-none tracking-[0.2em] text-white">BAUMB</span>
+    <Link href={href} className={cn("flex h-10 items-center gap-2.5", className)} aria-label="BAUMB home">
+      <svg viewBox="0 0 28 28" className="size-7 shrink-0" aria-hidden>
+        <rect x="2" y="2" width="11" height="11" rx="2" className="fill-brand" />
+        <rect x="13" y="13" width="13" height="13" rx="2" className="fill-none stroke-fg" strokeWidth="1.6" />
+        <rect x="17" y="17" width="5" height="5" rx="1" className="fill-brand" />
+      </svg>
+      <span className="font-display text-[22px] font-medium uppercase leading-none tracking-[0.02em] text-fg">Baumb</span>
     </Link>
   );
 }
 
 export function ProfileButton({ href = "/profile" }: { href?: string }) {
   return (
-    <Link href={href} className="glass-button grid size-11 place-items-center rounded-full text-white/85 transition hover:bg-white/10 hover:text-white" aria-label="Profile">
+    <Link href={href} className="glass-button grid size-11 place-items-center text-fg/80 transition hover:bg-white/[0.04] hover:text-fg" aria-label="Profile">
       <UserRound className="size-[18px]" strokeWidth={2} aria-hidden />
     </Link>
   );
@@ -30,7 +33,7 @@ export function MenuButton({ onClick, expanded }: { onClick: () => void; expande
       onClick={onClick}
       aria-label="Open menu"
       aria-expanded={expanded}
-      className="glass-button ml-2 flex size-11 items-center justify-center rounded-full transition hover:bg-white/10"
+      className="glass-button ml-2 flex size-11 items-center justify-center transition hover:bg-white/[0.04]"
     >
       <span className="flex w-[18px] flex-col items-end gap-[5px]">
         <span className="block h-[1.5px] w-[18px] rounded-full bg-white" />
@@ -73,7 +76,7 @@ export function MenuOverlay({
 
   return (
     <div
-      className={cn(fixed ? "fixed" : "absolute", "inset-0 z-50 flex flex-col bg-base/90 px-5 pb-8 pt-[20px] backdrop-blur-2xl")}
+      className={cn(fixed ? "fixed" : "absolute", "inset-0 z-50 flex flex-col bg-base px-5 pb-8 pt-[20px]")}
       style={{
         opacity: open ? 1 : 0,
         pointerEvents: open ? "auto" : "none",
@@ -82,14 +85,13 @@ export function MenuOverlay({
       aria-hidden={!open}
       inert={!open}
     >
-      <Aurora />
-      <div className="relative mx-auto flex h-14 w-full max-w-6xl items-center justify-between sm:px-3">
+      <div className="relative mx-auto flex h-14 w-full max-w-[1180px] items-center justify-between border-x border-line px-4">
         <BaumbLogo />
         <button
           type="button"
           onClick={onClose}
           aria-label="Close menu"
-          className="glass-button flex size-11 items-center justify-center rounded-full text-white transition hover:bg-white/10"
+          className="glass-button flex size-11 items-center justify-center text-fg transition hover:bg-white/[0.04]"
         >
           <span className="relative block size-4">
             <span className="absolute left-0 top-1/2 h-[1.5px] w-4 -translate-y-1/2 rotate-45 rounded-full bg-white" />
@@ -98,7 +100,7 @@ export function MenuOverlay({
         </button>
       </div>
 
-      <nav className="relative mx-auto mt-8 grid min-h-0 w-full max-w-6xl flex-1 content-start gap-x-8 gap-y-1 overflow-y-auto pb-6 sm:mt-12 sm:grid-cols-2 sm:px-3">
+      <nav className="relative mx-auto mt-8 grid min-h-0 w-full max-w-[1180px] flex-1 content-start gap-x-8 gap-y-1 overflow-y-auto border-x border-line px-4 pb-6 sm:mt-12 sm:grid-cols-2">
         {links.map((link, i) => {
           const active = activeHref === link.href;
           const style: CSSProperties = {
@@ -114,8 +116,8 @@ export function MenuOverlay({
               style={style}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "group flex items-center justify-between rounded-xl px-3 py-3 text-xl font-semibold tracking-[-0.02em] sm:text-2xl",
-                active ? "bg-white/[0.06] text-white" : "text-white/70 hover:bg-white/[0.04] hover:text-white",
+                "group flex items-center justify-between px-3 py-2 font-display text-[32px] font-medium uppercase leading-none tracking-[-0.02em] sm:text-[40px]",
+                active ? "text-fg" : "text-muted hover:text-fg",
               )}
             >
               <span className="flex items-center gap-3">
@@ -128,7 +130,7 @@ export function MenuOverlay({
         })}
       </nav>
 
-      <div className="relative mx-auto w-full max-w-6xl sm:px-3">
+      <div className="relative mx-auto w-full max-w-[1180px] border-x border-line px-4">
         <Link href={cta.href} onClick={onClose} className="btn-primary h-14 w-full">
           {cta.label} <ArrowRight className="size-4" aria-hidden />
         </Link>

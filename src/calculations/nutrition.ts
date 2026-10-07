@@ -11,6 +11,34 @@ export const DEFAULT_MEAL_SLOTS: MealSlot[] = [
   { id: "dinner", name: "Dinner", minutes: 20 * 60 },
 ];
 
+/** Meals for someone who eats `count` times a day. Two is breakfast and dinner; three adds lunch; four and five add snacks. */
+export function slotsForMealCount(count: number): MealSlot[] {
+  const n = Math.min(5, Math.max(2, Math.round(count)));
+  const breakfast: MealSlot = { id: "breakfast", name: "Breakfast", minutes: 8 * 60 };
+  const lunch: MealSlot = { id: "lunch", name: "Lunch", minutes: 13 * 60 };
+  const snack: MealSlot = { id: "snack", name: "Snacks", minutes: 16 * 60 + 30 };
+  const dinner: MealSlot = { id: "dinner", name: "Dinner", minutes: 20 * 60 };
+  const evening: MealSlot = { id: "evening", name: "Evening snack", minutes: 21 * 60 + 30 };
+  if (n === 2) return [breakfast, dinner];
+  if (n === 3) return [breakfast, lunch, dinner];
+  if (n === 4) return [breakfast, lunch, snack, dinner];
+  return [breakfast, lunch, snack, dinner, evening];
+}
+
+/**
+ * Logged intake far from the plan. A small miss is left alone; a large gap either way is called abnormal.
+ * Returns null when the day is inside about 25% of the target.
+ */
+export function intakeAbnormal(eatenKcal: number, targetKcal: number): string | null {
+  if (!Number.isFinite(eatenKcal) || !Number.isFinite(targetKcal) || targetKcal <= 0) return null;
+  const ratio = eatenKcal / targetKcal;
+  if (ratio < 0.75)
+    return `This is abnormal. You logged ${Math.round(eatenKcal).toLocaleString()} kcal, which is less than the ${Math.round(targetKcal).toLocaleString()} kcal planned for you.`;
+  if (ratio > 1.25)
+    return `This is abnormal. You logged ${Math.round(eatenKcal).toLocaleString()} kcal, which is more than the ${Math.round(targetKcal).toLocaleString()} kcal planned for you.`;
+  return null;
+}
+
 /** The meals currently in the user's day, earliest first. */
 export function activeMealSlots(slots: MealSlot[]): MealSlot[] {
   return slots.filter((s) => !s.archived).sort((a, b) => a.minutes - b.minutes);

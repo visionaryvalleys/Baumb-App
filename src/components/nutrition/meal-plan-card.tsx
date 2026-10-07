@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Check, Dumbbell, RotateCcw, Utensils } from "lucide-react";
 import { DEFAULT_MEAL_PLAN, DIET_LABELS, ROLE_LABELS, buildMealPlan, type PlannedItem, type PlannedMeal } from "@/calculations/meal-plan";
 import { quantityForGrams } from "@/calculations/nutrition";
+import { bmi } from "@/calculations/targets";
+import { sortedWeights } from "@/calculations/trend";
 import { goalConfig } from "@/data/goals";
 import { foodCitation } from "@/lib/food-source";
 import { localMinutes, zonedInstant } from "@/lib/date";
@@ -136,11 +138,21 @@ function logPlannedMeal(meal: PlannedMeal, date: string, today: string, tz: stri
 }
 
 export function MealPlanCard({ date, today, target, goal, foods, trainingDay }: { date: string; today: string; target: NutritionTarget; goal: GoalType; foods: Food[]; trainingDay: boolean }) {
-  const { mealPlan, mealSlots, profile } = useAppState();
+  const { mealPlan, mealSlots, profile, meals, weights } = useAppState();
   const prefs = mealPlan ?? DEFAULT_MEAL_PLAN;
   const plan = useMemo(() => buildMealPlan(target, mealSlots, goal, prefs, foods), [target, mealSlots, goal, prefs, foods]);
-  const [logged, setLogged] = useState<Record<string, boolean>>({});
+  const loggedSlots = new Set(meals.filter((item) => item.date === date).map((item) => item.meal));
   const cfg = goalConfig(goal);
+  const weightKg = sortedWeights(weights).at(-1)?.weightKg ?? null;
+  const index = profile.heightCm && weightKg ? bmi(weightKg, profile.heightCm) : null;
+  const bmiNote =
+    index == null
+      ? "Portions follow your plan, which already keeps calories above a safe floor."
+      : index < 18.5
+        ? `Your BMI is ${index.toFixed(1)}, below the healthy range. These meals stay at maintenance. Eating much less than this would be abnormal.`
+        : index >= 30
+          ? `Your BMI is ${index.toFixed(1)}. These meals do not add a surplus. Eating far past this would be abnormal.`
+          : `Your BMI is ${index.toFixed(1)}. Portions use foods common in India and stay inside the calories set for you.`;
 
   const update = (next: Partial<MealPlanPrefs>) => actions.setMealPlan({ ...prefs, ...next });
   const setChoice = (slotId: string, role: MealRole, choice: { foodId: string; grams?: number } | null) => {
@@ -151,8 +163,8 @@ export function MealPlanCard({ date, today, target, goal, foods, trainingDay }: 
   };
 
   function log(meal: PlannedMeal) {
+    if (loggedSlots.has(meal.slot.id)) return;
     logPlannedMeal(meal, date, today, profile.timezone);
-    setLogged((l) => ({ ...l, [`${date}:${meal.slot.id}`]: true }));
   }
 
   const t = plan.totals;
@@ -171,9 +183,10 @@ export function MealPlanCard({ date, today, target, goal, foods, trainingDay }: 
         Your meal plan
       </CardTitle>
       <p className="-mt-2 mb-4 text-[13px] leading-relaxed text-white/60">
-        Built for <span className="font-semibold text-white">{cfg.label}</span>: {target.calories.toLocaleString()} kcal with {target.proteinG} g protein, {target.carbsG} g carbs and {target.fatG} g fat. Swap any
-        food, or set the grams you actually eat — the rest of the meal adjusts.
+        Built for <span className="font-semibold text-white">{cfg.label}</span>: {target.calories.toLocaleString()} kcal with {target.proteinG} g protein, {target.carbsG} g carbs and {target.fatG} g fat. Foods are
+        ones you can buy in India. Swap any item, or set the grams you actually eat — the rest of the meal adjusts.
       </p>
+      <p className="mb-4 text-[13px] leading-relaxed text-white/60">{bmiNote} This is not medical advice.</p>
       {trainingDay && (
         <p className="mb-4 flex gap-2 rounded-lg bg-brand/10 px-3 py-2 text-[13px] text-white/75">
           <Dumbbell className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
@@ -187,7 +200,7 @@ export function MealPlanCard({ date, today, target, goal, foods, trainingDay }: 
           <MealBlock
             key={meal.slot.id}
             meal={meal}
-            logged={!!logged[`${date}:${meal.slot.id}`]}
+            logged={loggedSlots.has(meal.slot.id)}
             onLog={() => log(meal)}
             onSwap={(role, foodId) => setChoice(meal.slot.id, role, { foodId })}
             onGrams={(role, foodId, grams) => setChoice(meal.slot.id, role, { foodId, grams })}

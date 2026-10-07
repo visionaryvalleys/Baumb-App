@@ -12,7 +12,8 @@ import { AccountCard } from "./account-card";
 import { CalculationLog } from "./calculation-log";
 
 const ACCENTS = [
-  { value: DEFAULT_ACCENT, label: "BAUMB Blue" },
+  { value: DEFAULT_ACCENT, label: "Signal" },
+  { value: "#5b8def", label: "Blue" },
   { value: "#f2b705", label: "BAUMB Gold" },
   { value: "#e10600", label: "Race Red" },
   { value: "#22d3ee", label: "Ice" },

@@ -8,7 +8,7 @@ import { G_PER_WORKOUT, REWARDS, WINNER_SPAN_DAYS, gBalance, isBoardEligible, wo
 import { actions, getState, useAppState } from "@/lib/store";
 import { Card, CardTitle, EmptyState } from "../ui";
 
-export function RewardsBoard() {
+export function RewardsBoard({ listOnly = false, shopOnly = false }: { listOnly?: boolean; shopOnly?: boolean }) {
   const state = useAppState();
   const [board, setBoard] = useState<BoardSnapshot | null>(null);
   const balance = gBalance(state.workouts, state.redemptions);
@@ -31,7 +31,8 @@ export function RewardsBoard() {
   const awardEnd = board?.award ? formatDate(addDays(board.award.announcedAt.slice(0, 10), WINNER_SPAN_DAYS - 1)) : null;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+    <div className={listOnly || shopOnly ? "" : "grid gap-4 lg:grid-cols-[1.2fr_0.8fr]"}>
+      {!shopOnly && (
       <Card>
         <CardTitle action={<Trophy className="size-4 text-brand" aria-hidden />}>Leaderboard</CardTitle>
         {board?.award ? (
@@ -54,17 +55,19 @@ export function RewardsBoard() {
                     {index + 1}. {row.name}
                     {row.leader && <span className="ml-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-brand">Leader</span>}
                   </p>
-                  <p className="text-[12px] text-white/45">{row.eligible ? `${row.workoutDays} training days` : "Not on the board yet"}</p>
+                  <p className="text-[12px] text-white/45">{row.eligible ? `${row.workoutDays} training days` : "One more training day to qualify"}</p>
                 </div>
                 <p className="text-[15px] font-semibold tabular-nums text-white">{row.workoutCount}</p>
               </li>
             ))}
           </ol>
         ) : (
-          <EmptyState icon={Trophy} title="No scores yet" description="Finish a workout and your name appears here." />
+          <EmptyState icon={Trophy} title="No scores yet" description="Complete two training days and your name appears here." />
         )}
       </Card>
+      )}
 
+      {!listOnly && (
       <div className="grid gap-4">
         <Card>
           <CardTitle>G coins</CardTitle>
@@ -108,6 +111,7 @@ export function RewardsBoard() {
           </ul>
         </Card>
       </div>
+      )}
     </div>
   );
 }

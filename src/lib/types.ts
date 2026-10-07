@@ -29,6 +29,12 @@ export type Unit = "kg" | "lb";
 export type Lifestyle = "sedentary" | "light" | "moderate" | "active";
 export type EquipmentAccess = "full_gym" | "dumbbells" | "bodyweight";
 
+/** Areas the person says are injured. "none" means they were asked and reported no injury. */
+export type InjuryArea = "none" | "knee" | "back" | "shoulder" | "wrist" | "ankle" | "hip";
+
+/** Conditions that change how hard a plan should be. "none" means they were asked. */
+export type HealthCondition = "none" | "diabetes" | "blood_pressure" | "heart" | "thyroid" | "asthma";
+
 export interface Profile {
   firstName: string;
   lastName: string;
@@ -41,6 +47,10 @@ export interface Profile {
   timezone: string;
   lifestyle: Lifestyle;
   equipment: EquipmentAccess;
+  /** How many times they eat in a day. Null until they answer. */
+  mealsPerDay: number | null;
+  injuries: InjuryArea[];
+  conditions: HealthCondition[];
 }
 
 /* ───────────── Module 02 — Goal ───────────── */

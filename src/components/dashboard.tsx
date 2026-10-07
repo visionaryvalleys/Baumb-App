@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Beef,
@@ -21,10 +22,12 @@ import { useMemo } from "react";
 import { evaluateAdaptivePlan } from "@/calculations/review";
 import { formatDate } from "@/lib/date";
 import { useDaySummary, useToday, useUnit } from "@/lib/hooks";
+import { signOut } from "@/lib/session";
 import { useAppState } from "@/lib/store";
 import { formatWeight, toDisplayWeight } from "@/lib/units";
 import { useProjection } from "@/lib/use-projection";
 import { ProgressRing } from "./charts";
+import { HomeVacation } from "./home-vacation";
 import { EnergyBreakdown } from "./energy-breakdown";
 import { CountUp } from "./count-up";
 import { BigNumber, Card, CardTitle, KindTag, Meter, PageHeader, SectionLabel, cn } from "./ui";
@@ -88,6 +91,7 @@ function PlanRow({ icon: Icon, label, value }: { icon: typeof Flame; label: stri
 }
 
 export function Dashboard() {
+  const router = useRouter();
   const state = useAppState();
   const today = useToday();
   const unit = useUnit();
@@ -133,50 +137,49 @@ export function Dashboard() {
         }
       />
 
-      {summary.info.vacation && (
-        <Link href="/vacation" className="glass mb-4 flex items-center justify-between gap-3 rounded-card px-5 py-4 text-sm text-white transition hover:bg-white/[0.06]">
-          <span className="flex items-center gap-3">
-            <Palmtree className="size-5 shrink-0 text-brand" aria-hidden />
-            Vacation mode until {formatDate(summary.info.vacation.end, { month: "short", day: "numeric" })}. Your data is still tracked; missed sessions don&apos;t count against you.
-          </span>
-          <ArrowRight className="size-4 shrink-0" aria-hidden />
+      <div className="grid gap-4 md:grid-cols-2">
+        <section className="glass flex flex-col p-6" aria-labelledby="todays-workout">
+          <SectionLabel className="flex items-center gap-2">
+            <workout.icon className="size-4 text-brand" aria-hidden />
+            <span id="todays-workout">Train</span>
+          </SectionLabel>
+          <h2 className="mt-4 font-display text-[44px] font-medium uppercase leading-[0.85] text-fg">{workout.title}</h2>
+          {workout.meta.length > 0 && <p className="mt-3 text-[13px] text-white/60">{workout.meta.join(" · ")}</p>}
+          <Link href="/workout" className="btn-primary mt-6 h-12 w-full">
+            {workout.cta} <ArrowRight className="size-4" aria-hidden />
+          </Link>
+        </section>
+        <section className="glass flex flex-col p-6">
+          <SectionLabel className="flex items-center gap-2">
+            <Utensils className="size-4 text-brand" aria-hidden /> Eat
+          </SectionLabel>
+          <h2 className="mt-4 font-display text-[44px] font-medium uppercase leading-[0.85] text-fg">Log meal</h2>
+          <p className="mt-3 text-[13px] text-white/60">{intake ? `${Math.round(intake.calories)} kcal logged today` : "Add what you ate, right from home."}</p>
+          <Link href="/nutrition" className="btn-primary mt-6 h-12 w-full">
+            Log meal <ArrowRight className="size-4" aria-hidden />
+          </Link>
+        </section>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <button
+          type="button"
+          className="btn-ghost h-11"
+          onClick={() => {
+            void signOut().then(() => router.replace("/signin"));
+          }}
+        >
+          Logout
+        </button>
+        <Link href="/board" className="btn-ghost h-11">
+          Redeem
         </Link>
-      )}
-
-      <section className="glass relative overflow-hidden rounded-card p-6 shadow-lift sm:p-8" aria-labelledby="todays-workout">
-        <div
-          className="pointer-events-none absolute -right-32 -top-40 size-[28rem] rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklab,var(--color-brand)_26%,transparent),transparent)]"
-          aria-hidden
-        />
-        <div className="relative flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-          <div className="min-w-0">
-            <SectionLabel className="flex items-center gap-2">
-              <workout.icon className="size-4 text-brand" aria-hidden />
-              <span id="todays-workout">Today&apos;s workout</span>
-            </SectionLabel>
-            <h2 className="mt-4 text-[34px] font-semibold leading-[1.04] tracking-[-0.035em] text-white sm:text-[46px]">{workout.title}</h2>
-            {workout.meta.length > 0 && (
-              <p className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[15px] text-white/60">
-                {workout.done && <Check className="size-4 text-brand" aria-hidden />}
-                {workout.meta.map((m, i) => (
-                  <span key={m} className="flex items-center gap-2.5">
-                    {i > 0 && <span className="size-1 rounded-full bg-white/25" aria-hidden />}
-                    {m}
-                  </span>
-                ))}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/workout" className="btn-primary h-12 px-6">
-              {workout.cta} <ArrowRight className="size-4" aria-hidden />
-            </Link>
-            <Link href="/nutrition" className="btn-ghost h-12 px-5">
-              <Utensils className="size-4" aria-hidden /> Log meal
-            </Link>
-          </div>
-        </div>
-      </section>
+        <Link href="/vacation" className="btn-ghost h-11">
+          Vacation
+        </Link>
+        <Link href="/workouts" className="btn-ghost h-11">
+          History
+        </Link>
+      </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <TodayStat
@@ -319,7 +322,7 @@ export function Dashboard() {
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      <div className="mt-4 grid gap-4 lg:grid-cols-4">
         <Card className="lg:col-span-2">
           <CardTitle action={<span className="text-xs text-white/45">Tap expenditure for the breakdown</span>}>Today&apos;s energy</CardTitle>
           <EnergyBreakdown summary={summary} />
@@ -342,6 +345,8 @@ export function Dashboard() {
             <PlanRow icon={Moon} label="Sleep" value={targets ? `${targets.sleepHours[0]}–${targets.sleepHours[1]} h` : "—"} />
           </ul>
         </Card>
+
+        <HomeVacation today={today} />
       </div>
     </>
   );

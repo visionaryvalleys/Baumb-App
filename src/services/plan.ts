@@ -28,9 +28,15 @@ export function buildPlanVersion(input: BuildPlanInput): PlanVersion | null {
     sex: profile.sex,
     lifestyle: profile.lifestyle,
     goal,
+    conditions: profile.conditions,
   });
   if (!targetResult) return null;
-  const workout = generateWorkoutPlan(goal, profile.equipment, { sex: profile.sex, weightKg });
+  const workout = generateWorkoutPlan(goal, profile.equipment, {
+    sex: profile.sex,
+    weightKg,
+    injuries: profile.injuries,
+    conditions: profile.conditions,
+  });
   return {
     id: input.id,
     version: input.version,

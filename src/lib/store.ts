@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { DEFAULT_MEAL_SLOTS } from "@/calculations/nutrition";
+import { DEFAULT_MEAL_SLOTS, slotsForMealCount } from "@/calculations/nutrition";
 import { deviceTimezone } from "./date";
 import { gBalance } from "./g-system";
 import type {
@@ -35,13 +35,13 @@ const MAX_PROJECTIONS = 60;
 const MAX_AUDIT = 300;
 const MAX_ENERGY_RECORDS = 400;
 
-export const DEFAULT_ACCENT = "#4d8dff";
-/** The default accent before the redesign; accounts still on it get the current default. */
-const LEGACY_DEFAULT_ACCENT = "#edb40b";
+export const DEFAULT_ACCENT = "#ff6a1a";
+/** Earlier default accents. Accounts still on one of these follow the current default. */
+const LEGACY_DEFAULT_ACCENTS = new Set(["#edb40b", "#4d8dff"]);
 
 export function resolveAccent(accent: string | undefined): string {
   const value = (accent ?? "").toLowerCase();
-  return !value || value === LEGACY_DEFAULT_ACCENT ? DEFAULT_ACCENT : value;
+  return !value || LEGACY_DEFAULT_ACCENTS.has(value) ? DEFAULT_ACCENT : value;
 }
 
 export const DEFAULT_PROFILE: Profile = {
@@ -55,6 +55,9 @@ export const DEFAULT_PROFILE: Profile = {
   timezone: "UTC",
   lifestyle: "light",
   equipment: "full_gym",
+  mealsPerDay: null,
+  injuries: [],
+  conditions: [],
 };
 
 export const DEFAULT_SETTINGS: Settings = { accent: DEFAULT_ACCENT, notifications: true };
@@ -321,6 +324,18 @@ export const actions = {
   },
   setMealPlan(mealPlan: MealPlanPrefs) {
     setState((s) => ({ ...s, mealPlan }));
+  },
+  /** Sets how many meals they eat and rebuilds the day around breakfast, lunch and dinner. Logged food is kept. */
+  setMealsPerDay(count: number) {
+    const next = slotsForMealCount(count);
+    const ids = new Set(next.map((slot) => slot.id));
+    setState((s) => {
+      const logged = new Set(s.meals.map((meal) => meal.meal));
+      const previous = new Map(s.mealSlots.map((slot) => [slot.id, slot]));
+      const active = next.map((slot) => ({ ...(previous.get(slot.id) ?? slot), ...slot, archived: false }));
+      const archived = s.mealSlots.filter((slot) => !ids.has(slot.id) && logged.has(slot.id)).map((slot) => ({ ...slot, archived: true }));
+      return { ...s, profile: { ...s.profile, mealsPerDay: count }, mealSlots: [...active, ...archived] };
+    });
   },
   addMealSlot(slot: MealSlot) {
     setState((s) => ({ ...s, mealSlots: [...s.mealSlots, slot] }));

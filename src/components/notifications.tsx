@@ -40,7 +40,7 @@ export function NotificationBell() {
         aria-label={count ? `Notifications, ${count} new` : "Notifications"}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="glass-button relative grid size-11 place-items-center rounded-full transition hover:bg-white/10"
+        className="glass-button relative grid size-11 place-items-center transition hover:bg-white/[0.04]"
       >
         <Bell className="size-[18px] text-white/85" aria-hidden />
         {count > 0 && (

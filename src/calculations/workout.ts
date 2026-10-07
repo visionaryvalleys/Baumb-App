@@ -1,4 +1,5 @@
 import { goalConfig, type RepScheme } from "@/data/goals";
+import { adjustPattern, healthConstraints } from "@/calculations/health";
 import { getExercise } from "@/lib/exercises";
 import type { ReadinessResult } from "./recovery";
 import { STRENGTH_LEVELS, bodyweightPullUps, startingLoad, strengthProfile, trainingExperience } from "./strength";
@@ -8,6 +9,8 @@ import type {
   ExercisePrescription,
   Experience,
   Goal,
+  HealthCondition,
+  InjuryArea,
   MovementPattern,
   SafetyFlag,
   Sex,
@@ -302,6 +305,8 @@ export function weekStructure(goal: Pick<Goal, "type" | "experience" | "daysPerW
 export interface PlanBody {
   sex: Sex | null;
   weightKg: number;
+  injuries?: InjuryArea[];
+  conditions?: HealthCondition[];
 }
 
 /** Below this many bodyweight pull-ups the plan uses an easier vertical pull (prescriptions start at 8 reps). */
@@ -314,8 +319,11 @@ export function generateWorkoutPlan(goal: Goal, access: EquipmentAccess, body?: 
   const cfg = goalConfig(goal.type);
   const strength = body ? strengthProfile(goal.strengthTests, body.sex, body.weightKg) : null;
   const experience = trainingExperience(goal.experience, strength?.overall ?? null);
-  const { split, templates, note } = chooseTemplates(days, experience, goal);
+  const health = healthConstraints(body?.injuries, body?.conditions);
+  const { split, templates: chosen, note } = chooseTemplates(days, experience, goal);
+  const templates = chosen.map((template) => (health.gentle && (template.type === "hiit" || template.key === "conditioning") ? TEMPLATES.mobility : template));
 
+  flags.push(...health.flags);
   if (note) flags.push({ level: "info", message: note });
   if (strength?.overall != null) {
     const level = STRENGTH_LEVELS[strength.overall];
@@ -337,7 +345,7 @@ export function generateWorkoutPlan(goal: Goal, access: EquipmentAccess, body?: 
     flags.push({ level: "info", message: "Training each muscle once a week works, but beginners usually progress faster hitting each muscle twice a week (full body or upper / lower)." });
   if (days === 7) flags.push({ level: "info", message: "Training every day: at least one session is easy active recovery so your body can adapt." });
 
-  const avoid = new Set<string>();
+  const avoid = new Set<string>(health.avoidIds);
   const pullUps = strength && body ? bodyweightPullUps(strength, body.weightKg) : null;
   if (pullUps != null && pullUps < PULL_UPS_NEEDED) {
     avoid.add("pull-up");
@@ -356,7 +364,8 @@ export function generateWorkoutPlan(goal: Goal, access: EquipmentAccess, body?: 
     const picked: ExercisePrescription[] = [];
     for (const pattern of t.slots) {
       if (picked.length >= MAX_EXERCISES[experience]) break;
-      const ex = pickExercise(pattern, access, experience, used, variant);
+      const safe = adjustPattern(pattern, body?.injuries);
+      const ex = pickExercise(safe, access, experience, used, variant) ?? pickExercise("mobility", access, experience, used, variant);
       if (!ex) continue;
       used.add(ex.id);
       const p = prescribe(ex, cfg.repScheme, experience);

@@ -1,11 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import bgImage from "@/assets/baumb/baumb-bg.jpg";
-import { Aurora } from "./backdrop";
+import { Backdrop } from "./backdrop";
 import { cn } from "./ui";
 
 const HOLD_MS = 1500;
@@ -29,30 +27,20 @@ export function Splash({ next }: { next: string }) {
   }, [next, router]);
 
   return (
-    <div className={cn("fixed inset-0 grid place-items-center overflow-hidden bg-base transition-opacity duration-300", leaving && "opacity-0")}>
-      <div className="absolute inset-0 opacity-30 animate-fade-in" aria-hidden>
-        <Image src={bgImage} alt="" fill priority sizes="100vw" placeholder="blur" className="object-cover object-[40%_50%]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(8_9_12/0.35)_0%,rgb(8_9_12/0.95)_75%)]" />
-      </div>
-      <Aurora intensity={0.8} />
+    <div className={cn("fixed inset-0 grid place-items-center overflow-hidden bg-[#0c0c0b] transition-opacity duration-300", leaving && "opacity-0")}>
+      <Backdrop />
 
-      <div className="relative flex flex-col items-center" role="img" aria-label="BAUMB">
-        <div className="relative grid size-20 place-items-center">
-          <span className="absolute inset-0 rounded-[22px] border border-brand/60 animate-ring-out anim-delay-300" aria-hidden />
-          <span className="absolute inset-0 rounded-[22px] border border-brand/40 animate-ring-out anim-delay-500" aria-hidden />
-          <span className="relative grid size-20 place-items-center rounded-[22px] bg-brand text-[38px] font-bold leading-none text-[#05070b] shadow-[0_18px_50px_-12px_var(--color-brand)] animate-logo-in">
-            B
-          </span>
+      <div className="relative flex flex-col items-center border border-line bg-base px-10 py-12" role="img" aria-label="BAUMB">
+        <svg viewBox="0 0 28 28" className="size-10 text-fg" aria-hidden>
+          <rect x="2" y="2" width="11" height="11" rx="2" className="fill-brand" />
+          <rect x="13" y="13" width="13" height="13" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <rect x="17" y="17" width="5" height="5" rx="1" className="fill-brand" />
+        </svg>
+        <div className="mt-5 font-display text-[64px] font-medium uppercase leading-none tracking-[-0.03em] text-fg" aria-hidden>
+          Baumb
         </div>
-        <div className="mt-7 flex pl-[0.42em] text-[30px] font-semibold leading-none tracking-[0.42em] text-white" aria-hidden>
-          {"BAUMB".split("").map((ch, i) => (
-            <span key={i} className="animate-speed-reveal" style={{ animationDelay: `${350 + i * 70}ms` }}>
-              {ch}
-            </span>
-          ))}
-        </div>
-        <span className="mt-5 block h-px w-40 origin-center bg-gradient-to-r from-transparent via-brand to-transparent animate-grow-x anim-delay-700" aria-hidden />
-        <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/55 animate-fade-in anim-delay-900">Train · Track · Transform</p>
+        <span className="mt-4 block h-px w-full bg-line" aria-hidden />
+        <p className="mt-4 text-[11px] font-medium uppercase tracking-[0.22em] text-muted">Train · Track · Transform</p>
       </div>
 
       <Link href={next} className="sr-only">

@@ -120,6 +120,18 @@ describe("strength test in the plan", () => {
     expect(Math.max(...plan.days.flatMap((d) => d.exercises.map((e) => getExercise(e.exerciseId)!.level)))).toBeLessThanOrEqual(2);
     expect(flags.some((f) => /intermediate lifter/.test(f.message))).toBe(true);
   });
+
+  it("leaves knee-loading and hard intervals out when those limits are reported", () => {
+    const knee = generateWorkoutPlan(goal({ daysPerWeek: 4 }), "full_gym", { sex: "male", weightKg: 80, injuries: ["knee"], conditions: ["none"] });
+    const ids = knee.plan.days.flatMap((d) => d.exercises.map((e) => e.exerciseId));
+    expect(ids).not.toContain("back-squat");
+    expect(ids).not.toContain("walking-lunge");
+    expect(knee.flags.some((f) => /knee/.test(f.message))).toBe(true);
+
+    const heart = generateWorkoutPlan(goal({ experience: "beginner", daysPerWeek: 5 }), "full_gym", { sex: "male", weightKg: 80, injuries: ["none"], conditions: ["heart"] });
+    expect(heart.plan.days.every((d) => d.type !== "hiit")).toBe(true);
+    expect(heart.flags.some((f) => /heart/.test(f.message))).toBe(true);
+  });
 });
 
 describe("session duration", () => {

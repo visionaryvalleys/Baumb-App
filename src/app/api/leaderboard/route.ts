@@ -26,14 +26,14 @@ function clamp(value: unknown, max: number): number {
 }
 
 async function standingsFor(userId: string) {
-  const scores = await query<ScoreRow>("SELECT user_id, display_name, workout_count, workout_days, eligible, g_balance FROM board_scores ORDER BY workout_count DESC, display_name ASC");
+  const scores = await query<ScoreRow>("SELECT user_id, display_name, workout_count, workout_days, eligible, g_balance FROM board_scores WHERE workout_count >= 1 AND workout_days >= 2 ORDER BY workout_count DESC, display_name ASC");
   const award = (await query<AwardRow>("SELECT winner_user_id, winner_name, workout_count, announced_at FROM board_award WHERE id = 1"))[0];
   return {
     standings: scores.map((row) => ({
       name: row.display_name,
       workoutCount: row.workout_count,
       workoutDays: row.workout_days,
-      eligible: row.eligible,
+      eligible: row.workout_days >= 2 && row.workout_count >= 1,
       gBalance: row.g_balance,
       leader: award?.winner_user_id === row.user_id,
       you: row.user_id === userId,
@@ -47,7 +47,7 @@ async function standingsFor(userId: string) {
 
 async function awardLeader() {
   const top = (
-    await query<ScoreRow>("SELECT user_id, display_name, workout_count, workout_days, eligible, g_balance FROM board_scores WHERE eligible ORDER BY workout_count DESC, updated_at ASC LIMIT 1")
+    await query<ScoreRow>("SELECT user_id, display_name, workout_count, workout_days, eligible, g_balance FROM board_scores WHERE workout_count >= 1 AND workout_days >= 2 ORDER BY workout_count DESC, updated_at ASC LIMIT 1")
   )[0];
   const current = (await query<AwardRow>("SELECT winner_user_id, winner_name, workout_count, announced_at FROM board_award WHERE id = 1"))[0];
   if (!top) {
@@ -78,6 +78,15 @@ export async function POST(req: NextRequest) {
     if (!user) throw new HttpError(401, "Please sign in.");
     const body = await readJson<{ displayName?: unknown; workoutCount?: unknown; workoutDays?: unknown; eligible?: unknown; gBalance?: unknown }>(req, 4_000);
     const displayName = (typeof body.displayName === "string" ? body.displayName : user.name).trim().slice(0, 80) || user.name;
+    const workoutCount = clamp(body.workoutCount, 100_000);
+    const workoutDays = clamp(body.workoutDays, 100_000);
+    if (workoutCount < 1 || workoutDays < 2) {
+      await query("DELETE FROM board_scores WHERE user_id = $1", [user.id]);
+      await awardLeader();
+      return Response.json(await standingsFor(user.id));
+    }
+    const eligible = workoutDays >= 2;
+    const balance = eligible ? clamp(body.gBalance, 1_000_000) : 0;
     await query(
       `INSERT INTO board_scores (user_id, display_name, workout_count, workout_days, eligible, g_balance, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, now())
@@ -88,7 +97,7 @@ export async function POST(req: NextRequest) {
          eligible = EXCLUDED.eligible,
          g_balance = EXCLUDED.g_balance,
          updated_at = now()`,
-      [user.id, displayName, clamp(body.workoutCount, 100_000), clamp(body.workoutDays, 100_000), Boolean(body.eligible), clamp(body.gBalance, 1_000_000)],
+      [user.id, displayName, workoutCount, workoutDays, eligible, balance],
     );
     await awardLeader();
     return Response.json(await standingsFor(user.id));

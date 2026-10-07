@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { findFood } from "@/data/foods";
 import type { MealItem } from "@/lib/types";
-import { calculateDailyNutrition, calculateItemNutrition, gramsForServing, nutritionProgress, sumNutrition } from "./nutrition";
+import { calculateDailyNutrition, calculateItemNutrition, gramsForServing, intakeAbnormal, nutritionProgress, slotsForMealCount, sumNutrition } from "./nutrition";
 
 const chicken = findFood("chicken-breast")!;
 const oats = findFood("oats")!;
@@ -70,5 +70,20 @@ describe("daily totals", () => {
     const p = nutritionProgress({ calories: 1500, proteinG: 120, carbsG: 150, fatG: 50, fiberG: 20 }, { calories: 2000, proteinG: 160, carbsG: 200, fatG: 60, fiberG: 28 });
     expect(p.find((x) => x.key === "calories")?.remaining).toBe(500);
     expect(p.find((x) => x.key === "proteinG")?.pct).toBe(0.75);
+  });
+});
+
+describe("meals per day and abnormal intake", () => {
+  it("builds breakfast, lunch and dinner from how often they eat", () => {
+    expect(slotsForMealCount(3).map((s) => s.name)).toEqual(["Breakfast", "Lunch", "Dinner"]);
+    expect(slotsForMealCount(2).map((s) => s.id)).toEqual(["breakfast", "dinner"]);
+    expect(slotsForMealCount(5)).toHaveLength(5);
+  });
+
+  it("calls a large gap above or below the plan abnormal", () => {
+    expect(intakeAbnormal(1000, 2000)).toMatch(/abnormal/);
+    expect(intakeAbnormal(1000, 2000)).toMatch(/less/);
+    expect(intakeAbnormal(2800, 2000)).toMatch(/more/);
+    expect(intakeAbnormal(1900, 2000)).toBeNull();
   });
 });

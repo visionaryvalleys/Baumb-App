@@ -15,8 +15,8 @@ import {
   AboutFields,
   BodyFields,
   GoalPicker,
+  HealthFields,
   TargetFields,
-  StrengthFields,
   TrainingFields,
   draftToGoal,
   draftToProfile,
@@ -25,7 +25,7 @@ import {
   profileToDraft,
   validateAbout,
   validateBody,
-  validateStrength,
+  validateHealth,
   validateTarget,
   type Errors,
   type GoalDraft,
@@ -33,7 +33,7 @@ import {
 } from "../profile/fields";
 import { BigNumber, Card, FlagList, KindTag, SectionLabel, cn } from "../ui";
 
-const STEPS = ["About you", "Your body", "Your goal", "Your target", "Your week", "Your strength", "Your plan"] as const;
+const STEPS = ["You", "Your goal", "Your plan"] as const;
 const PLAN_STEP = STEPS.length - 1;
 
 export function OnboardingFlow() {
@@ -66,7 +66,7 @@ export function OnboardingFlow() {
   }, [step, d, g, today, state.plans]);
 
   function next() {
-    const e = step === 0 ? validateAbout(d) : step === 1 ? validateBody(d) : step === 3 ? validateTarget(g, d.unitSystem) : step === 5 ? validateStrength(g) : {};
+    const e = step === 0 ? { ...validateAbout(d), ...validateBody(d) } : step === 1 ? { ...validateHealth(d), ...validateTarget(g, d.unitSystem) } : {};
     setErrors(e);
     if (Object.keys(e).length === 0) setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
@@ -83,12 +83,13 @@ export function OnboardingFlow() {
       { id: newId(), date: today, weightKg: Math.round(weightKg * 10) / 10, timestamp: now, timezone: profile.timezone, source: "manual" },
       { ...preview, id: newId(), goal, createdAt: now },
     );
+    if (profile.mealsPerDay) actions.setMealsPerDay(profile.mealsPerDay);
     router.push("/dashboard");
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-      <ol className="flex gap-2 overflow-x-auto lg:flex-col lg:gap-1" aria-label="Onboarding steps">
+    <div className="grid gap-6">
+      <ol className="grid grid-cols-3 gap-2" aria-label="Onboarding steps">
         {STEPS.map((label, i) => (
           <li key={label}>
             <button
@@ -115,12 +116,20 @@ export function OnboardingFlow() {
         </SectionLabel>
         <h2 className="mb-8 mt-3 text-[30px] font-semibold leading-[1.05] tracking-[-0.03em] text-white sm:text-[38px]">{STEPS[step]}</h2>
 
-        {step === 0 && <AboutFields d={d} set={setProfile} errors={errors} />}
-        {step === 1 && <BodyFields d={d} set={setProfile} errors={errors} />}
-        {step === 2 && <GoalPicker value={g.type} onChange={(t) => setGoal("type", t)} />}
-        {step === 3 && <TargetFields g={g} set={setGoal} unit={d.unitSystem} errors={errors} />}
-        {step === 4 && <TrainingFields g={g} set={setGoal} d={d} setProfile={setProfile} />}
-        {step === 5 && <StrengthFields g={g} set={setGoal} d={d} errors={errors} />}
+        {step === 0 && (
+          <div className="grid gap-8">
+            <AboutFields d={d} set={setProfile} errors={errors} />
+            <BodyFields d={d} set={setProfile} errors={errors} />
+          </div>
+        )}
+        {step === 1 && (
+          <div className="grid gap-8">
+            <HealthFields d={d} set={setProfile} errors={errors} />
+            <GoalPicker value={g.type} onChange={(t) => setGoal("type", t)} />
+            <TargetFields g={g} set={setGoal} unit={d.unitSystem} errors={errors} />
+            <TrainingFields g={g} set={setGoal} d={d} setProfile={setProfile} />
+          </div>
+        )}
         {step === PLAN_STEP && <PlanPreview plan={preview} unit={weightUnit(d.unitSystem)} />}
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
