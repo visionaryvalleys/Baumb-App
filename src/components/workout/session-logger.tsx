@@ -29,6 +29,13 @@ interface ExerciseDraft {
 
 const WARMUP_REPS = 8;
 
+function performanceLine(lastReps: number | null, lastWeight: number | null, todayWeight: number | null, unit: Unit, tracksWeight: boolean) {
+  if (lastReps == null) return "First time on this lift.";
+  if (!tracksWeight || lastWeight == null || lastWeight <= 0) return `Last time ${lastReps} reps.`;
+  const last = `${lastWeight} ${unit} × ${lastReps}`;
+  return todayWeight != null && todayWeight > 0 ? `Last time ${last}. Today ${todayWeight} ${unit}.` : `Last time ${last}.`;
+}
+
 function clock(totalSeconds: number) {
   const safe = Math.max(0, totalSeconds);
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
@@ -37,7 +44,7 @@ function clock(totalSeconds: number) {
 function BigStep({ label, value, onStep, step = 1 }: { label: string; value: string; onStep: (delta: number) => void; step?: number }) {
   return (
     <div className="min-w-0 flex-1">
-      <p className="text-center text-[11px] font-medium uppercase tracking-[0.16em] text-muted">{label}</p>
+      <p className="text-center text-[12px] font-medium uppercase tracking-[0.16em] text-muted">{label}</p>
       <div className="mt-2 flex items-center justify-center gap-2">
         <button type="button" className="grid size-11 place-items-center border border-line text-fg" aria-label={`Decrease ${label}`} onClick={() => onStep(-step)}>
           <Minus className="size-4" aria-hidden />
@@ -68,6 +75,7 @@ function ExerciseStage({
   onSetDone,
   onSkipRest,
   onTrim,
+  notes,
 }: {
   day: WorkoutDay;
   unit: Unit;
@@ -85,6 +93,7 @@ function ExerciseStage({
   onSetDone: (index: number) => void;
   onSkipRest: () => void;
   onTrim: () => void;
+  notes: { line: string; cue: string }[];
 }) {
   const shown = day.exercises.slice(0, limit);
   const prescription = shown[active];
@@ -109,7 +118,7 @@ function ExerciseStage({
           <div className="h-full bg-brand" style={{ width: `${pct}%` }} />
         </div>
         {overTime && limit > active + 1 && (
-          <button type="button" className="btn-ghost mt-3 h-10 px-3 text-[12px]" onClick={onTrim}>
+          <button type="button" className="btn-ghost mt-3 h-11 px-3 text-[12px]" onClick={onTrim}>
             Trim remaining exercises
           </button>
         )}
@@ -128,7 +137,7 @@ function ExerciseStage({
                 </span>
                 <span>
                   <span className="block text-[15px] text-fg">{name}</span>
-                  <span className="text-[11px] uppercase tracking-[0.12em] text-muted">{finished ? "3/3 done" : progress.warmupDone ? "In progress" : `${item.sets}×${item.repsMin}`}</span>
+                  <span className="text-[12px] uppercase tracking-[0.12em] text-muted">{finished ? "3/3 done" : progress.warmupDone ? "In progress" : `${item.sets}×${item.repsMin}`}</span>
                 </span>
               </span>
             </button>
@@ -142,9 +151,11 @@ function ExerciseStage({
               <span className="grid size-8 place-items-center bg-brand text-[12px] text-[#111110]">{index + 1}</span>
               <div>
                 <p className="text-[17px] text-fg">{name}</p>
-                <p className="text-[11px] uppercase tracking-[0.12em] text-muted">{progress.warmupDone ? `Set ${Math.max(currentSet + 1, 1)} of 3` : "Warm-up"}</p>
+                <p className="text-[12px] uppercase tracking-[0.12em] text-muted">{progress.warmupDone ? `Set ${Math.max(currentSet + 1, 1)} of 3` : "Warm-up · 8 reps · not counted"}</p>
               </div>
             </div>
+            <p className="mt-3 text-[15px] leading-snug text-fg">{notes[index]?.line}</p>
+            {notes[index]?.cue ? <p className="mt-1 text-[13px] leading-relaxed text-muted">{notes[index].cue}</p> : null}
 
             <div className={cn("mt-4 grid gap-2", restLeft > 0 && "opacity-30")}>
               {progress.warmupDone &&
@@ -165,7 +176,7 @@ function ExerciseStage({
                 <div className="mt-2 flex gap-4">
                   {tracksWeight ? <BigStep label={unit} value={progress.warmupWeight} step={0.5} onStep={onWarmupStep} /> : <BigStep label="Weight" value="BW" onStep={() => undefined} />}
                   <div className="min-w-0 flex-1">
-                    <p className="text-center text-[11px] font-medium uppercase tracking-[0.16em] text-muted">Reps</p>
+                    <p className="text-center text-[12px] font-medium uppercase tracking-[0.16em] text-muted">Reps</p>
                     <div className="mt-2 flex h-16 items-center justify-center gap-2 bg-base-2 font-display text-[40px] text-fg">
                       <Lock className="size-4 text-muted" aria-hidden /> {WARMUP_REPS}
                     </div>
@@ -186,7 +197,7 @@ function ExerciseStage({
                 <div className="text-center">
                   <p className="text-[12px] uppercase tracking-[0.18em] text-muted">Rest</p>
                   <p className="font-display text-[88px] leading-none text-brand">{clock(restLeft)}</p>
-                  <button type="button" className="btn-ghost mt-3 h-10 px-4" onClick={onSkipRest}>
+                  <button type="button" className="btn-ghost mt-3 h-11 px-4" onClick={onSkipRest}>
                     Skip rest
                   </button>
                 </div>
@@ -199,7 +210,7 @@ function ExerciseStage({
                   disabled={Boolean(openSet && Number(openSet.reps) <= 0)}
                   onClick={progress.warmupDone ? () => onSetDone(currentSet) : onWarmupDone}
                 >
-                  Start
+                  {progress.warmupDone ? "Log set" : "Log warm-up"}
                 </button>
               )
             )}
@@ -229,6 +240,23 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
       }),
     [day, workouts, date, readiness, plan, intake.lowFuel],
   );
+  const notes = day.exercises.map((p, i) => {
+    const exercise = getExercise(p.exerciseId);
+    const tracksWeight = exercise?.tracksWeight !== false;
+    const last = lastPerformance(workouts, p.exerciseId, date);
+    const set = last?.sets[last.sets.length - 1];
+    const todayKg = suggestions[i]?.weightKg;
+    return {
+      line: performanceLine(
+        set ? set.reps : null,
+        set ? toDisplayWeight(set.weightKg, unit) : null,
+        todayKg != null && todayKg > 0 ? toDisplayWeight(todayKg, unit) : null,
+        unit,
+        tracksWeight,
+      ),
+      cue: exercise?.cue ?? "",
+    };
+  });
   const [drafts, setDrafts] = useState<ExerciseDraft[]>(() =>
     day.exercises.map((_, i) => {
       const s = suggestions[i];
@@ -348,6 +376,7 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
         }}
         onSkipRest={() => setRestUntil(null)}
         onTrim={() => setLimit(active + 1)}
+        notes={notes}
       />
       <button type="submit" className="btn-primary h-14 w-full text-sm">
         <Check className="size-4" aria-hidden /> Finish workout

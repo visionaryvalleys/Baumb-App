@@ -22,6 +22,26 @@ const BULLET = /^\s*(?:[-*•]|\d+[.)])\s+/;
 
 const ask = (question: string) => void askTrainer(question, buildHealthContext(getState()));
 
+/** True only when the server has a model key. Hidden until that check returns. */
+export function useTrainerEnabled() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancel = false;
+    void fetch("/api/ai/chat")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { enabled?: boolean } | null) => {
+        if (!cancel) setEnabled(data?.enabled === true);
+      })
+      .catch(() => {
+        if (!cancel) setEnabled(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, []);
+  return enabled;
+}
+
 function inline(text: string): ReactNode[] {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
@@ -148,6 +168,7 @@ function Composer({ id, onSend, streaming = false, placeholder = "Ask about your
 
 /** The full-screen conversation at /trainer. Answers stream in and use the user's own plan and logs. */
 export function TrainerChat() {
+  const enabled = useTrainerEnabled();
   const session = useSession();
   const { profile } = useAppState();
   const { turns, streaming } = useTrainerChat(session.user?.id ?? null);
@@ -164,6 +185,8 @@ export function TrainerChat() {
     pinned.current = true;
     ask(text);
   }
+
+  if (enabled !== true) return null;
 
   return (
     // Fills the screen below the header, so only the conversation scrolls and the question box stays in reach.

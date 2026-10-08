@@ -15,7 +15,7 @@ import { prepareTranscriber, transcribeSamples } from "@/lib/transcribe";
 import type { DailyActivity, MealItem, RecoveryEntry, Workout } from "@/lib/types";
 import { answerFromJournal, isVoiceQuestion } from "@/lib/voice-ask";
 import { parseVoiceUtterance, type VoiceDraft } from "@/lib/voice-log";
-import { TrainerSheet } from "./trainer";
+import { TrainerSheet, useTrainerEnabled } from "./trainer";
 import { cn } from "./ui";
 
 type Sheet = "log" | "answer" | "trainer" | null;
@@ -96,6 +96,7 @@ function commit(draft: VoiceDraft) {
 }
 
 export function VoiceLog() {
+  const trainerOn = useTrainerEnabled();
   const catalogue = useFoodCatalogue();
   const [listening, setListening] = useState(false);
   const [reading, setReading] = useState(false);
@@ -295,15 +296,17 @@ export function VoiceLog() {
       )}
 
       <div className="fixed bottom-5 right-4 z-40 flex flex-col items-end gap-2.5 pb-[env(safe-area-inset-bottom)]">
-        <button
-          type="button"
-          onClick={() => (rendered === "trainer" && !closing ? closeSheet() : openSheet("trainer"))}
-          className="glass grid h-12 w-12 place-items-center rounded-2xl text-white"
-          aria-label="BAUMB Trainer"
-          aria-pressed={rendered === "trainer" && !closing}
-        >
-          <MessageCircle className="size-5" aria-hidden />
-        </button>
+        {trainerOn === true && (
+          <button
+            type="button"
+            onClick={() => (rendered === "trainer" && !closing ? closeSheet() : openSheet("trainer"))}
+            className="glass grid h-12 w-12 place-items-center rounded-2xl text-white"
+            aria-label="BAUMB Trainer"
+            aria-pressed={rendered === "trainer" && !closing}
+          >
+            <MessageCircle className="size-5" aria-hidden />
+          </button>
+        )}
         <button
           type="button"
           onClick={talk}

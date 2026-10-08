@@ -37,6 +37,10 @@ function readMessages(raw: unknown): ChatMessage[] {
   return messages;
 }
 
+export async function GET() {
+  return Response.json({ enabled: aiEnabled() }, { headers: { "Cache-Control": "no-store" } });
+}
+
 export async function POST(req: NextRequest) {
   try {
     assertSameOrigin(req);

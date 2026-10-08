@@ -72,8 +72,8 @@ function MealBlock({
             <span className="text-white/30"> (aim {meal.target.calories} kcal)</span>
           </div>
         </div>
-        <button type="button" className={cn("btn-ghost h-9 px-3 text-sm", logged && "text-brand")} onClick={onLog} disabled={logged || meal.items.length === 0}>
-          {logged ? <Check className="size-4" aria-hidden /> : <Utensils className="size-4" aria-hidden />} {logged ? "Logged" : "Log this meal"}
+        <button type="button" className={cn("btn-ghost h-11 px-3 text-sm", logged && "text-brand")} onClick={onLog} disabled={logged || meal.items.length === 0}>
+          {logged ? <Check className="size-4" aria-hidden /> : <Utensils className="size-4" aria-hidden />} {logged ? "Logged" : "Add"}
         </button>
       </div>
       <ul className="space-y-2">

@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { DEFAULT_MEAL_PLAN, buildMealPlan } from "@/calculations/meal-plan";
-import { activeMealSlots, calculateDailyNutrition, calculateItemNutrition, gramsForServing, intakeAbnormal, mealLabel, mealSlotForTime, nutritionProgress, quantityForGrams } from "@/calculations/nutrition";
+import { activeMealSlots, calculateDailyNutrition, calculateItemNutrition, gramsForServing, intakeAbnormal, mealLabel, mealSlotForTime, nutritionProgress } from "@/calculations/nutrition";
 import { findFood, foodPool } from "@/data/foods";
 import { useFoodCatalogue } from "@/lib/food-catalogue";
 import { localMinutes, zonedInstant } from "@/lib/date";
-import type { MealItem } from "@/lib/types";
 import { useDaySummary, useToday } from "@/lib/hooks";
 import { actions, newId, useAppState } from "@/lib/store";
 import { ProgressRing } from "../charts";
@@ -55,36 +54,6 @@ export function NutritionView() {
     const finished = suggestion?.meals.every((meal) => day.byMeal[meal.slot.id]);
     return finished ? intakeAbnormal(day.totals.calories, cal.target) : null;
   })();
-  const seeded = useRef("");
-
-  useEffect(() => {
-    if (date !== today || profile.mealsPerDay == null || !suggestion || day.totals) return;
-    if (catalogue.status === "idle" || catalogue.status === "loading") return;
-    const key = `${date}:${profile.mealsPerDay}:${mealPlan?.diet ?? "nonveg"}`;
-    if (seeded.current === key) return;
-    seeded.current = key;
-    const plan = suggestion;
-    const items: MealItem[] = plan.meals.flatMap((meal) =>
-      meal.items.map((item, i) => {
-        const serving = item.unitGrams ? item.food.servings[0] : undefined;
-        return {
-          id: newId(),
-          foodId: item.food.id,
-          foodName: item.food.name,
-          servingId: serving ? serving.id : null,
-          servingLabel: serving ? serving.label : "g",
-          quantity: serving ? quantityForGrams(serving.grams, item.grams) : item.grams,
-          grams: item.grams,
-          meal: meal.slot.id,
-          timestamp: zonedInstant(date, meal.slot.minutes, profile.timezone) + i,
-          timezone: profile.timezone,
-          date,
-          nutrition: item.nutrition,
-        };
-      }),
-    );
-    if (items.length) actions.addMealItems(items);
-  }, [catalogue.status, date, day.totals, mealPlan?.diet, profile.mealsPerDay, profile.timezone, suggestion, today]);
 
   return (
     <div className="space-y-4">

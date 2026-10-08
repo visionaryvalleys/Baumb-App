@@ -8,6 +8,35 @@ import { G_PER_WORKOUT, REWARDS, WINNER_SPAN_DAYS, gBalance, isBoardEligible, wo
 import { actions, getState, useAppState } from "@/lib/store";
 import { Card, CardTitle, EmptyState } from "../ui";
 
+export function RankStrip() {
+  const state = useAppState();
+  const [board, setBoard] = useState<BoardSnapshot | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancel = false;
+    void publishBoard(state)
+      .then(() => loadBoard())
+      .then((next) => {
+        if (!cancel) setBoard(next);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancel) setReady(true);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [state]);
+
+  if (!ready) return null;
+  const name = [state.profile.firstName, state.profile.lastName].filter(Boolean).join(" ").trim() || "Athlete";
+  const place = board?.standings.findIndex((row) => row.name === name) ?? -1;
+  const line = place >= 0 ? `${place + 1}. ${name}` : "Complete two training days and your name appears here.";
+
+  return <p className="text-[15px] leading-snug text-white/80">{line}</p>;
+}
+
 export function RewardsBoard({ listOnly = false, shopOnly = false }: { listOnly?: boolean; shopOnly?: boolean }) {
   const state = useAppState();
   const [board, setBoard] = useState<BoardSnapshot | null>(null);

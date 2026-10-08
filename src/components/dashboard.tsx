@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Beef,
@@ -20,10 +19,10 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import { evaluateAdaptivePlan } from "@/calculations/review";
-import { formatDate } from "@/lib/date";
+import { formatDate, weekdayIndex } from "@/lib/date";
 import { useDaySummary, useToday, useUnit } from "@/lib/hooks";
-import { signOut } from "@/lib/session";
 import { useAppState } from "@/lib/store";
+import type { PlanVersion } from "@/lib/types";
 import { formatWeight, toDisplayWeight } from "@/lib/units";
 import { useProjection } from "@/lib/use-projection";
 import { ProgressRing } from "./charts";
@@ -32,11 +31,11 @@ import { EnergyBreakdown } from "./energy-breakdown";
 import { CountUp } from "./count-up";
 import { BigNumber, Card, CardTitle, KindTag, Meter, PageHeader, SectionLabel, cn } from "./ui";
 
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
+function nextSessionName(plan: PlanVersion | null, today: string) {
+  if (!plan?.workout.days.length) return null;
+  const wd = weekdayIndex(today);
+  const days = [...plan.workout.days].sort((a, b) => a.weekday - b.weekday);
+  return (days.find((day) => day.weekday > wd) ?? days[0])?.name ?? null;
 }
 
 function TodayStat({
@@ -47,7 +46,6 @@ function TodayStat({
   unit,
   target,
   current,
-  kind,
   hint,
   gold,
 }: {
@@ -58,7 +56,6 @@ function TodayStat({
   unit?: string;
   target?: number;
   current?: number;
-  kind: "recorded" | "estimated" | "calculated" | "missing";
   hint: string;
   gold?: boolean;
 }) {
@@ -68,7 +65,6 @@ function TodayStat({
         <span className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-white/55">
           <Icon className="size-4 text-white/45" aria-hidden /> {label}
         </span>
-        <KindTag kind={kind} />
       </div>
       <BigNumber unit={unit} gold={gold}>
         {value == null ? "—" : <CountUp value={value} signed={signed} />}
@@ -91,7 +87,6 @@ function PlanRow({ icon: Icon, label, value }: { icon: typeof Flame; label: stri
 }
 
 export function Dashboard() {
-  const router = useRouter();
   const state = useAppState();
   const today = useToday();
   const unit = useUnit();
@@ -106,22 +101,23 @@ export function Dashboard() {
   const intake = summary.intake;
   const steps = summary.steps.value;
 
+  const nextName = nextSessionName(plan ?? null, today);
   const workout =
     summary.workouts.length > 0
-      ? { title: summary.workouts[0].name, meta: ["Done today"], icon: Check, cta: "Open workout", done: true }
+      ? { title: summary.workouts[0].name, meta: ["Done today"], icon: Check, cta: "Open workout", href: "/workout" }
       : summary.info.status === "vacation"
-        ? { title: "Vacation", meta: [summary.info.vacation?.pauseWorkouts ? "Training paused" : "Optional session"], icon: Palmtree, cta: "Open workout", done: false }
+        ? { title: "Vacation", meta: [summary.info.vacation?.pauseWorkouts ? "Training paused" : "Optional session"], icon: Palmtree, cta: "Open workout", href: "/workout" }
         : summary.info.status === "injury"
-          ? { title: "Injury day", meta: ["Rest"], icon: Moon, cta: "Open workout", done: false }
+          ? { title: "Injury day", meta: ["Rest"], icon: Moon, cta: "See the plan", href: "/plan" }
           : planned
             ? {
                 title: planned.name,
                 meta: [planned.focus, `${planned.exercises.length} exercises`, `~${planned.estimatedMinutes} min`],
                 icon: Dumbbell,
                 cta: "Start workout",
-                done: false,
+                href: "/workout",
               }
-            : { title: "Rest day", meta: [], icon: Moon, cta: "Open workout", done: false };
+            : { title: "Rest today", meta: nextName ? [`Next · ${nextName}`] : [], icon: Moon, cta: "See the plan", href: "/plan" };
 
   return (
     <>
@@ -130,57 +126,31 @@ export function Dashboard() {
         subtitle={formatDate(today, { weekday: "long", month: "long", day: "numeric" })}
         title={
           <>
-            {greeting()},
+            Hi
             <br />
             <span className="font-semibold">{name}</span>
           </>
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <section className="glass flex flex-col p-6" aria-labelledby="todays-workout">
-          <SectionLabel className="flex items-center gap-2">
-            <workout.icon className="size-4 text-brand" aria-hidden />
-            <span id="todays-workout">Train</span>
-          </SectionLabel>
-          <h2 className="mt-4 font-display text-[44px] font-medium uppercase leading-[0.85] text-fg">{workout.title}</h2>
-          {workout.meta.length > 0 && <p className="mt-3 text-[13px] text-white/60">{workout.meta.join(" · ")}</p>}
-          <Link href="/workout" className="btn-primary mt-6 h-12 w-full">
-            {workout.cta} <ArrowRight className="size-4" aria-hidden />
-          </Link>
-        </section>
-        <section className="glass flex flex-col p-6">
-          <SectionLabel className="flex items-center gap-2">
-            <Utensils className="size-4 text-brand" aria-hidden /> Eat
-          </SectionLabel>
-          <h2 className="mt-4 font-display text-[44px] font-medium uppercase leading-[0.85] text-fg">Log meal</h2>
-          <p className="mt-3 text-[13px] text-white/60">{intake ? `${Math.round(intake.calories)} kcal logged today` : "Add what you ate, right from home."}</p>
-          <Link href="/nutrition" className="btn-primary mt-6 h-12 w-full">
-            Log meal <ArrowRight className="size-4" aria-hidden />
-          </Link>
-        </section>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <button
-          type="button"
-          className="btn-ghost h-11"
-          onClick={() => {
-            void signOut().then(() => router.replace("/signin"));
-          }}
-        >
-          Logout
-        </button>
-        <Link href="/board" className="btn-ghost h-11">
-          Redeem
+      <section className="glass flex flex-col p-6" aria-labelledby="todays-workout">
+        <SectionLabel className="flex items-center gap-2">
+          <workout.icon className="size-4 text-brand" aria-hidden />
+          <span id="todays-workout">Train</span>
+        </SectionLabel>
+        <h2 className="mt-4 font-display text-[44px] font-medium uppercase leading-[0.85] text-fg">{workout.title}</h2>
+        {workout.meta.length > 0 && <p className="mt-3 text-[13px] text-white/60">{workout.meta.join(" · ")}</p>}
+        <Link href={workout.href} className="btn-primary mt-6 h-14 w-full">
+          {workout.cta} <ArrowRight className="size-4" aria-hidden />
         </Link>
-        <Link href="/vacation" className="btn-ghost h-11">
-          Vacation
-        </Link>
-        <Link href="/workouts" className="btn-ghost h-11">
-          History
-        </Link>
-      </div>
+      </section>
+      <Link href="/nutrition" className="mt-3 flex min-h-14 items-center justify-between gap-3 border border-line bg-card px-4">
+        <span className="text-[12px] font-semibold uppercase tracking-[0.16em] text-fg">Eat</span>
+        <span className="text-[15px] text-white/70">{intake ? `${Math.round(intake.calories)} kcal logged` : "Nothing logged yet"}</span>
+      </Link>
 
+      <details className="mt-6">
+        <summary className="cursor-pointer text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">Today</summary>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <TodayStat
           icon={Utensils}
@@ -189,7 +159,6 @@ export function Dashboard() {
           unit={intake ? "kcal" : undefined}
           current={intake?.calories}
           target={targets?.nutrition.calories}
-          kind={intake ? "recorded" : "missing"}
           hint={intake && targets ? `${Math.max(0, targets.nutrition.calories - intake.calories).toLocaleString()} kcal left of ${targets.nutrition.calories.toLocaleString()}` : "No food logged yet today"}
         />
         <TodayStat
@@ -198,7 +167,6 @@ export function Dashboard() {
           value={summary.balance}
           signed
           unit={summary.balance == null ? undefined : "kcal"}
-          kind={summary.balance == null ? "missing" : "calculated"}
           hint={summary.energy ? `vs ~${summary.energy.total.toLocaleString()} kcal estimated expenditure` : "Needs a weigh-in and profile"}
         />
         <TodayStat
@@ -208,7 +176,6 @@ export function Dashboard() {
           unit={intake ? "g" : undefined}
           current={intake?.proteinG}
           target={targets?.nutrition.proteinG}
-          kind={intake ? "recorded" : "missing"}
           hint={targets ? `Target ${targets.nutrition.proteinG} g` : ""}
           gold
         />
@@ -218,7 +185,6 @@ export function Dashboard() {
           value={steps}
           current={steps ?? undefined}
           target={targets?.steps}
-          kind={steps != null ? "recorded" : "missing"}
           hint={steps != null ? `${summary.activity?.source === "manual" ? "Entered manually" : `From ${summary.activity?.source.replace("_", " ")}`}` : "No step data today"}
         />
       </div>
@@ -346,6 +312,10 @@ export function Dashboard() {
           </ul>
         </Card>
 
+      </div>
+      </details>
+
+      <div className="mt-4">
         <HomeVacation today={today} />
       </div>
     </>
