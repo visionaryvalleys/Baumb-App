@@ -58,9 +58,30 @@ export function AccountCard() {
           >
             <LogOut className="size-4" aria-hidden /> {busy ? "Signing out…" : "Sign out"}
           </button>
+          <button
+            type="button"
+            className="btn-ghost h-11 px-3 text-sm text-red-200"
+            disabled={busy}
+            onClick={() => {
+              if (!window.confirm("Delete your BAUMB account and the journal? This cannot be undone.")) return;
+              setBusy(true);
+              void fetch("/api/auth/account", { method: "DELETE", headers: { "content-type": "application/json" } })
+                .then(async (res) => {
+                  if (!res.ok) {
+                    setBusy(false);
+                    return;
+                  }
+                  await signOut().catch(() => undefined);
+                  router.replace("/signin");
+                })
+                .catch(() => setBusy(false));
+            }}
+          >
+            Delete account
+          </button>
         </div>
       </div>
-      <p className="mt-4 text-xs text-white/45">Everything you enter is saved to your BAUMB account, so it&apos;s there whenever you sign in. Your password is never stored as plain text.</p>
+      <p className="mt-4 text-xs leading-relaxed text-white/45">The journal is saved to your account. The password is stored as a hash, not as text. Meal estimates are sent only when you ask, under the <a href="/privacy" className="text-brand">privacy notice</a>.</p>
     </Card>
   );
 }

@@ -44,7 +44,15 @@ export async function openaiJson<T>(opts: AiJsonOptions): Promise<T> {
     {
       model: OPENAI_MODEL,
       instructions: opts.system,
-      input: [{ role: "user", content: opts.prompt }],
+      input: [{
+        role: "user",
+        content: opts.image
+          ? [
+              { type: "input_text", text: opts.prompt },
+              { type: "input_image", image_url: `data:${opts.image.mimeType};base64,${opts.image.data}` },
+            ]
+          : opts.prompt,
+      }],
       max_output_tokens: opts.maxTokens,
       reasoning: { effort: opts.effort },
       text: { format: { type: "json_schema", name: "answer", schema: opts.schema, strict: true } },

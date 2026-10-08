@@ -48,7 +48,13 @@ export async function geminiJson<T>(opts: AiJsonOptions): Promise<T> {
     "generateContent",
     {
       systemInstruction: { parts: [{ text: opts.system }] },
-      contents: [{ role: "user", parts: [{ text: opts.prompt }] }],
+      contents: [{
+        role: "user",
+        parts: [
+          { text: opts.prompt },
+          ...(opts.image ? [{ inlineData: { mimeType: opts.image.mimeType, data: opts.image.data } }] : []),
+        ],
+      }],
       generationConfig: { responseMimeType: "application/json", responseJsonSchema: opts.schema, maxOutputTokens: opts.maxTokens, thinkingConfig: { thinkingLevel: opts.effort } },
     },
     AbortSignal.timeout(opts.timeoutMs),

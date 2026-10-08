@@ -281,7 +281,8 @@ async function authenticate(path: string, payload: Record<string, string>): Prom
 }
 
 export const signIn = (email: string, password: string) => authenticate("/api/auth/signin", { email, password });
-export const signUp = (name: string, email: string, password: string) => authenticate("/api/auth/signup", { name, email, password });
+export const signUp = (name: string, email: string, password: string) =>
+  authenticate("/api/auth/signup", { name, email, password, ageConfirmed: "yes", aiConsent: "yes" });
 
 export async function signOut() {
   if (timer != null) {

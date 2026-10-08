@@ -27,6 +27,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -39,7 +40,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const problem = mode === "signup" ? (validateName(name) ?? validateEmail(email) ?? validatePassword(password)) : !email.trim() || !password ? "Enter your email and password." : null;
+    const problem = mode === "signup"
+      ? (validateName(name) ?? validateEmail(email) ?? validatePassword(password) ?? (agreed ? null : "Confirm you are 16 or older and agree to the privacy notice."))
+      : !email.trim() || !password ? "Enter your email and password." : null;
     if (problem) {
       setError(problem);
       return;
@@ -99,6 +102,18 @@ export function AuthForm({ mode }: { mode: Mode }) {
             </p>
           )}
         </div>
+
+        {mode === "signup" && (
+          <label className="flex items-start gap-3 text-sm leading-relaxed text-white/70">
+            <input type="checkbox" className="mt-1 size-4 accent-brand" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+            <span>
+              I am 16 or older. I agree that a meal I describe, and a photo if I add one, is sent to the configured model provider to estimate nutrition.{" "}
+              <Link href="/privacy" className="font-semibold text-brand">Privacy</Link>
+              {" · "}
+              <Link href="/terms" className="font-semibold text-brand">Terms</Link>
+            </span>
+          </label>
+        )}
 
         {error && (
           <p role="alert" className="rounded-control border border-danger/40 bg-danger/15 px-3.5 py-2.5 text-sm text-red-100 backdrop-blur-md">

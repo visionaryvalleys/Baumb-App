@@ -54,6 +54,15 @@ export async function readPhoto(userId: string, photoId: string): Promise<Uint8A
   }
 }
 
+export async function deleteAccountPhotos(userId: string, state: { photos?: { id?: string; objectKey?: string }[] } | null): Promise<void> {
+  if (!photosConfigured()) return;
+  const keys = (state?.photos ?? []).flatMap((photo) => {
+    if (photo.objectKey) return [photo.objectKey];
+    return photo.id && PHOTO_ID.test(photo.id) ? [photoObjectKey(userId, photo.id)] : [];
+  });
+  await Promise.all(keys.map((key) => deletePhotoObject(key).catch(() => undefined)));
+}
+
 async function deletePhotoObject(key: string): Promise<void> {
   try {
     await client().send(new DeleteObjectCommand({ Bucket: bucket(), Key: key }));

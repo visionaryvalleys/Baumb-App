@@ -6,6 +6,11 @@ import { OPENAI_MODEL, openaiJson, openaiStream } from "./openai";
 export type { ChatMessage, Effort };
 export type AiProvider = "gemini" | "openai" | "anthropic";
 
+export interface AiImage {
+  mimeType: "image/jpeg" | "image/png" | "image/webp";
+  data: string;
+}
+
 export interface AiJsonOptions {
   system: string;
   prompt: string;
@@ -14,6 +19,7 @@ export interface AiJsonOptions {
   effort: Effort;
   timeoutMs: number;
   cacheKey?: string;
+  image?: AiImage;
 }
 
 export interface AiStreamOptions {

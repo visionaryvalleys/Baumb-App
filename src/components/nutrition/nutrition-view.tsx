@@ -15,6 +15,7 @@ import { EnergyBreakdown } from "../energy-breakdown";
 import { Card, CardTitle, KindTag, Meter, Segmented } from "../ui";
 import { IntakeImpactCard } from "./intake-impact-card";
 import { AddMealForm, MealCard, PastMealCard } from "./meal-card";
+import { MealEstimate } from "./meal-estimate";
 import { MealPlanCard } from "./meal-plan-card";
 import { VacationCard } from "./vacation-card";
 
@@ -66,6 +67,8 @@ export function NutritionView() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
+          <MealEstimate />
+
           {addingMeal && <AddMealForm onDone={() => setAddingMeal(false)} />}
 
           {profile.mealsPerDay == null && (

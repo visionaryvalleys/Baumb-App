@@ -44,13 +44,21 @@ async function failure(res: Response): Promise<HttpError> {
 }
 
 /** One request whose answer is guaranteed to match `schema` (structured outputs). */
-export async function claudeJson<T>(opts: { system: string; prompt: string; schema: object; maxTokens: number; effort: Effort; timeoutMs: number }): Promise<T> {
+export async function claudeJson<T>(opts: { system: string; prompt: string; schema: object; maxTokens: number; effort: Effort; timeoutMs: number; image?: { mimeType: string; data: string } }): Promise<T> {
   const res = await post(
     {
       model: AI_MODEL,
       max_tokens: opts.maxTokens,
       system: systemBlocks(opts.system),
-      messages: [{ role: "user", content: opts.prompt }],
+      messages: [{
+        role: "user",
+        content: opts.image
+          ? [
+              { type: "image", source: { type: "base64", media_type: opts.image.mimeType, data: opts.image.data } },
+              { type: "text", text: opts.prompt },
+            ]
+          : opts.prompt,
+      }],
       output_config: { effort: opts.effort, format: { type: "json_schema", schema: opts.schema } },
     },
     AbortSignal.timeout(opts.timeoutMs),

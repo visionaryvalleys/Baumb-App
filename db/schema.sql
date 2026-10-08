@@ -5,8 +5,12 @@ CREATE TABLE IF NOT EXISTS users (
   name            TEXT NOT NULL,
   password_hash   TEXT NOT NULL,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  last_sign_in_at TIMESTAMPTZ
+  last_sign_in_at TIMESTAMPTZ,
+  age_confirmed   BOOLEAN NOT NULL DEFAULT FALSE,
+  ai_consent_at   TIMESTAMPTZ
 );
+ALTER TABLE users ADD COLUMN IF NOT EXISTS age_confirmed BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_consent_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash TEXT PRIMARY KEY,
