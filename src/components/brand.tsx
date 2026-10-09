@@ -13,7 +13,7 @@ export function BaumbLogo({ className, href = "/" }: { className?: string; href?
         <rect x="13" y="13" width="13" height="13" rx="2" className="fill-none stroke-fg" strokeWidth="1.6" />
         <rect x="17" y="17" width="5" height="5" rx="1" className="fill-brand" />
       </svg>
-      <span className="font-display text-[22px] font-medium uppercase leading-none tracking-[0.02em] text-fg">Baumb</span>
+      <span className="text-[18px] font-semibold leading-none tracking-[-0.02em] text-fg">Baumb</span>
     </Link>
   );
 }
@@ -85,7 +85,7 @@ export function MenuOverlay({
       aria-hidden={!open}
       inert={!open}
     >
-      <div className="relative mx-auto flex h-14 w-full max-w-[1180px] items-center justify-between border-x border-line px-4">
+      <div className="relative mx-auto flex h-14 w-full max-w-[480px] items-center justify-between px-1">
         <BaumbLogo />
         <button
           type="button"
@@ -100,7 +100,7 @@ export function MenuOverlay({
         </button>
       </div>
 
-      <nav className="relative mx-auto mt-8 grid min-h-0 w-full max-w-[1180px] flex-1 content-start gap-x-8 gap-y-1 overflow-y-auto border-x border-line px-4 pb-6 sm:mt-12 sm:grid-cols-2">
+      <nav className="relative mx-auto mt-6 grid min-h-0 w-full max-w-[480px] flex-1 content-start gap-1 overflow-y-auto px-1 pb-6">
         {links.map((link, i) => {
           const active = activeHref === link.href;
           const style: CSSProperties = {
@@ -116,7 +116,7 @@ export function MenuOverlay({
               style={style}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "group flex items-center justify-between px-3 py-2 font-display text-[32px] font-medium uppercase leading-none tracking-[-0.02em] sm:text-[40px]",
+                "group flex min-h-11 items-center justify-between rounded-2xl px-3 py-2 text-[17px] font-medium tracking-[-0.01em]",
                 active ? "text-fg" : "text-muted hover:text-fg",
               )}
             >
@@ -130,7 +130,7 @@ export function MenuOverlay({
         })}
       </nav>
 
-      <div className="relative mx-auto w-full max-w-[1180px] border-x border-line px-4">
+      <div className="relative mx-auto w-full max-w-[480px] px-1">
         <Link href={cta.href} onClick={onClose} className="btn-primary h-14 w-full">
           {cta.label} <ArrowRight className="size-4" aria-hidden />
         </Link>

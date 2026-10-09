@@ -12,7 +12,7 @@ export function Card({ className, children }: { className?: string; children: Re
 export function CardTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className="mb-5 flex min-h-6 items-center justify-between gap-3">
-      <h2 className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">{children}</h2>
+      <h2 className="text-[13px] font-medium text-white/70">{children}</h2>
       {action}
     </div>
   );
@@ -35,10 +35,10 @@ export function PageHeader({
         {subtitle && (
           <div className="mb-3 flex items-center gap-2">
             {Icon && <Icon className="size-4 text-brand" aria-hidden />}
-            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">{subtitle}</span>
+            <span className="text-[13px] text-muted">{subtitle}</span>
           </div>
         )}
-        <h1 className="font-display text-[52px] font-medium uppercase leading-[0.82] tracking-[-0.02em] text-fg sm:text-[76px]">{title}</h1>
+        <h1 className="text-[1.7rem] font-semibold leading-[1.15] tracking-[-0.03em] text-fg">{title}</h1>
       </div>
       {action}
     </header>
@@ -61,10 +61,10 @@ export function StatCard({
   return (
     <Card className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">{label}</span>
+        <span className="text-[13px] font-medium text-white/60">{label}</span>
         <Icon className="size-4 text-white/45" aria-hidden />
       </div>
-      <div className={cn("font-display text-[52px] font-medium leading-none tracking-[-0.03em] tabular-nums sm:text-[64px]", gold ? "text-brand" : "text-fg")}>{value}</div>
+      <div className={cn("text-[2.4rem] font-semibold leading-none tracking-[-0.03em] tabular-nums", gold ? "text-brand" : "text-fg")}>{value}</div>
       {hint && <div className="text-xs text-white/50">{hint}</div>}
     </Card>
   );
@@ -83,10 +83,10 @@ export function EmptyState({
 }) {
   return (
     <div className="glass flex flex-col items-start rounded-card px-6 py-12 sm:px-10 sm:py-14">
-      <span className="mb-6 grid size-12 place-items-center border border-line text-brand">
+      <span className="mb-6 grid size-12 place-items-center rounded-full bg-white/[0.06] text-brand ring-1 ring-white/10">
         <Icon className="size-6" aria-hidden />
       </span>
-      <h3 className="font-display text-[40px] font-medium uppercase leading-[0.85] tracking-[-0.02em] text-fg sm:text-[52px]">{title}</h3>
+      <h3 className="text-[1.55rem] font-semibold leading-tight tracking-[-0.03em] text-fg">{title}</h3>
       <p className="mt-3 max-w-md text-[15px] leading-relaxed text-white/60">{description}</p>
       {children && <div className="mt-8 flex flex-wrap gap-3">{children}</div>}
     </div>
@@ -95,7 +95,7 @@ export function EmptyState({
 
 export function Badge({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <span className={cn("inline-flex items-center rounded-md bg-white/[0.08] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-white/80", className)}>
+    <span className={cn("inline-flex items-center rounded-full bg-white/[0.08] px-2.5 py-0.5 text-[11px] font-medium text-white/80", className)}>
       {children}
     </span>
   );
@@ -178,7 +178,7 @@ export function Segmented<T extends string | number>({
   size?: "sm" | "md";
 }) {
   return (
-    <div className={cn("flex w-full max-w-full flex-wrap gap-px border border-line bg-line", className)} role="radiogroup">
+    <div className={cn("flex w-full max-w-full flex-wrap gap-1 rounded-[22px] border border-line bg-white/[0.04] p-1", className)} role="radiogroup">
       {options.map((o) => (
         <button
           key={String(o.value)}
@@ -187,9 +187,9 @@ export function Segmented<T extends string | number>({
           aria-checked={o.value === value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "min-w-0 flex-1 basis-[40%] whitespace-normal text-center font-medium leading-tight uppercase tracking-[0.06em] transition duration-200",
-            size === "sm" ? "px-1.5 py-1.5 text-[10px]" : "px-2 py-2.5 text-[11px]",
-            o.value === value ? "bg-brand text-[#111110]" : "bg-base text-muted hover:text-fg",
+            "min-h-11 min-w-0 flex-1 basis-[40%] whitespace-normal rounded-[16px] text-center font-medium leading-tight transition duration-200",
+            size === "sm" ? "px-1.5 py-1.5 text-[12px]" : "px-2 py-2 text-[13px]",
+            o.value === value ? "bg-brand text-[#111110]" : "bg-transparent text-muted",
           )}
         >
           {o.label}
@@ -200,12 +200,12 @@ export function Segmented<T extends string | number>({
 }
 
 export function SectionLabel({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45", className)}>{children}</div>;
+  return <div className={cn("text-[13px] font-medium text-white/55", className)}>{children}</div>;
 }
 
 export function BigNumber({ children, unit, gold, className }: { children: ReactNode; unit?: ReactNode; gold?: boolean; className?: string }) {
   return (
-    <div className={cn("font-display text-[48px] font-medium leading-none tracking-[-0.03em] tabular-nums sm:text-[60px]", gold ? "text-brand" : "text-fg", className)}>
+    <div className={cn("text-[2.15rem] font-semibold leading-none tracking-[-0.03em] tabular-nums", gold ? "text-brand" : "text-fg", className)}>
       {children}
       {unit && <span className={cn("ml-1.5 text-[15px] font-medium tracking-normal", gold ? "text-brand/60" : "text-white/40")}>{unit}</span>}
     </div>

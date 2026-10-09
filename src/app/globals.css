@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-jetbrains), "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
-  --font-mono: var(--font-jetbrains), "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
-  --font-display: var(--font-stencil), "Big Shoulders Stencil", "Arial Narrow", sans-serif;
+  --font-sans: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
 }
 
 @theme {
-  /* Surfaces match the stencil grid: charcoal paper, hairline cells. */
-  --color-base: #121211;
-  --color-base-2: #1c1c1b;
-  --color-card: #1c1c1b;
-  --color-elevated: #232322;
-  --color-line: rgb(236 235 230 / 0.14);
-  --color-line-strong: rgb(236 235 230 / 0.22);
+  /* Dark green field, with surfaces a step lighter than the page. */
+  --color-base: #121a17;
+  --color-base-2: #1b2622;
+  --color-card: #1a2420;
+  --color-elevated: #24302b;
+  --color-line: rgb(255 255 255 / 0.1);
+  --color-line-strong: rgb(255 255 255 / 0.16);
 
   /* Text */
-  --color-fg: #ecebe6;
-  --color-muted: #8a8984;
-  --color-subtle: #7c7c77;
+  --color-fg: #f4f6f4;
+  --color-muted: #9aa39c;
+  --color-subtle: #7f8a84;
 
   /* Accents. `brand` follows the user's accent setting. */
   --color-brand: #ff6a1a;
@@ -33,11 +33,11 @@
   --color-iris: #c4b0dc;
 
   /* Legacy names kept so existing classes resolve to the new palette */
-  --color-bm-night: #121211;
-  --color-bm-dark: #1c1c1b;
+  --color-bm-night: #121a17;
+  --color-bm-dark: #1b2622;
   --color-bm-yellow: var(--color-brand);
   --color-bm-red: var(--color-danger);
-  --color-surface: #1c1c1b;
+  --color-surface: #1a2420;
   --color-surface-raised: rgb(236 235 230 / 0.05);
 
   --breakpoint-sm: 240rem;
@@ -46,8 +46,8 @@
   --breakpoint-xl: 240rem;
   --breakpoint-2xl: 240rem;
 
-  --radius-card: 0px;
-  --radius-control: 2px;
+  --radius-card: 24px;
+  --radius-control: 18px;
 
   --shadow-card: none;
   --shadow-lift: none;
@@ -225,9 +225,8 @@
 }
 
 body {
-  background: #0c0c0b;
+  background: #0c100f;
   color: var(--color-fg);
-  font-feature-settings: "ss02";
 }
 
 ::selection {
@@ -245,11 +244,12 @@ body {
   scrollbar-color: rgb(255 255 255 / 0.14) transparent;
 }
 
-/* Flat grid cell. Hairline border, no blur. */
+/* Soft raised surface. Radius comes from the card token so every panel matches. */
 @utility glass {
   background: var(--color-card);
   border: 1px solid var(--color-line);
-  box-shadow: none;
+  border-radius: var(--radius-card);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
 }
 
 /* Quiet inset panel inside a card. */
@@ -335,7 +335,7 @@ input[type="number"] {
 }
 
 @utility btn-primary {
-  @apply btn-base bg-brand text-[12px] uppercase tracking-[0.14em] text-[#111110] hover:bg-brand-strong;
+  @apply btn-base bg-brand text-sm text-[#111110] hover:bg-brand-strong;
 }
 
 @utility btn-ghost {

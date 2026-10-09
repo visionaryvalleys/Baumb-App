@@ -51,7 +51,7 @@ function BigStep({ label, value, onStep, step = 1 }: { label: string; value: str
         <button type="button" className="grid size-11 place-items-center border border-line text-fg" aria-label={`Decrease ${label}`} onClick={() => onStep(-step)}>
           <Minus className="size-4" aria-hidden />
         </button>
-        <span className="grid h-16 min-w-16 place-items-center bg-base-2 px-3 font-display text-[40px] leading-none text-fg">{value || "0"}</span>
+        <span className="grid h-16 min-w-16 place-items-center rounded-2xl bg-base-2 px-3 text-[2rem] font-semibold leading-none text-fg">{value || "0"}</span>
         <button type="button" className="grid size-11 place-items-center border border-line text-fg" aria-label={`Increase ${label}`} onClick={() => onStep(step)}>
           <Plus className="size-4" aria-hidden />
         </button>
@@ -110,7 +110,7 @@ function ExerciseStage({
     <div className="grid gap-3">
       <div>
         <div className="flex items-end justify-between gap-3">
-          <h2 className="font-display text-[36px] font-medium uppercase leading-[0.85] text-fg">{day.name}</h2>
+          <h2 className="text-[1.55rem] font-semibold leading-tight tracking-[-0.03em] text-fg">{day.name}</h2>
           <span className="text-[13px] tabular-nums text-brand">{pct}%</span>
         </div>
         <p className="mt-2 text-[12px] uppercase tracking-[0.14em] text-muted">
@@ -179,7 +179,7 @@ function ExerciseStage({
                   {tracksWeight ? <BigStep label={unit} value={progress.warmupWeight} step={0.5} onStep={onWarmupStep} /> : <BigStep label="Weight" value="BW" onStep={() => undefined} />}
                   <div className="min-w-0 flex-1">
                     <p className="text-center text-[12px] font-medium uppercase tracking-[0.16em] text-muted">Reps</p>
-                    <div className="mt-2 flex h-16 items-center justify-center gap-2 bg-base-2 font-display text-[40px] text-fg">
+                    <div className="mt-2 flex h-16 items-center justify-center gap-2 rounded-2xl bg-base-2 text-[2rem] font-semibold text-fg">
                       <Lock className="size-4 text-muted" aria-hidden /> {WARMUP_REPS}
                     </div>
                   </div>
@@ -198,7 +198,7 @@ function ExerciseStage({
               <div className="absolute inset-0 grid place-items-center bg-base/80">
                 <div className="text-center">
                   <p className="text-[12px] uppercase tracking-[0.18em] text-muted">Rest</p>
-                  <p className="font-display text-[88px] leading-none text-brand">{clock(restLeft)}</p>
+                  <p className="text-[4.5rem] font-semibold leading-none text-brand">{clock(restLeft)}</p>
                   <button type="button" className="btn-ghost mt-3 h-11 px-4" onClick={onSkipRest}>
                     Skip rest
                   </button>

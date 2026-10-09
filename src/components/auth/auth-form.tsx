@@ -64,7 +64,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   return (
     <div className="text-center animate-fade-slide-up anim-delay-200">
       <p className="eyebrow">{mode === "signin" ? "Welcome back" : "Train. Track. Transform."}</p>
-      <h1 className="mt-3 font-display text-[56px] font-medium uppercase leading-[0.82] tracking-[-0.03em] text-fg sm:text-[68px]">
+      <h1 className="mt-3 text-[2rem] font-semibold leading-[1.1] tracking-[-0.03em] text-fg">
         {mode === "signin" ? "Sign " : "Create your "}
         <span className="font-semibold">{mode === "signin" ? "in" : "account"}</span>
       </h1>

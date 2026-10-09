@@ -5,18 +5,13 @@ export function Aurora({ className }: { className?: string; intensity?: number }
   return <div className={cn("pointer-events-none absolute inset-0", className)} aria-hidden />;
 }
 
-/** Full-page ground: charcoal paper with a hairline grid, matching the stencil layout. */
+/** Full-page ground: a dark green field, lighter toward the top. */
 export function Backdrop({ fixed = true }: { photoOpacity?: number; fixed?: boolean }) {
   return (
-    <div className={cn(fixed ? "fixed" : "absolute", "inset-0 z-0 bg-[#0c0c0b]")} aria-hidden>
-      <div
-        className="absolute inset-0 opacity-70"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, rgb(236 235 230 / 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgb(236 235 230 / 0.08) 1px, transparent 1px)",
-          backgroundSize: "72px 72px",
-        }}
-      />
-    </div>
+    <div
+      className={cn(fixed ? "fixed" : "absolute", "inset-0 z-0 bg-[#0c100f]")}
+      style={{ backgroundImage: "radial-gradient(120% 70% at 50% -10%, #24382e 0%, #121816 46%, #0c100f 100%)" }}
+      aria-hidden
+    />
   );
 }

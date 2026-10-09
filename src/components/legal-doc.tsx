@@ -5,7 +5,7 @@ export function LegalDoc({ title, updated, children }: { title: string; updated:
   return (
     <article className="mx-auto w-full max-w-[480px] px-4 py-8 text-fg">
       <p className="text-[12px] uppercase tracking-[0.14em] text-muted">BAUMB · India</p>
-      <h1 className="mt-2 font-display text-[40px] uppercase leading-[0.9]">{title}</h1>
+      <h1 className="mt-2 text-[1.7rem] font-semibold leading-tight tracking-[-0.03em]">{title}</h1>
       <p className="mt-2 text-sm text-muted">Last updated {updated}</p>
       <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-white/80">{children}</div>
       <p className="mt-8 text-sm">

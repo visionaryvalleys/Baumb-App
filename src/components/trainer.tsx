@@ -113,13 +113,15 @@ function Thinking() {
 function Turn({ turn }: { turn: ChatTurn }) {
   if (turn.role === "user") {
     return (
-      <div className="flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-brand/15 px-4 py-2.5 text-[15px] leading-relaxed text-white ring-1 ring-inset ring-brand/25">{turn.content}</div>
+      <div className="flex justify-center">
+        <div className="max-w-[92%] whitespace-pre-wrap rounded-[22px] bg-white/[0.07] px-4 py-2.5 text-center text-[14px] leading-snug text-white/80 ring-1 ring-inset ring-white/10">{turn.content}</div>
       </div>
     );
   }
   return (
-    <div className={cn("space-y-2.5 text-[15px] leading-relaxed text-white/80", turn.failed && "text-amber-200/90")}>{turn.content ? <RichText text={turn.content} /> : <Thinking />}</div>
+    <div className={cn("rounded-[24px] bg-white/[0.05] px-4 py-3.5 text-[15px] leading-relaxed text-white/85 ring-1 ring-inset ring-white/10", turn.failed && "text-amber-200/90")}>
+      <div className="space-y-2.5">{turn.content ? <RichText text={turn.content} /> : <Thinking />}</div>
+    </div>
   );
 }
 
@@ -135,7 +137,7 @@ function Composer({ id, onSend, streaming = false, placeholder = "Ask about your
   }
 
   return (
-    <form onSubmit={submit} className="relative">
+    <form onSubmit={submit} className="flex items-end gap-1.5 rounded-[28px] border border-white/10 bg-[#1b2622] py-1.5 pl-2 pr-1.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]">
       <label htmlFor={id} className="sr-only">
         Ask BAUMB Trainer
       </label>
@@ -143,7 +145,7 @@ function Composer({ id, onSend, streaming = false, placeholder = "Ask about your
         id={id}
         rows={Math.min(5, Math.max(1, draft.split("\n").length))}
         maxLength={2000}
-        className="field min-h-[3.25rem] resize-none py-3.5 pr-14 leading-relaxed"
+        className="max-h-36 min-h-11 flex-1 resize-none bg-transparent px-3 py-2.5 text-base leading-snug text-white outline-none placeholder:text-white/35"
         placeholder={placeholder}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -157,7 +159,7 @@ function Composer({ id, onSend, streaming = false, placeholder = "Ask about your
       <button
         type="submit"
         disabled={!streaming && !draft.trim()}
-        className="absolute bottom-2 right-2 grid size-9 place-items-center rounded-full bg-brand text-[#05070b] transition hover:brightness-110 disabled:bg-white/10 disabled:text-white/30"
+        className="mb-0.5 grid size-11 shrink-0 place-items-center rounded-full bg-white/15 text-white transition active:bg-white/25 disabled:bg-white/[0.05] disabled:text-white/25"
         aria-label={streaming ? "Stop answer" : "Send question"}
       >
         {streaming ? <Square className="size-3.5 fill-current" aria-hidden /> : <ArrowUp className="size-4" aria-hidden />}
@@ -186,24 +188,25 @@ export function TrainerChat() {
     ask(text);
   }
 
-  if (enabled !== true) return null;
+  if (enabled === null) return null;
 
   return (
     // Fills the screen below the header, so only the conversation scrolls and the question box stays in reach.
-    <div className="-mb-[4.5rem] flex h-[calc(100dvh-72px-3.5rem)] min-h-[28rem] flex-col sm:h-[calc(100dvh-72px-4.5rem)]">
-      <header className="flex items-end justify-between gap-4 border-b border-white/[0.06] pb-5">
-        <div className="min-w-0">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-white/55">Your personal health &amp; fitness trainer</p>
-          <h1 className="mt-2 text-[32px] font-light leading-none tracking-[-0.035em] text-white sm:text-[42px]">
-            BAUMB <span className="font-semibold">Trainer</span>
-          </h1>
-        </div>
+    <div
+      className="-mx-4 -mb-[4.5rem] flex h-[calc(100dvh-72px-3.5rem)] min-h-[28rem] flex-col bg-[#0e1412] px-4 sm:h-[calc(100dvh-72px-4.5rem)]"
+      style={{
+        backgroundImage: "radial-gradient(120% 72% at 50% -12%, #24382e 0%, #121816 48%, #0c0f0e 100%)",
+        fontFamily: "Segoe UI, ui-sans-serif, system-ui, sans-serif",
+      }}
+    >
+      <div className="flex min-h-11 items-center justify-between">
+        <h1 className="text-[15px] font-medium tracking-[-0.01em] text-white/90">BAUMB Trainer</h1>
         {turns.length > 0 && (
-          <button type="button" onClick={clearTrainer} className="btn-ghost min-h-10 shrink-0 px-4 text-sm">
-            <RotateCcw className="size-4" aria-hidden /> New chat
+          <button type="button" onClick={clearTrainer} className="grid size-11 place-items-center rounded-full bg-white/[0.06] text-white/70 ring-1 ring-inset ring-white/10" aria-label="New chat">
+            <RotateCcw className="size-4" aria-hidden />
           </button>
         )}
-      </header>
+      </div>
 
       <div
         ref={listRef}
@@ -211,31 +214,30 @@ export function TrainerChat() {
           const el = e.currentTarget;
           pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
         }}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-6"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-4"
         aria-live="polite"
       >
         {turns.length > 0 ? (
-          <div className="mx-auto max-w-3xl space-y-6">
+          <div className="space-y-3">
             {turns.map((t) => (
               <Turn key={t.id} turn={t} />
             ))}
           </div>
         ) : (
-          <div className="mx-auto flex min-h-full max-w-3xl flex-col justify-center">
-            <h2 className="text-[24px] font-semibold tracking-[-0.025em] text-white sm:text-[28px]">
-              Hi {profile.firstName || "there"}, what are we working on today?
-            </h2>
-            <p className="mt-2 text-[15px] leading-relaxed text-white/55">I can see your plan, today&apos;s food and your last 7 days, so answers fit you, not an average person.</p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <div className="flex min-h-full flex-col justify-start pt-3 pb-4">
+            <p className="text-center text-[13px] text-white/50">Hi {profile.firstName || "there"}</p>
+            <h2 className="mx-auto mt-1.5 max-w-[16rem] text-center text-[1.55rem] font-semibold leading-[1.15] tracking-[-0.03em] text-white">What are we working on today?</h2>
+            <p className="mx-auto mt-2 max-w-[18rem] text-center text-[12px] leading-relaxed text-white/45">I can see your plan, today&apos;s food and your last 7 days, so answers fit you, not an average person.</p>
+            <div className="mx-auto mt-4 grid w-full grid-cols-2 gap-1 rounded-[28px] border border-white/10 bg-white/[0.04] p-1.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s.question}
                   type="button"
                   onClick={() => send(s.question)}
-                  className="glass rounded-card px-4 py-3.5 text-left transition hover:bg-white/[0.06] hover:ring-1 hover:ring-inset hover:ring-brand/30"
+                  className="flex min-h-11 flex-col justify-center rounded-[20px] px-3 py-2 text-left active:bg-white/[0.06]"
                 >
-                  <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">{s.topic}</span>
-                  <span className="mt-1 block text-[14px] leading-snug text-white/80">{s.question}</span>
+                  <span className="block text-[11px] text-white/40">{s.topic}</span>
+                  <span className="mt-0.5 block text-[13px] leading-snug text-white/85">{s.question}</span>
                 </button>
               ))}
             </div>
@@ -243,9 +245,9 @@ export function TrainerChat() {
         )}
       </div>
 
-      <div className="mx-auto w-full max-w-3xl">
-        <Composer id="trainer-input" onSend={send} streaming={streaming} />
-        <p className="mt-2 text-center text-[11px] text-white/35">{DISCLAIMER}</p>
+      <div className="bg-[#0e1412] pb-1 pr-16 pt-2">
+        <Composer id="trainer-input" onSend={send} streaming={streaming} placeholder="Ask anything…" />
+        <p className="mt-2 text-center text-[11px] leading-snug text-white/35">{DISCLAIMER}</p>
       </div>
     </div>
   );
@@ -270,9 +272,9 @@ export function TrainerSheet() {
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
         {SUGGESTIONS.map((item) => (
-          <button key={item.question} type="button" onClick={() => ask(item.question)} className="rounded-2xl bg-white/[0.05] px-3 py-2.5 text-left ring-1 ring-inset ring-white/10">
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">{item.topic}</span>
-            <span className="mt-1 block text-[13px] leading-snug text-white/80">{item.question}</span>
+          <button key={item.question} type="button" onClick={() => ask(item.question)} className="min-h-11 rounded-[22px] bg-white/[0.05] px-3 py-2.5 text-left ring-1 ring-inset ring-white/10">
+            <span className="block text-[10px] text-white/40">{item.topic}</span>
+            <span className="mt-1 block text-[13px] leading-snug text-white/85">{item.question}</span>
           </button>
         ))}
       </div>
@@ -316,7 +318,7 @@ export function TrainerPrompt() {
             key={s.question}
             type="button"
             onClick={() => send(s.question)}
-            className="rounded-full border border-white/10 bg-white/[0.02] px-3.5 py-1.5 text-left text-[13px] text-white/65 transition hover:border-brand/40 hover:bg-brand/[0.06] hover:text-white"
+            className="min-h-11 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-left text-[13px] text-white/70"
           >
             {s.question}
           </button>

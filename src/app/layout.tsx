@@ -1,16 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Big_Shoulders_Stencil, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-
-const mono = JetBrains_Mono({
-  variable: "--font-jetbrains",
-  subsets: ["latin"],
-});
-
-const stencil = Big_Shoulders_Stencil({
-  variable: "--font-stencil",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: {
@@ -24,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#121211",
+  themeColor: "#121a17",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -33,8 +22,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${mono.variable} ${stencil.variable} h-full antialiased`}>
-      <body className="min-h-full bg-[#0c0c0b] font-mono text-fg">{children}</body>
+    <html lang="en" className="h-full antialiased">
+      <body className="min-h-full bg-[#0c100f] font-sans text-fg">{children}</body>
     </html>
   );
 }

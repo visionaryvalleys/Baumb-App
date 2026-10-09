@@ -62,7 +62,7 @@ function TodayStat({
   return (
     <Card className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-white/55">
+        <span className="flex items-center gap-2 text-[13px] font-medium text-white/60">
           <Icon className="size-4 text-white/45" aria-hidden /> {label}
         </span>
       </div>
@@ -138,19 +138,19 @@ export function Dashboard() {
           <workout.icon className="size-4 text-brand" aria-hidden />
           <span id="todays-workout">Train</span>
         </SectionLabel>
-        <h2 className="mt-4 font-display text-[44px] font-medium uppercase leading-[0.85] text-fg">{workout.title}</h2>
+        <h2 className="mt-3 text-[1.7rem] font-semibold leading-tight tracking-[-0.03em] text-fg">{workout.title}</h2>
         {workout.meta.length > 0 && <p className="mt-3 text-[13px] text-white/60">{workout.meta.join(" · ")}</p>}
         <Link href={workout.href} className="btn-primary mt-6 h-14 w-full">
           {workout.cta} <ArrowRight className="size-4" aria-hidden />
         </Link>
       </section>
-      <Link href="/nutrition" className="mt-3 flex min-h-14 items-center justify-between gap-3 border border-line bg-card px-4">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.16em] text-fg">Eat</span>
+      <Link href="/nutrition" className="mt-3 flex min-h-14 items-center justify-between gap-3 rounded-[22px] border border-line bg-card px-4">
+        <span className="text-[15px] font-semibold text-fg">Eat</span>
         <span className="text-[15px] text-white/70">{intake ? `${Math.round(intake.calories)} kcal logged` : "Nothing logged yet"}</span>
       </Link>
 
       <details className="mt-6">
-        <summary className="cursor-pointer text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">Today</summary>
+        <summary className="cursor-pointer text-[15px] font-semibold text-white/80">Today</summary>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <TodayStat
           icon={Utensils}
