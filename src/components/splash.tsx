@@ -27,7 +27,7 @@ export function Splash({ next }: { next: string }) {
   }, [next, router]);
 
   return (
-    <div className={cn("fixed inset-0 grid place-items-center overflow-hidden bg-[#0c100f] transition-opacity duration-300", leaving && "opacity-0")}>
+    <div className={cn("page-ground fixed inset-0 grid place-items-center overflow-hidden transition-opacity duration-300", leaving && "opacity-0")}>
       <Backdrop />
 
       <div className="relative flex flex-col items-center rounded-[28px] border border-line bg-card px-10 py-12" role="img" aria-label="BAUMB">

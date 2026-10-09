@@ -93,12 +93,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const ready = hydrated && session.ready;
   const gated = ready && !onboarded && !UNGATED.some((p) => pathname.startsWith(p));
+  const home = pathname === "/dashboard";
 
   return (
-    <div className="relative min-h-dvh">
+    <div className={home ? "relative h-dvh overflow-hidden" : "relative min-h-dvh"}>
       <Backdrop />
 
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#121a17]/95 backdrop-blur-md">
+      <header className={home ? "sticky top-0 z-40 border-b border-transparent bg-transparent" : "sticky top-0 z-40 border-b border-white/10 bg-black/45 backdrop-blur-md"}>
         <div className="mx-auto flex h-14 w-full max-w-[480px] items-center justify-between px-3">
           <BaumbLogo />
           <div className="flex items-center">
@@ -109,7 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main key={pathname} className="relative z-10 mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-[480px] bg-base px-4 pb-28 pt-6 animate-fade-slide-up">
+      <main key={pathname} className={home ? "relative h-0" : "relative z-10 mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-[480px] px-4 pb-28 pt-6 animate-fade-slide-up"}>
         {session.auth === "error" ? <SessionProblem message={session.message} /> : !ready ? <PageSkeleton /> : session.locked ? <JournalLock /> : gated ? <OnboardingGate /> : children}
       </main>
 

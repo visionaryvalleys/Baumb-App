@@ -38,7 +38,7 @@ export function PageHeader({
             <span className="text-[13px] text-muted">{subtitle}</span>
           </div>
         )}
-        <h1 className="text-[1.7rem] font-semibold leading-[1.15] tracking-[-0.03em] text-fg">{title}</h1>
+        <h1 className="font-display text-[1.85rem] font-normal leading-[1.08] tracking-[-0.02em] text-fg">{title}</h1>
       </div>
       {action}
     </header>

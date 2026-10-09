@@ -13,7 +13,7 @@ export function BaumbLogo({ className, href = "/" }: { className?: string; href?
         <rect x="13" y="13" width="13" height="13" rx="2" className="fill-none stroke-fg" strokeWidth="1.6" />
         <rect x="17" y="17" width="5" height="5" rx="1" className="fill-brand" />
       </svg>
-      <span className="text-[18px] font-semibold leading-none tracking-[-0.02em] text-fg">Baumb</span>
+      <span className="font-display text-[22px] font-normal leading-none tracking-[-0.02em] text-fg">Baumb</span>
     </Link>
   );
 }
@@ -76,7 +76,7 @@ export function MenuOverlay({
 
   return (
     <div
-      className={cn(fixed ? "fixed" : "absolute", "inset-0 z-50 flex flex-col bg-base px-5 pb-8 pt-[20px]")}
+      className={cn(fixed ? "fixed" : "absolute", "page-ground inset-0 z-50 flex flex-col px-5 pb-8 pt-[20px]")}
       style={{
         opacity: open ? 1 : 0,
         pointerEvents: open ? "auto" : "none",

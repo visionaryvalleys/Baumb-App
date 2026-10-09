@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({ subsets: ["latin"], weight: ["300", "400", "500"], variable: "--font-inter" });
+const playfair = Playfair_Display({ subsets: ["latin"], weight: ["400", "500"], style: ["normal", "italic"], variable: "--font-playfair" });
 
 export const metadata: Metadata = {
   title: {
@@ -13,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#121a17",
+  themeColor: "#000000",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -22,8 +26,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full bg-[#0c100f] font-sans text-fg">{children}</body>
+    <html lang="en" className={`h-full antialiased ${inter.variable} ${playfair.variable}`}>
+      <body className="page-ground min-h-full font-sans text-fg">{children}</body>
     </html>
   );
 }

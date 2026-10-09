@@ -193,11 +193,8 @@ export function TrainerChat() {
   return (
     // Fills the screen below the header, so only the conversation scrolls and the question box stays in reach.
     <div
-      className="-mx-4 -mb-[4.5rem] flex h-[calc(100dvh-72px-3.5rem)] min-h-[28rem] flex-col bg-[#0e1412] px-4 sm:h-[calc(100dvh-72px-4.5rem)]"
-      style={{
-        backgroundImage: "radial-gradient(120% 72% at 50% -12%, #24382e 0%, #121816 48%, #0c0f0e 100%)",
-        fontFamily: "Segoe UI, ui-sans-serif, system-ui, sans-serif",
-      }}
+      className="-mx-4 -mb-[4.5rem] flex h-[calc(100dvh-72px-3.5rem)] min-h-[28rem] flex-col px-4 sm:h-[calc(100dvh-72px-4.5rem)]"
+      style={{ fontFamily: "Segoe UI, ui-sans-serif, system-ui, sans-serif" }}
     >
       <div className="flex min-h-11 items-center justify-between">
         <h1 className="text-[15px] font-medium tracking-[-0.01em] text-white/90">BAUMB Trainer</h1>
@@ -245,7 +242,7 @@ export function TrainerChat() {
         )}
       </div>
 
-      <div className="bg-[#0e1412] pb-1 pr-16 pt-2">
+      <div className="bg-[#0b100e]/55 pb-1 pr-16 pt-2 backdrop-blur-md">
         <Composer id="trainer-input" onSend={send} streaming={streaming} placeholder="Ask anything…" />
         <p className="mt-2 text-center text-[11px] leading-snug text-white/35">{DISCLAIMER}</p>
       </div>

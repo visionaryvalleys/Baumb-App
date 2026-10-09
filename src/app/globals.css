@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-inter), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-playfair), Georgia, "Times New Roman", serif;
 }
 
 @theme {
-  /* Dark green field, with surfaces a step lighter than the page. */
-  --color-base: #121a17;
-  --color-base-2: #1b2622;
-  --color-card: #1a2420;
-  --color-elevated: #24302b;
+  /* Black field from the archive, with surfaces a step lighter than the page. */
+  --color-base: #0a0a0a;
+  --color-base-2: #161411;
+  --color-card: #141210;
+  --color-elevated: #1c1916;
   --color-line: rgb(255 255 255 / 0.1);
   --color-line-strong: rgb(255 255 255 / 0.16);
 
   /* Text */
-  --color-fg: #f4f6f4;
-  --color-muted: #9aa39c;
-  --color-subtle: #7f8a84;
+  --color-fg: #f4f2ef;
+  --color-muted: #8c8783;
+  --color-subtle: #6f6a66;
 
   /* Accents. `brand` follows the user's accent setting. */
   --color-brand: #ff6a1a;
@@ -33,11 +33,11 @@
   --color-iris: #c4b0dc;
 
   /* Legacy names kept so existing classes resolve to the new palette */
-  --color-bm-night: #121a17;
-  --color-bm-dark: #1b2622;
+  --color-bm-night: #0a0a0a;
+  --color-bm-dark: #161411;
   --color-bm-yellow: var(--color-brand);
   --color-bm-red: var(--color-danger);
-  --color-surface: #1a2420;
+  --color-surface: #141210;
   --color-surface-raised: rgb(236 235 230 / 0.05);
 
   --breakpoint-sm: 240rem;
@@ -222,11 +222,21 @@
 
 :root {
   color-scheme: dark;
+  /* Flat black, with a soft falloff at the edges. Shared by every full-page ground. */
+  --page-ground: radial-gradient(ellipse 90% 80% at 50% 42%, #161311 0%, #000 70%);
 }
 
 body {
-  background: #0c100f;
+  background-color: #000;
+  background-image: var(--page-ground);
+  background-attachment: fixed;
   color: var(--color-fg);
+}
+
+@utility page-ground {
+  background-color: #000;
+  background-image: var(--page-ground);
+  background-attachment: fixed;
 }
 
 ::selection {
