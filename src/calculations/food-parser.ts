@@ -125,7 +125,18 @@ const UNIT_GRAMS: Record<string, number> = {
   cup: 200, katori: 150, bowl: 250, plate: 300, glass: 250, tbsp: 15, tsp: 5, slice: 30, scoop: 30, bottle: 200, can: 330, packet: 50, handful: 30,
 };
 
-const SIZE_WORDS = /\b(small|medium|large|big|regular|full|of)\b/g;
+const SIZE_WORDS = /\b(small|medium|large|big|regular|full|of|the)\b/g;
+
+/** Words a phone often hears instead of a number at the start of a meal. */
+const MISHEARD_QTY: Record<string, number> = {
+  tu: 2,
+  too: 2,
+  tow: 2,
+  to: 2,
+  twoo: 2,
+  tree: 3,
+  won: 1,
+};
 
 function parseNumber(raw: string): number | null {
   const s = raw.trim();
@@ -165,6 +176,9 @@ export function parseQuantity(chunk: string): QuantityParse {
     const q = parseNumber(trail[2].toLowerCase());
     if (q != null) return { quantity: q, unit: trail[3] ? UNITS[trail[3].toLowerCase()] : null, name: trail[1].replace(SIZE_WORDS, " ").trim() };
   }
+  const [first, ...rest] = text.split(" ");
+  const heard = rest.length ? MISHEARD_QTY[first.toLowerCase()] : undefined;
+  if (heard != null) return { quantity: heard, unit: null, name: rest.join(" ").replace(SIZE_WORDS, " ").trim() };
   return { quantity: 1, unit: null, name: text.toLowerCase().replace(SIZE_WORDS, " ").trim() };
 }
 
@@ -211,11 +225,23 @@ export interface ParsedFood {
   nutrition: NutritionProfile | null;
 }
 
+/** Drops a leading word the recognizer added ("tu chapati") when the rest is a real food. */
+function matchName(name: string, foods: Food[]): FoodMatch[] {
+  const direct = matchFoods(name, foods, 6);
+  if (direct.length) return direct;
+  const words = name.split(/\s+/).filter(Boolean);
+  for (let i = 1; i < words.length; i++) {
+    const tail = matchFoods(words.slice(i).join(" "), foods, 6);
+    if (tail.length) return tail;
+  }
+  return [];
+}
+
 /** Turns free text like "5 vadas, 3 dosa and 1 cup sambar" into matched foods with calculated nutrition. */
 export function parseFoodText(text: string, foods: Food[]): ParsedFood[] {
   return splitFoodText(text).map((chunk) => {
     const { quantity, unit, name } = parseQuantity(chunk);
-    const matches = matchFoods(name, foods, 6);
+    const matches = matchName(name, foods);
     const food = matches[0]?.food ?? null;
     const portion = food ? resolvePortion(food, quantity, unit) : null;
     return {

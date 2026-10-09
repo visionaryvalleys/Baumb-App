@@ -213,7 +213,11 @@ export function draftToGoal(g: GoalDraft, d: Pick<ProfileDraft, "unitSystem" | "
 }
 
 function FieldError({ msg }: { msg?: string }) {
-  return msg ? <p className="mt-1.5 text-xs text-red-300">{msg}</p> : null;
+  return msg ? (
+    <p className="mt-1.5 text-xs text-red-300" data-invalid="">
+      {msg}
+    </p>
+  ) : null;
 }
 
 type Setter<T> = <K extends keyof T>(key: K, value: T[K]) => void;
@@ -407,15 +411,15 @@ function WeekPreview({ g }: { g: GoalDraft }) {
     <div className="panel p-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <SectionLabel>Your week</SectionLabel>
-        <span className="text-xs font-semibold text-brand">{week.split}</span>
+        <span className="max-w-[58%] text-right text-xs font-semibold leading-tight text-brand">{week.split}</span>
       </div>
       <ol className="grid grid-cols-7 gap-1.5">
         {WEEKDAY_SHORT.map((label, i) => {
           const day = byDay.get(i);
           return (
-            <li key={label} className={cn("min-h-[4.5rem] rounded-lg p-2 text-center", day ? "bg-white/[0.06] ring-1 ring-inset ring-white/10" : "bg-black/20")}>
-              <span className="block text-[10px] font-semibold uppercase tracking-wider text-white/40">{label}</span>
-              <span className={cn("mt-1 block text-[11px] font-semibold leading-tight sm:text-xs", day ? "text-white" : "text-white/30")}>{day?.name ?? "Rest"}</span>
+            <li key={label} className={cn("min-w-0 overflow-hidden rounded-lg px-0.5 py-1.5 text-center", day ? "bg-white/[0.06] ring-1 ring-inset ring-white/10" : "bg-black/20")}>
+              <span className="block text-[9px] font-semibold uppercase tracking-wider text-white/40">{label}</span>
+              <span className={cn("mt-1 block break-words text-[9px] font-semibold leading-tight", day ? "text-white" : "text-white/30")}>{day?.name ?? "Rest"}</span>
               {day && <span className="mt-0.5 hidden text-[10px] leading-tight text-white/45 md:block">{day.focus}</span>}
             </li>
           );

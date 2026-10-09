@@ -39,6 +39,22 @@ describe("parseVoiceUtterance", () => {
     expect(squat?.weightKg).toBeCloseTo(45.4, 0);
   });
 
+  it("hears two chapatis when the phone says tu chapati", () => {
+    const chapati: Food = {
+      id: "nin-phulka",
+      name: "Chapati / Roti / Phulka",
+      category: "Breads",
+      aliases: ["chapati", "roti"],
+      servings: [{ id: "piece", label: "1 chapati", grams: 40 }],
+      per100g: { calories: 200, proteinG: 6, carbsG: 36, fatG: 4, fiberG: 6 },
+    };
+    const draft = parseVoiceUtterance("tu chapati", [chapati], EXERCISES);
+    expect(draft.foods).toHaveLength(1);
+    expect(draft.foods[0].food?.id).toBe("nin-phulka");
+    expect(draft.foods[0].portion?.grams).toBe(80);
+    expect(draft.unmatched).toEqual([]);
+  });
+
   it("keeps a minute run on activity instead of a food", () => {
     const draft = parseVoiceUtterance("walked 30 minutes", [], EXERCISES);
     expect(draft.activity?.activeMinutes).toBe(30);

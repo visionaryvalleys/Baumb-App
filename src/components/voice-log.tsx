@@ -102,6 +102,7 @@ export function VoiceLog() {
   const [reading, setReading] = useState(false);
   const [level, setLevel] = useState(0);
   const [draft, setDraft] = useState<VoiceDraft | null>(null);
+  const [heard, setHeard] = useState("");
   const [answer, setAnswer] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const capture = useRef<SpeechCapture | { stop: () => void } | null>(null);
@@ -149,12 +150,30 @@ export function VoiceLog() {
     closeTimer.current = window.setTimeout(finishClose, 450);
   }
 
-  function showSpoken(said: string) {
-    const text = said.trim();
+  function choosePhrase(candidates: string[]): string {
+    let best = candidates[0] ?? "";
+    let bestScore = -1;
+    for (const said of candidates) {
+      const text = said.trim();
+      if (!text) continue;
+      if (isVoiceQuestion(text)) return text;
+      const next = parseVoiceUtterance(text, foods, EXERCISES);
+      const score = lines(next).length * 10 - next.unmatched.length;
+      if (score > bestScore) {
+        best = text;
+        bestScore = score;
+      }
+    }
+    return best;
+  }
+
+  function showSpoken(said: string, alternatives: string[] = []) {
+    const text = choosePhrase([said, ...alternatives]);
+    setHeard(text);
     if (!text) {
       setDraft(null);
       setAnswer("");
-      setNote("Didn't catch that.");
+      setNote("Didn't catch that. Try again, closer to the phone.");
       openSheet("answer");
       return;
     }
@@ -173,7 +192,7 @@ export function VoiceLog() {
     const next = parseVoiceUtterance(text, foods, EXERCISES);
     setDraft(next);
     setAnswer("");
-    setNote(lines(next).length ? null : "Nothing to save.");
+    setNote(lines(next).length ? null : `Heard “${text}”. Say it as a food, for example “two chapati”.`);
     openSheet("log");
   }
 
@@ -198,16 +217,16 @@ export function VoiceLog() {
     const pending = heard
       ? heard.done.then((result) => {
           if (result.reason === "denied") throw new Error("mic");
-          return result.text;
+          return result;
         })
-      : hearLocally();
+      : hearLocally().then((text) => ({ text, alternatives: text ? [text] : [] }));
     void pending
-      .then((said) => {
+      .then((result) => {
         setListening(false);
         setLevel(0);
         setReading(false);
         capture.current = null;
-        showSpoken(said);
+        showSpoken(result.text, result.alternatives);
       })
       .catch(() => {
         setListening(false);
@@ -271,6 +290,7 @@ export function VoiceLog() {
               <p className="px-1 py-6 text-center text-[22px] font-medium leading-snug tracking-[-0.03em] text-white">{answer || note}</p>
             ) : (
               <div className="grid gap-3 pb-2">
+                {heard && <p className="text-center text-sm text-white/45">Heard “{heard}”</p>}
                 <ul className="grid gap-2">
                   {matched.map((line) => (
                     <li key={line} className="rounded-2xl bg-white/[0.05] px-4 py-3 text-[16px] tracking-[-0.01em] text-white">

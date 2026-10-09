@@ -24,6 +24,8 @@ describe("parseQuantity", () => {
     expect(parseQuantity("1½ cup sambar")).toEqual({ quantity: 1.5, unit: "cup", name: "sambar" });
     expect(parseQuantity("1/2 katori dal")).toEqual({ quantity: 0.5, unit: "katori", name: "dal" });
     expect(parseQuantity("two eggs")).toEqual({ quantity: 2, unit: null, name: "eggs" });
+    expect(parseQuantity("tu chapati")).toEqual({ quantity: 2, unit: null, name: "chapati" });
+    expect(parseQuantity("two chapatis")).toEqual({ quantity: 2, unit: null, name: "chapatis" });
   });
 
   it("reads trailing quantities", () => {

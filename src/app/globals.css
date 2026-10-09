@@ -27,6 +27,10 @@
   --color-violet: #8b7cf6;
   --color-mint: #3ddc97;
   --color-danger: #fb923c;
+  /* Effort, in natural pigment rather than signal-lamp green. */
+  --color-sage: #8fa888;
+  --color-honey: #c4a15a;
+  --color-iris: #c4b0dc;
 
   /* Legacy names kept so existing classes resolve to the new palette */
   --color-bm-night: #121211;
@@ -342,6 +346,80 @@ input[type="number"] {
   @apply btn border border-danger/40 bg-danger/10 text-red-200 hover:bg-danger/20;
 }
 
+.muscle-shape {
+  fill: var(--color-brand);
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity 620ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.muscle-shape.is-on {
+  filter: url(#muscle-glow);
+  animation: muscle-in 620ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes muscle-in {
+  0% {
+    transform: translateY(var(--from, 0px)) scale(0.98);
+  }
+  70% {
+    transform: translateY(0) scale(1.03);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .muscle-shape,
+  .muscle-shape.is-on {
+    animation: none !important;
+    transition-property: opacity !important;
+    transition-duration: 180ms !important;
+    transition-timing-function: linear !important;
+  }
+}
+
 @utility label {
   @apply mb-1.5 block text-[11px] font-medium uppercase tracking-[0.14em] text-muted;
+}
+
+@utility effort-keep {
+  color: var(--color-sage);
+}
+
+@utility effort-under {
+  color: var(--color-honey);
+}
+
+@utility effort-grow {
+  color: var(--color-iris);
+}
+
+.effort-glint {
+  position: relative;
+  overflow: hidden;
+  background-image:
+    radial-gradient(circle at 18% 30%, rgb(255 255 255 / 0.55) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 72% 22%, rgb(196 176 220 / 0.9) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 46% 78%, rgb(255 255 255 / 0.35) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 88% 70%, rgb(232 220 255 / 0.7) 0 1px, transparent 1.8px);
+  background-size: 120% 120%;
+  animation: effort-glint 5.5s ease-in-out infinite;
+}
+
+@keyframes effort-glint {
+  0%,
+  100% {
+    background-position: 0% 40%;
+  }
+  50% {
+    background-position: 100% 60%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .effort-glint {
+    animation: none;
+  }
 }

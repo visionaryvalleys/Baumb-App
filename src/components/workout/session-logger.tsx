@@ -8,11 +8,13 @@ import { suggestNextLoad } from "@/calculations/workout";
 import { WEEKDAY_NAMES, addDays, daysBetween, weekdayIndex } from "@/lib/date";
 import { getExercise } from "@/lib/exercises";
 import { useDaySummary, useToday, useUnit } from "@/lib/hooks";
+import { effortTone, type EffortTone } from "@/lib/effort";
 import { lastPerformance } from "@/lib/stats";
 import { publishBoard } from "@/lib/board-client";
 import { actions, getState, newId, useAppState } from "@/lib/store";
 import type { PlanVersion, Unit, WorkoutDay } from "@/lib/types";
 import { fromDisplayWeight, toDisplayWeight } from "@/lib/units";
+import { SessionCoach } from "./week-plan";
 import { EmptyState, cn } from "../ui";
 
 interface WorkingDraft {
@@ -93,7 +95,7 @@ function ExerciseStage({
   onSetDone: (index: number) => void;
   onSkipRest: () => void;
   onTrim: () => void;
-  notes: { line: string; cue: string }[];
+  notes: { line: string; cue: string; tone: EffortTone }[];
 }) {
   const shown = day.exercises.slice(0, limit);
   const prescription = shown[active];
@@ -154,7 +156,7 @@ function ExerciseStage({
                 <p className="text-[12px] uppercase tracking-[0.12em] text-muted">{progress.warmupDone ? `Set ${Math.max(currentSet + 1, 1)} of 3` : "Warm-up · 8 reps · not counted"}</p>
               </div>
             </div>
-            <p className="mt-3 text-[15px] leading-snug text-fg">{notes[index]?.line}</p>
+            <p className={cn("mt-3 text-[15px] leading-snug", notes[index]?.tone === "under" ? "effort-under" : notes[index]?.tone === "grow" ? "effort-grow" : "effort-keep")}>{notes[index]?.line}</p>
             {notes[index]?.cue ? <p className="mt-1 text-[13px] leading-relaxed text-muted">{notes[index].cue}</p> : null}
 
             <div className={cn("mt-4 grid gap-2", restLeft > 0 && "opacity-30")}>
@@ -246,15 +248,25 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
     const last = lastPerformance(workouts, p.exerciseId, date);
     const set = last?.sets[last.sets.length - 1];
     const todayKg = suggestions[i]?.weightKg;
+    const todayReps = suggestions[i]?.repsTarget ?? null;
+    const tone: EffortTone =
+      set && tracksWeight && set.weightKg > 0 && todayKg != null && todayKg > 0
+        ? effortTone(todayKg, set.weightKg)
+        : set
+          ? effortTone(todayReps, set.reps)
+          : "keep";
+    const nudge = !set ? "" : tone === "under" ? " Below last time — add a little." : tone === "grow" ? " Ahead of last time." : " Hold it, then one more rep if the set is clean.";
     return {
-      line: performanceLine(
-        set ? set.reps : null,
-        set ? toDisplayWeight(set.weightKg, unit) : null,
-        todayKg != null && todayKg > 0 ? toDisplayWeight(todayKg, unit) : null,
-        unit,
-        tracksWeight,
-      ),
+      line:
+        performanceLine(
+          set ? set.reps : null,
+          set ? toDisplayWeight(set.weightKg, unit) : null,
+          todayKg != null && todayKg > 0 ? toDisplayWeight(todayKg, unit) : null,
+          unit,
+          tracksWeight,
+        ) + nudge,
       cue: exercise?.cue ?? "",
+      tone,
     };
   });
   const [drafts, setDrafts] = useState<ExerciseDraft[]>(() =>
@@ -400,6 +412,7 @@ export function SessionLogger() {
 
   return (
     <div className="space-y-4">
+      <SessionCoach day={day} />
       {!started && (
         <button type="button" className="btn-primary h-14 w-full text-[16px]" onClick={() => setStarted(true)}>
           <Dumbbell className="size-5" aria-hidden /> Start workout

@@ -6,11 +6,9 @@ import { Check, GitBranch, Moon, Pencil, Sparkles } from "lucide-react";
 import { goalConfig } from "@/data/goals";
 import { evaluateAdaptivePlan, type AdaptiveSuggestion } from "@/calculations/review";
 import { WEEKDAY_SHORT, formatDate } from "@/lib/date";
-import { getExercise } from "@/lib/exercises";
 import { useActivePlan, useToday } from "@/lib/hooks";
 import { actions, newId, useAppState } from "@/lib/store";
 import type { LocalDate, PlanVersion } from "@/lib/types";
-import { toDisplayWeight, weightUnit } from "@/lib/units";
 import { applyAdaptiveSuggestion } from "@/services/plan";
 import { BigNumber, Card, CardTitle, EmptyState, FlagList, KindTag, SectionLabel, cn } from "../ui";
 
@@ -43,7 +41,6 @@ export function PlanView() {
 
   const cfg = goalConfig(plan.goal.type);
   const t = plan.targets;
-  const unit = weightUnit(state.profile.unitSystem);
   const versions = [...state.plans].sort((a, b) => b.version - a.version);
 
   return (
@@ -139,22 +136,6 @@ export function PlanView() {
                   <>
                     <div className="mt-1 font-semibold leading-tight text-white">{day.name}</div>
                     <div className="mt-0.5 text-[11px] text-brand">~{day.estimatedMinutes} min</div>
-                    <ul className="mt-2 space-y-1 text-[11px] leading-snug text-white/60">
-                      {day.exercises.map((p) => (
-                        <li key={p.exerciseId}>
-                          {getExercise(p.exerciseId)?.name.replace(/ \((minutes|seconds)\)/, "")}{" "}
-                          <span className="text-white/35">
-                            {p.sets}×{p.repsMin}–{p.repsMax}
-                          </span>
-                          {p.startKg != null && (
-                            <span className="text-brand/80">
-                              {" "}
-                              · start {toDisplayWeight(p.startKg, unit)} {unit}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
                   </>
                 ) : (
                   <div className="mt-2 flex items-center gap-1.5 text-sm text-white/40">
@@ -165,7 +146,8 @@ export function PlanView() {
             );
           })}
         </div>
-        <div className="mt-4 space-y-1 text-xs text-white/50">
+        <p className="mt-4 text-xs text-white/50">Exercises, equipment changes and skipped sessions are on Workout.</p>
+        <div className="mt-2 space-y-1 text-xs text-white/50">
           <p>{plan.workout.progression}</p>
           {plan.workout.notes.map((n) => (
             <p key={n}>{n}</p>

@@ -180,6 +180,42 @@ function SlotEditor({ slot, onClose }: { slot: MealSlot; onClose: () => void }) 
   );
 }
 
+export function LoggedFoods({
+  slot,
+  group,
+  date,
+  pool,
+  loading,
+  known,
+  open,
+  onOpenChange,
+  embedded = false,
+}: {
+  slot: MealSlot;
+  group?: { items: MealItem[]; totals: NutritionProfile };
+  date: LocalDate;
+  pool: Food[];
+  loading: boolean;
+  known: (id: string) => boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  embedded?: boolean;
+}) {
+  return (
+    <div className={embedded ? "mt-4 border-t border-line pt-3" : undefined}>
+      {embedded && <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">Logged</div>}
+      {group ? <ItemList items={group.items} known={known} findFood={(id) => pool.find((f) => f.id === id)} /> : !open && <p className="text-sm text-white/40">Nothing logged yet.</p>}
+      {open ? (
+        <MealFoodEntry slot={slot} date={date} pool={pool} loading={loading} onDone={() => onOpenChange(false)} />
+      ) : (
+        <button type="button" onClick={() => onOpenChange(true)} className="mt-3 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 text-sm font-semibold text-brand transition hover:border-brand/40 hover:bg-brand/[0.06]">
+          <Plus className="size-4" aria-hidden /> Add food
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function MealCard({
   slot,
   group,
@@ -213,14 +249,7 @@ export function MealCard({
         <span className="text-sm font-semibold tabular-nums text-white">{group ? `${group.totals.calories.toLocaleString()} kcal` : <span className="font-normal text-white/35">—</span>}</span>
       </div>
       {editing && <SlotEditor slot={slot} onClose={() => setEditing(false)} />}
-      {group ? <ItemList items={group.items} known={known} findFood={(id) => pool.find((f) => f.id === id)} /> : !open && <p className="text-sm text-white/40">Nothing logged yet.</p>}
-      {open ? (
-        <MealFoodEntry slot={slot} date={date} pool={pool} loading={loading} onDone={() => onOpenChange(false)} />
-      ) : (
-        <button type="button" onClick={() => onOpenChange(true)} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 py-2.5 text-sm font-semibold text-brand transition hover:border-brand/40 hover:bg-brand/[0.06]">
-          <Plus className="size-4" aria-hidden /> Add food
-        </button>
-      )}
+      <LoggedFoods slot={slot} group={group} date={date} pool={pool} loading={loading} known={known} open={open} onOpenChange={onOpenChange} />
     </Card>
   );
 }

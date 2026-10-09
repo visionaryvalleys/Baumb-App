@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Trophy } from "lucide-react";
 import { EXERCISES, MUSCLE_GROUPS } from "@/lib/exercises";
+import { highlightsFor, targetingLabel, travelShift } from "@/lib/muscle-map";
 import { personalRecords } from "@/lib/stats";
 import { useUnit } from "@/lib/hooks";
 import { useAppState, useHydrated } from "@/lib/store";
 import type { MuscleGroup } from "@/lib/types";
 import { formatWeight } from "@/lib/units";
+import { BodyFigure } from "./body-figure";
 import { Badge, cn } from "./ui";
 
 export function ExerciseLibrary() {
@@ -16,6 +18,27 @@ export function ExerciseLibrary() {
   const unit = useUnit();
   const [query, setQuery] = useState("");
   const [muscle, setMuscle] = useState<MuscleGroup | "all">("all");
+  const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const announced = useRef(false);
+  const exerciseRef = useRef<string | null>(null);
+  exerciseRef.current = selectedExercise;
+
+  const highlights = useMemo(() => highlightsFor(muscle, selectedExercise), [muscle, selectedExercise]);
+  const previous = useRef(highlights);
+  const shiftRef = useRef(0);
+  if (highlights !== previous.current) {
+    shiftRef.current = travelShift(previous.current, highlights);
+    previous.current = highlights;
+  }
+
+  useEffect(() => {
+    if (!announced.current) {
+      announced.current = true;
+      return;
+    }
+    setAnnouncement(targetingLabel(highlights) || "No muscle highlighted");
+  }, [highlights]);
 
   const usage = useMemo(() => {
     const counts = new Map<string, number>();
@@ -30,9 +53,15 @@ export function ExerciseLibrary() {
     (e) => (muscle === "all" || e.muscle === muscle) && (!q || `${e.name} ${e.equipment} ${e.muscle}`.toLowerCase().includes(q)),
   );
 
+  const caption = targetingLabel(highlights) || "No muscle highlighted";
+
   return (
     <div>
-      <div className="mb-6 space-y-3">
+      <BodyFigure highlights={highlights} shift={shiftRef.current} label={caption} />
+      <p className="sr-only" aria-live="polite">
+        {announcement}
+      </p>
+      <div className="mb-6 mt-4 space-y-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/50" aria-hidden />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Search ${EXERCISES.length} exercises`} className="field pl-9" />
@@ -42,11 +71,16 @@ export function ExerciseLibrary() {
             <button
               key={m}
               type="button"
-              onClick={() => setMuscle(m)}
+              onClick={() => {
+                const hadExercise = exerciseRef.current != null;
+                exerciseRef.current = null;
+                setSelectedExercise(null);
+                setMuscle((current) => (m !== "all" && current === m && !hadExercise ? "all" : m));
+              }}
               aria-pressed={muscle === m}
               className={cn(
-                "rounded-full border px-3.5 py-1.5 text-xs font-medium capitalize transition",
-                muscle === m ? "border-brand/60 bg-brand/15 text-brand" : "border-line text-white/60 hover:border-white/20 hover:text-white/90",
+                "min-h-11 rounded-full border px-3.5 text-xs font-medium capitalize transition",
+                muscle === m ? "border-brand/60 bg-brand/15 text-brand" : "border-line text-white/60",
               )}
             >
               {m}
@@ -63,7 +97,16 @@ export function ExerciseLibrary() {
             const pr = hydrated ? prs.get(e.id) : undefined;
             const count = hydrated ? (usage.get(e.id) ?? 0) : 0;
             return (
-              <article key={e.id} className="glass flex flex-col rounded-card p-5 transition duration-200 hover:border-white/20">
+              <button
+                key={e.id}
+                type="button"
+                aria-pressed={selectedExercise === e.id}
+                onClick={() => setSelectedExercise((current) => (current === e.id ? null : e.id))}
+                className={cn(
+                  "glass flex w-full flex-col rounded-card p-5 text-left transition duration-200",
+                  selectedExercise === e.id && "border-brand/60",
+                )}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="font-semibold text-white">{e.name}</h3>
                   {count > 0 && <span className="shrink-0 text-xs text-white/50">{count}× logged</span>}
@@ -79,7 +122,7 @@ export function ExerciseLibrary() {
                     Best: {formatWeight(pr.bestWeightKg, unit)} × {pr.bestReps}
                   </div>
                 )}
-              </article>
+              </button>
             );
           })}
         </div>

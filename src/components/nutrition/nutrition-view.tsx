@@ -80,10 +80,22 @@ export function NutritionView() {
           )}
 
           {target && summary.info.plan && profile.mealsPerDay != null && (
-            <MealPlanCard date={date} today={today} target={target} goal={summary.info.plan.goal.type} foods={pool} trainingDay={!!summary.info.planned && summary.info.planned.type !== "mobility"} />
+            <MealPlanCard
+              date={date}
+              today={today}
+              target={target}
+              goal={summary.info.plan.goal.type}
+              foods={pool}
+              trainingDay={!!summary.info.planned && summary.info.planned.type !== "mobility"}
+              groups={day.byMeal}
+              loading={catalogue.status === "loading" && catalogue.foods.length === 0}
+              known={known}
+              openSlot={openSlot}
+              onOpenChange={(slotId, open) => setOpenSlot(open ? slotId : null)}
+            />
           )}
 
-          {slots.map((slot) => (
+          {!(target && summary.info.plan && profile.mealsPerDay != null) && slots.map((slot) => (
             <MealCard
               key={slot.id}
               slot={slot}

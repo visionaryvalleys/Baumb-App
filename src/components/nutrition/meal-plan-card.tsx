@@ -10,20 +10,21 @@ import { goalConfig } from "@/data/goals";
 import { foodCitation } from "@/lib/food-source";
 import { localMinutes, zonedInstant } from "@/lib/date";
 import { actions, newId, useAppState } from "@/lib/store";
-import type { DietPreference, Food, GoalType, MealPlanPrefs, MealRole, NutritionTarget } from "@/lib/types";
+import type { DietPreference, Food, GoalType, LocalDate, MealItem, MealPlanPrefs, MealRole, NutritionProfile, NutritionTarget } from "@/lib/types";
+import { LoggedFoods } from "./meal-card";
 import { Card, CardTitle, Segmented, cn } from "../ui";
 
 function GramsInput({ item, onCommit }: { item: PlannedItem; onCommit: (grams: number) => void }) {
   const [draft, setDraft] = useState<string | null>(null);
   return (
-    <div className="relative w-[5.5rem] shrink-0">
+    <div className="relative shrink-0">
       <input
         type="number"
         inputMode="decimal"
         min={1}
         step={item.unitGrams ?? 5}
         aria-label={`Grams of ${item.food.name}`}
-        className={cn("field h-9 py-1 pr-6 text-right tabular-nums", item.edited && "ring-1 ring-brand/50")}
+        className={cn("field h-11 w-[5.75rem] py-1 pr-6 text-right text-base tabular-nums", item.edited && "ring-1 ring-brand/50")}
         value={draft ?? String(item.grams)}
         onChange={(e) => {
           const text = e.target.value;
@@ -54,6 +55,7 @@ function MealBlock({
   onReset,
   onLog,
   logged,
+  log,
 }: {
   meal: PlannedMeal;
   onSwap: (role: MealRole, foodId: string) => void;
@@ -61,56 +63,80 @@ function MealBlock({
   onReset: (role: MealRole) => void;
   onLog: () => void;
   logged: boolean;
+  log: {
+    group?: { items: MealItem[]; totals: NutritionProfile };
+    date: LocalDate;
+    pool: Food[];
+    loading: boolean;
+    known: (id: string) => boolean;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+  };
 }) {
   return (
-    <div className="panel p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <div className="font-semibold text-white">{meal.slot.name}</div>
-          <div className="text-xs tabular-nums text-white/50">
+    <Card>
+      <div className="mb-1 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[17px] font-semibold text-white">{meal.slot.name}</h2>
+          <p className="text-xs tabular-nums text-white/50">
             {meal.totals.calories} kcal · P {Math.round(meal.totals.proteinG)} g · C {Math.round(meal.totals.carbsG)} g · F {Math.round(meal.totals.fatG)} g
-            <span className="text-white/30"> (aim {meal.target.calories} kcal)</span>
-          </div>
+            <span className="text-white/30"> · aim {meal.target.calories}</span>
+          </p>
         </div>
-        <button type="button" className={cn("btn-ghost h-11 px-3 text-sm", logged && "text-brand")} onClick={onLog} disabled={logged || meal.items.length === 0}>
+        <button type="button" className={cn("btn-ghost h-11 shrink-0 px-3 text-sm", logged && "text-brand")} onClick={onLog} disabled={logged || meal.items.length === 0}>
           {logged ? <Check className="size-4" aria-hidden /> : <Utensils className="size-4" aria-hidden />} {logged ? "Logged" : "Add"}
         </button>
       </div>
-      <ul className="space-y-2">
+      <ul>
         {meal.items.map((item) => (
-          <li key={item.role} className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-            <span className="w-24 shrink-0 text-[11px] font-semibold uppercase tracking-wider text-white/45">{ROLE_LABELS[item.role]}</span>
-            <select
-              aria-label={`Swap ${ROLE_LABELS[item.role].toLowerCase()} for ${meal.slot.name}`}
-              title={`Source: ${foodCitation(item.food)}`}
-              className="field h-9 min-w-0 flex-1 py-1 text-sm"
-              value={item.food.id}
-              onChange={(e) => onSwap(item.role, e.target.value)}
-            >
-              {item.options.map((f) => (
-                <option key={f.id} value={f.id} className="bg-bm-night">
-                  {f.name}
-                </option>
-              ))}
-            </select>
-            <GramsInput item={item} onCommit={(g) => onGrams(item.role, item.food.id, g)} />
-            <span className="w-28 shrink-0 text-right text-xs tabular-nums text-white/55">
-              {item.nutrition.calories} kcal · P {Math.round(item.nutrition.proteinG)}
-              {units(item) && <span className="block text-[11px] text-white/35">{units(item)}</span>}
-            </span>
-            <button
-              type="button"
-              className={cn("grid size-7 shrink-0 place-items-center rounded-md text-white/40 transition hover:bg-white/10 hover:text-white", !item.edited && "invisible")}
-              onClick={() => onReset(item.role)}
-              aria-label={`Use the suggested amount of ${item.food.name}`}
-              title="Use the suggested amount"
-            >
-              <RotateCcw className="size-3.5" aria-hidden />
-            </button>
+          <li key={item.role} className="border-t border-line py-3">
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/40">{ROLE_LABELS[item.role]}</div>
+            <div className="flex items-center gap-2">
+              <select
+                aria-label={`${ROLE_LABELS[item.role]} for ${meal.slot.name}`}
+                title={`Source: ${foodCitation(item.food)}`}
+                className="field h-11 min-w-0 flex-1 py-1 text-base"
+                value={item.food.id}
+                onChange={(e) => onSwap(item.role, e.target.value)}
+              >
+                {item.options.map((f) => (
+                  <option key={f.id} value={f.id} className="bg-bm-night">
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+              <GramsInput item={item} onCommit={(g) => onGrams(item.role, item.food.id, g)} />
+            </div>
+            <div className="mt-1.5 flex items-center justify-between gap-2 text-xs tabular-nums text-white/55">
+              <span>
+                {item.nutrition.calories} kcal · P {Math.round(item.nutrition.proteinG)}
+                {units(item) ? ` · ${units(item)}` : ""}
+              </span>
+              <button
+                type="button"
+                className={cn("grid size-8 shrink-0 place-items-center rounded-md text-white/40 transition hover:bg-white/10 hover:text-white", !item.edited && "invisible")}
+                onClick={() => onReset(item.role)}
+                aria-label={`Use the suggested amount of ${item.food.name}`}
+                title="Use the suggested amount"
+              >
+                <RotateCcw className="size-3.5" aria-hidden />
+              </button>
+            </div>
           </li>
         ))}
       </ul>
-    </div>
+      <LoggedFoods
+        embedded
+        slot={meal.slot}
+        group={log.group}
+        date={log.date}
+        pool={log.pool}
+        loading={log.loading}
+        known={log.known}
+        open={log.open}
+        onOpenChange={log.onOpenChange}
+      />
+    </Card>
   );
 }
 
@@ -137,7 +163,31 @@ function logPlannedMeal(meal: PlannedMeal, date: string, today: string, tz: stri
   );
 }
 
-export function MealPlanCard({ date, today, target, goal, foods, trainingDay }: { date: string; today: string; target: NutritionTarget; goal: GoalType; foods: Food[]; trainingDay: boolean }) {
+export function MealPlanCard({
+  date,
+  today,
+  target,
+  goal,
+  foods,
+  trainingDay,
+  groups,
+  loading,
+  known,
+  openSlot,
+  onOpenChange,
+}: {
+  date: string;
+  today: string;
+  target: NutritionTarget;
+  goal: GoalType;
+  foods: Food[];
+  trainingDay: boolean;
+  groups: Record<string, { items: MealItem[]; totals: NutritionProfile } | undefined>;
+  loading: boolean;
+  known: (id: string) => boolean;
+  openSlot: string | null;
+  onOpenChange: (slotId: string, open: boolean) => void;
+}) {
   const { mealPlan, mealSlots, profile, meals, weights } = useAppState();
   const prefs = mealPlan ?? DEFAULT_MEAL_PLAN;
   const plan = useMemo(() => buildMealPlan(target, mealSlots, goal, prefs, foods), [target, mealSlots, goal, prefs, foods]);
@@ -169,60 +219,63 @@ export function MealPlanCard({ date, today, target, goal, foods, trainingDay }: 
 
   const t = plan.totals;
   return (
-    <Card>
-      <CardTitle
-        action={
-          <Segmented<DietPreference>
-            size="sm"
-            value={prefs.diet}
-            onChange={(diet) => update({ diet, choices: {} })}
-            options={(Object.keys(DIET_LABELS) as DietPreference[]).map((d) => ({ value: d, label: DIET_LABELS[d] }))}
-          />
-        }
-      >
-        Your meal plan
-      </CardTitle>
-      <p className="-mt-2 mb-4 text-[13px] leading-relaxed text-white/60">
-        Built for <span className="font-semibold text-white">{cfg.label}</span>: {target.calories.toLocaleString()} kcal with {target.proteinG} g protein, {target.carbsG} g carbs and {target.fatG} g fat. Foods are
-        ones you can buy in India. Swap any item, or set the grams you actually eat — the rest of the meal adjusts.
-      </p>
-      <p className="mb-4 text-[13px] leading-relaxed text-white/60">{bmiNote} This is not medical advice.</p>
-      {trainingDay && (
-        <p className="mb-4 flex gap-2 rounded-lg bg-brand/10 px-3 py-2 text-[13px] text-white/75">
-          <Dumbbell className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
-          <span>
-            Workout day: have your carb-heavier meal 1–3 hours before training and 20–40 g protein within a couple of hours after (Kerksick et al., ISSN position stand on nutrient timing, J Int Soc Sports Nutr 2017).
-          </span>
+    <>
+      <Card>
+        <CardTitle
+          action={
+            <Segmented<DietPreference>
+              size="sm"
+              value={prefs.diet}
+              onChange={(diet) => update({ diet, choices: {} })}
+              options={(Object.keys(DIET_LABELS) as DietPreference[]).map((d) => ({ value: d, label: DIET_LABELS[d] }))}
+            />
+          }
+        >
+          Your meals
+        </CardTitle>
+        <p className="-mt-2 mb-3 text-[13px] leading-relaxed text-white/60">
+          Built for <span className="font-semibold text-white">{cfg.label}</span>: {target.calories.toLocaleString()} kcal with {target.proteinG} g protein, {target.carbsG} g carbs and {target.fatG} g fat.
+          Each meal below is one list. Swap a food or set the grams, then tap Add.
         </p>
-      )}
-      <div className="space-y-3">
-        {plan.meals.map((meal) => (
-          <MealBlock
-            key={meal.slot.id}
-            meal={meal}
-            logged={loggedSlots.has(meal.slot.id)}
-            onLog={() => log(meal)}
-            onSwap={(role, foodId) => setChoice(meal.slot.id, role, { foodId })}
-            onGrams={(role, foodId, grams) => setChoice(meal.slot.id, role, { foodId, grams })}
-            onReset={(role) => {
-              const current = meal.items.find((i) => i.role === role);
-              setChoice(meal.slot.id, role, current ? { foodId: current.food.id } : null);
-            }}
-          />
-        ))}
-      </div>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-        <div className="text-sm tabular-nums text-white/70">
-          Plan total <span className="font-semibold text-white">{t.calories.toLocaleString()} kcal</span> · P {Math.round(t.proteinG)} g · C {Math.round(t.carbsG)} g · F {Math.round(t.fatG)} g
+        <p className="text-[13px] leading-relaxed text-white/60">{bmiNote} This is not medical advice.</p>
+        {trainingDay && (
+          <p className="mt-3 flex gap-2 rounded-lg bg-brand/10 px-3 py-2 text-[13px] text-white/75">
+            <Dumbbell className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
+            <span>Workout day: eat the carb-heavier meal 1–3 hours before training, and 20–40 g protein within a couple of hours after.</span>
+          </p>
+        )}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+          <div className="text-sm tabular-nums text-white/70">
+            Day <span className="font-semibold text-white">{t.calories.toLocaleString()} kcal</span> · P {Math.round(t.proteinG)} g · C {Math.round(t.carbsG)} g · F {Math.round(t.fatG)} g
+          </div>
+          <button type="button" className="btn-ghost h-11 px-3 text-sm" onClick={() => update({ choices: {} })} disabled={Object.keys(prefs.choices).length === 0}>
+            <RotateCcw className="size-4" aria-hidden /> Reset
+          </button>
         </div>
-        <button type="button" className="btn-ghost h-9 px-3 text-sm" onClick={() => update({ choices: {} })} disabled={Object.keys(prefs.choices).length === 0}>
-          <RotateCcw className="size-4" aria-hidden /> Reset to suggested
-        </button>
-      </div>
-      <p className="mt-3 text-xs leading-relaxed text-white/40">
-        Protein is spread across meals (about {plan.proteinPerMeal} g per main meal), in line with Schoenfeld &amp; Aragon, J Int Soc Sports Nutr 2018, and the ISSN protein position stand (Jäger et al., 2017).
-        Food values: ICMR-NIN Indian Food Composition Tables 2017, Indian Nutrient Databank and USDA FoodData Central.
-      </p>
-    </Card>
+      </Card>
+      {plan.meals.map((meal) => (
+        <MealBlock
+          key={meal.slot.id}
+          meal={meal}
+          logged={loggedSlots.has(meal.slot.id)}
+          onLog={() => log(meal)}
+          onSwap={(role, foodId) => setChoice(meal.slot.id, role, { foodId })}
+          onGrams={(role, foodId, grams) => setChoice(meal.slot.id, role, { foodId, grams })}
+          onReset={(role) => {
+            const current = meal.items.find((i) => i.role === role);
+            setChoice(meal.slot.id, role, current ? { foodId: current.food.id } : null);
+          }}
+          log={{
+            group: groups[meal.slot.id],
+            date,
+            pool: foods,
+            loading,
+            known,
+            open: openSlot === meal.slot.id,
+            onOpenChange: (open) => onOpenChange(meal.slot.id, open),
+          }}
+        />
+      ))}
+    </>
   );
 }

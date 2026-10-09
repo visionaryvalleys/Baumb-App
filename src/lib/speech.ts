@@ -1,11 +1,22 @@
 export interface Heard {
   text: string;
+  /** Other phrasings from the same take, including `text`. */
+  alternatives: string[];
   /** `denied` means the microphone is blocked. `unavailable` means this browser has no recognizer. */
   reason: "ok" | "empty" | "denied" | "unavailable";
 }
 
+interface SpeechAlternative {
+  transcript?: string;
+}
+
+interface SpeechResult {
+  length: number;
+  [index: number]: SpeechAlternative | undefined;
+}
+
 interface SpeechResultEvent {
-  results: ArrayLike<{ 0?: { transcript: string } }>;
+  results: ArrayLike<SpeechResult>;
 }
 
 interface SpeechRec {
@@ -39,8 +50,9 @@ export function recognizeSpeech(): { stop: () => void; done: Promise<Heard> } | 
   rec.lang = "en-IN";
   rec.continuous = false;
   rec.interimResults = true;
-  rec.maxAlternatives = 1;
+  rec.maxAlternatives = 5;
   let spoken = "";
+  let alternatives: string[] = [];
   let settled = false;
   let reason: Heard["reason"] = "empty";
   let resolve: (value: Heard) => void = () => {};
@@ -51,14 +63,25 @@ export function recognizeSpeech(): { stop: () => void; done: Promise<Heard> } | 
     if (settled) return;
     settled = true;
     const text = spoken.trim();
-    resolve({ text, reason: text ? "ok" : reason });
+    resolve({ text, alternatives: text ? alternatives : [], reason: text ? "ok" : reason });
   };
   rec.onresult = (event) => {
-    spoken = Array.from(event.results)
+    const results = Array.from(event.results);
+    spoken = results
       .map((result) => result[0]?.transcript ?? "")
       .join(" ")
       .replace(/\s+/g, " ")
       .trim();
+    const last = results.at(-1);
+    const heard = new Set<string>();
+    if (spoken) heard.add(spoken);
+    if (last) {
+      for (let i = 0; i < last.length; i++) {
+        const alt = last[i]?.transcript?.replace(/\s+/g, " ").trim();
+        if (alt) heard.add(alt);
+      }
+    }
+    alternatives = [...heard];
     if (spoken) reason = "ok";
   };
   rec.onerror = (event) => {
