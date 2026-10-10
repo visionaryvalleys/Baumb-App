@@ -31,30 +31,20 @@ export function BodyFigure({
     <figure className="mx-auto w-full">
       <svg ref={svg} viewBox="0 0 300 460" className="pointer-events-none h-auto w-full" aria-hidden style={{ ["--from" as string]: `${shift}px` }}>
         <defs>
+          <linearGradient id="body-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#3a342c" />
+            <stop offset="1" stopColor="#1a1714" />
+          </linearGradient>
           <filter id="muscle-glow" x="-40%" y="-40%" width="180%" height="180%">
-            <feGaussianBlur stdDeviation="3.2" result="blur" />
+            <feGaussianBlur stdDeviation="4.5" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
         </defs>
-        <Silhouette />
-        <g transform="translate(160 0)">
-          <Silhouette />
-        </g>
-        {(Object.keys(SHAPES) as BodyRegion[]).map((region) => {
-          const opacity = level.get(region) ?? 0;
-          return (
-            <path
-              key={region}
-              id={`muscle-${region}`}
-              d={SHAPES[region]}
-              className={opacity > 0 ? "muscle-shape is-on" : "muscle-shape"}
-              style={{ opacity }}
-            />
-          );
-        })}
+        <Figure origin="70px 220px" regions={FRONT} level={level} />
+        <Figure origin="230px 220px" regions={BACK} level={level} shift={160} />
         <text x="70" y="436" textAnchor="middle" fill="currentColor" fontSize="11" opacity="0.45">
           Front
         </text>
@@ -67,9 +57,34 @@ export function BodyFigure({
   );
 }
 
+const FRONT: BodyRegion[] = ["upperPecs", "pecs", "delts", "biceps", "triceps", "forearms", "abs", "obliques", "quads"];
+const BACK: BodyRegion[] = ["calves", "traps", "rearDelts", "lats", "lowerBack", "glutes", "hamstrings"];
+
+function Figure({ origin, regions, level, shift = 0 }: { origin: string; regions: BodyRegion[]; level: Map<BodyRegion, number>; shift?: number }) {
+  return (
+    <g className="body-live" style={{ transformOrigin: origin }}>
+      <g transform={shift ? `translate(${shift} 0)` : undefined}>
+        <Silhouette />
+      </g>
+      {regions.map((region) => {
+        const opacity = level.get(region) ?? 0;
+        return (
+          <path
+            key={region}
+            id={`muscle-${region}`}
+            d={SHAPES[region]}
+            className={opacity > 0 ? "muscle-shape is-on" : "muscle-shape"}
+            style={{ opacity }}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
 function Silhouette() {
   return (
-    <g fill="#1c1c1b" stroke="rgb(236 235 230 / 0.32)" strokeWidth="1.2">
+    <g fill="url(#body-fill)">
       <ellipse cx="70" cy="26" rx="16" ry="18" />
       <path d="M64 42h12c2 8 1 14-1 16H65c-2-2-2-8-1-16z" />
       <path d="M36 72c0-10 68-10 68 0l-6 28c-2 28-4 48-2 70l-4 8H48l-4-8c2-22 0-42-2-70z" />

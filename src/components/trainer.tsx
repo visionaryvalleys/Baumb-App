@@ -242,7 +242,7 @@ export function TrainerChat() {
         )}
       </div>
 
-      <div className="bg-[#0b100e]/55 pb-1 pr-16 pt-2 backdrop-blur-md">
+      <div className="-mx-4 bg-[#0b100e]/55 px-3 pb-[4.75rem] pt-2 backdrop-blur-md">
         <Composer id="trainer-input" onSend={send} streaming={streaming} placeholder="Ask anything…" />
         <p className="mt-2 text-center text-[11px] leading-snug text-white/35">{DISCLAIMER}</p>
       </div>

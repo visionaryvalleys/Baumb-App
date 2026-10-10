@@ -85,9 +85,23 @@ export function recognizeSpeech(): { stop: () => void; done: Promise<Heard> } | 
     if (spoken) reason = "ok";
   };
   rec.onerror = (event) => {
-    if (event.error === "not-allowed" || event.error === "service-not-allowed" || event.error === "audio-capture") reason = "denied";
-    else if (event.error === "network" || event.error === "language-not-supported") reason = "unavailable";
-    finish();
+    if (event.error === "not-allowed" || event.error === "service-not-allowed" || event.error === "audio-capture") {
+      reason = "denied";
+      finish();
+      return;
+    }
+    if (event.error === "network" || event.error === "language-not-supported") {
+      reason = "unavailable";
+      finish();
+      return;
+    }
+    // Silence still ends the take. Stop the microphone, then let onend interpret whatever was heard.
+    try {
+      rec.stop();
+    } catch {
+      finish();
+    }
+    window.setTimeout(finish, 250);
   };
   rec.onend = () => finish();
   try {

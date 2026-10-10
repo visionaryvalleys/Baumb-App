@@ -16,6 +16,8 @@ import "./archive/archive.css";
 type Frame = {
   id: string;
   title: string;
+  /** One word shown under the photograph. */
+  word: string;
   place: string;
   note: string;
   href: string;
@@ -23,18 +25,18 @@ type Frame = {
 };
 
 const SECTIONS: Frame[] = [
-  { id: "workout", title: "Today's session", place: "Workout", href: "/workout", src: "/archive/archive-workout.jpg", note: "The session planned for today. Logging a past workout is separate from starting this one." },
-  { id: "meals", title: "Meals", place: "Nutrition", href: "/nutrition", src: "/archive/archive-meals.jpg", note: "What you have eaten today, against the calories on your plan." },
-  { id: "plan", title: "Work plan", place: "Plan", href: "/plan", src: "/archive/archive-plan.jpg", note: "Calories, protein, steps and sleep from the plan that is active now." },
-  { id: "gallery", title: "Progress gallery", place: "Photos", href: "/progress", src: "/archive/archive-gallery.jpg", note: "Photos you have saved. The count below includes every one of them." },
-  { id: "transform", title: "Transformation", place: "Progress", href: "/transformation", src: "/archive/archive-transform.jpg", note: "Where your weight trend sits against the target on your goal." },
-  { id: "calendar", title: "Calendar", place: "Calendar", href: "/calendar", src: "/archive/archive-calendar.jpg", note: "Each day keeps the meals, workouts and weight you logged." },
-  { id: "review", title: "Weekly review", place: "Review", href: "/review", src: "/archive/archive-review.jpg", note: "The week's check against the plan. Nothing here changes a target on its own." },
-  { id: "activity", title: "Activity and recovery", place: "Recovery", href: "/activity", src: "/archive/archive-activity.jpg", note: "Steps, expenditure and how the day was recovered." },
-  { id: "exercises", title: "Exercise library", place: "Exercises", href: "/exercises", src: "/archive/archive-exercises.jpg", note: "The movements in your library. Choosing one still only highlights the muscles it trains." },
-  { id: "vacation", title: "Vacation", place: "Time away", href: "/vacation", src: "/archive/archive-rest.jpg", note: "Dates away from training. Missed sessions stay off the record when workouts are paused." },
-  { id: "trainer", title: "Trainer", place: "Coaching", href: "/trainer", src: "/archive/archive-trainer.jpg", note: "Questions about your plan, food and the last week of training." },
-  { id: "board", title: "Board", place: "Training board", href: "/board", src: "/archive/archive-board.jpg", note: "Names appear after two training days. Redeeming a reward still happens on the board." },
+  { id: "workout", word: "Session", title: "Today's session", place: "Workout", href: "/workout", src: "/archive/archive-workout.jpg", note: "The session planned for today. Logging a past workout is separate from starting this one." },
+  { id: "meals", word: "Meals", title: "Meals", place: "Nutrition", href: "/nutrition", src: "/archive/archive-meals.jpg", note: "What you have eaten today, against the calories on your plan." },
+  { id: "plan", word: "Plan", title: "Work plan", place: "Plan", href: "/plan", src: "/archive/archive-plan.jpg", note: "Calories, protein, steps and sleep from the plan that is active now." },
+  { id: "gallery", word: "Gallery", title: "Gallery", place: "Gallery", href: "/gallery", src: "/archive/archive-gallery.jpg", note: "Daily posts, one photo each quarter, and reels of 30–90 seconds. Only people who follow you can see them." },
+  { id: "transform", word: "Progress", title: "Transformation", place: "Progress", href: "/transformation", src: "/archive/archive-transform.jpg", note: "Where your weight trend sits against the target on your goal." },
+  { id: "calendar", word: "Calendar", title: "Calendar", place: "Calendar", href: "/calendar", src: "/archive/archive-calendar.jpg", note: "Each day keeps the meals, workouts and weight you logged." },
+  { id: "review", word: "Review", title: "Weekly review", place: "Review", href: "/review", src: "/archive/archive-review.jpg", note: "The week's check against the plan. Nothing here changes a target on its own." },
+  { id: "activity", word: "Recovery", title: "Activity and recovery", place: "Recovery", href: "/activity", src: "/archive/archive-activity.jpg", note: "Steps, expenditure and how the day was recovered." },
+  { id: "exercises", word: "Exercises", title: "Exercise library", place: "Exercises", href: "/exercises", src: "/archive/archive-exercises.jpg", note: "The movements in your library. Choosing one still only highlights the muscles it trains." },
+  { id: "vacation", word: "Rest", title: "Vacation", place: "Time away", href: "/vacation", src: "/archive/archive-holiday.jpg", note: "Dates away from training. Missed sessions stay off the record when workouts are paused." },
+  { id: "trainer", word: "Coach", title: "Trainer", place: "Coaching", href: "/trainer", src: "/archive/archive-trainer.jpg", note: "Questions about your plan, food and the last week of training." },
+  { id: "board", word: "Board", title: "Board", place: "Training board", href: "/board", src: "/archive/archive-board.jpg", note: "Names appear after two training days. Redeeming a reward still happens on the board." },
 ];
 
 function photoSrc(photo: ProgressPhoto) {
@@ -103,7 +105,7 @@ export function HomeArchive() {
   const unit = useUnit();
   const summary = useDaySummary(today);
   const { result: projection } = useProjection();
-  const [grid, setGrid] = useState(false);
+  const [grid, setGrid] = useState(true);
   const [openId, setOpenId] = useState<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
@@ -117,6 +119,7 @@ export function HomeArchive() {
         if (!src) return null;
         return {
           id: `photo:${photo.id}`,
+          word: photo.pose.charAt(0).toUpperCase() + photo.pose.slice(1),
           title: `${photo.pose} · ${formatDate(photo.date)}`,
           place: "Your photo",
           href: "/progress",
@@ -153,12 +156,50 @@ export function HomeArchive() {
 
     let radius = 300;
     let alive = true;
-    let dragX = 0;
-    let dragY = 0;
+    let orient = { x: 0, y: 0, z: 0, w: 1 };
     let velX = 0;
     let velY = 0;
     let dragging = false;
     let pointer: { id: number; lx: number; ly: number; sx: number; sy: number; card: HTMLButtonElement | null } | null = null;
+
+    const mul = (
+      a: { x: number; y: number; z: number; w: number },
+      b: { x: number; y: number; z: number; w: number },
+    ) => ({
+      x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+      y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+      z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+      w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+    });
+
+    const turn = (dx: number, dy: number) => {
+      const yh = (dx * Math.PI) / 360;
+      const ph = (-dy * Math.PI) / 360;
+      const yaw = { x: 0, y: Math.sin(yh), z: 0, w: Math.cos(yh) };
+      const pitch = { x: Math.sin(ph), y: 0, z: 0, w: Math.cos(ph) };
+      const next = mul(mul(pitch, yaw), orient);
+      const n = Math.hypot(next.x, next.y, next.z, next.w) || 1;
+      orient = { x: next.x / n, y: next.y / n, z: next.z / n, w: next.w / n };
+    };
+
+    const spin = (v: { x: number; y: number; z: number }) => {
+      const { x, y, z, w } = orient;
+      const tx = 2 * (y * v.z - z * v.y);
+      const ty = 2 * (z * v.x - x * v.z);
+      const tz = 2 * (x * v.y - y * v.x);
+      return {
+        x: v.x + w * tx + (y * tz - z * ty),
+        y: v.y + w * ty + (z * tx - x * tz),
+        z: v.z + w * tz + (x * ty - y * tx),
+      };
+    };
+
+    const asRotate = (q: { x: number; y: number; z: number; w: number }) => {
+      const len = Math.hypot(q.x, q.y, q.z);
+      if (len < 1e-8) return "rotate3d(0, 1, 0, 0deg)";
+      const angle = (2 * Math.atan2(len, q.w) * 180) / Math.PI;
+      return `rotate3d(${q.x / len}, ${q.y / len}, ${q.z / len}, ${angle}deg)`;
+    };
 
     const layout = () => {
       const w = window.innerWidth;
@@ -177,24 +218,17 @@ export function HomeArchive() {
 
     const frame = () => {
       if (!alive) return;
-      if (!dragging) {
-        dragX += velX;
-        dragY += velY;
-        velX *= 0.94;
-        velY *= 0.94;
-      }
-      dragY = Math.max(-28, Math.min(28, dragY));
-      world.style.transform = `rotateY(${dragX}deg) rotateX(${dragY}deg)`;
-      headline.style.transform = `rotateX(${-dragY}deg) rotateY(${-dragX}deg) translateZ(${radius * 0.55}px)`;
-      const ry = (dragX * Math.PI) / 180;
-      const rx = (dragY * Math.PI) / 180;
+      if (!dragging && (Math.abs(velX) > 0.02 || Math.abs(velY) > 0.02)) turn(velX, velY);
+      velX *= 0.94;
+      velY *= 0.94;
+      world.style.transform = asRotate(orient);
+      const inv = { x: -orient.x, y: -orient.y, z: -orient.z, w: orient.w };
+      headline.style.transform = `${asRotate(inv)} translateY(-42px) translateZ(${radius * 0.55}px)`;
       units.forEach((u, i) => {
-        const y1 = -u.y * Math.cos(rx) - u.z * Math.sin(rx);
-        const z1 = -u.y * Math.sin(rx) + u.z * Math.cos(rx);
-        const zf = -u.x * Math.sin(ry) + z1 * Math.cos(ry);
-        const shade = 1 - Math.pow((zf + 1) / 2, 0.85);
+        const spun = spin(u);
+        const shade = 1 - Math.pow((spun.z + 1) / 2, 0.85);
         cards[i].style.setProperty("--d", String(Math.round(shade * 1000) / 1000));
-        cards[i].style.opacity = zf > 0.92 ? "0" : "1";
+        cards[i].style.opacity = spun.z > 0.92 ? "0" : "1";
       });
       requestAnimationFrame(frame);
     };
@@ -212,10 +246,11 @@ export function HomeArchive() {
       const dy = e.clientY - pointer.ly;
       pointer.lx = e.clientX;
       pointer.ly = e.clientY;
-      dragX += dx * 0.13;
-      dragY -= dy * 0.13;
-      velX = dx * 0.13;
-      velY = -dy * 0.13;
+      const stepX = dx * 0.15;
+      const stepY = dy * 0.15;
+      turn(stepX, stepY);
+      velX = stepX;
+      velY = stepY;
     };
     const up = (e: PointerEvent) => {
       if (!pointer || e.pointerId !== pointer.id) return;
@@ -253,15 +288,16 @@ export function HomeArchive() {
   }, [openId]);
 
   return (
-    <div className={grid ? "baumb-archive is-grid" : open ? "baumb-archive is-lit" : "baumb-archive"}>
+    <div className={open ? "baumb-archive is-lit" : grid ? "baumb-archive is-grid" : "baumb-archive"}>
       <div className="stage" ref={stageRef}>
         <div className="world" ref={worldRef}>
           <div className="orb">
             {frames.map((frame) => (
-              <button key={frame.id} type="button" className="card" data-id={frame.id} aria-label={frame.title}>
+              <button key={frame.id} type="button" className="card" data-id={frame.id} aria-label={frame.word}>
                 <figure>
                   <img src={frame.src} alt="" draggable={false} />
                 </figure>
+                <span className="word">{frame.word}</span>
               </button>
             ))}
           </div>
@@ -271,13 +307,18 @@ export function HomeArchive() {
         </div>
       </div>
       <div className="vig" />
+      {open && (
+        <button type="button" className="close" onClick={() => setOpenId(null)}>
+          Close
+        </button>
+      )}
 
       <div className="grid" hidden={!grid} aria-hidden={grid ? undefined : true}>
         <div className="rows">
           {frames.map((frame) => (
             <button key={frame.id} type="button" onClick={() => setOpenId(frame.id)}>
               <img src={frame.src} alt="" />
-              <span>{frame.title}</span>
+              <span className="word">{frame.word}</span>
             </button>
           ))}
         </div>
@@ -300,9 +341,6 @@ export function HomeArchive() {
           <div className="plate">
             <div className="shot">
               <img src={open.src} alt="" />
-              <button type="button" className="close" onClick={() => setOpenId(null)}>
-                Close
-              </button>
             </div>
             <div className="meta">
               <div>

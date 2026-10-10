@@ -73,3 +73,46 @@ CREATE TABLE IF NOT EXISTS board_award (
   announced_at    TIMESTAMPTZ
 );
 INSERT INTO board_award (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
+-- Gallery is a follow-based feed. A post is visible to its author and to people who follow that author.
+-- Private progress photos stay in user_data. Media bytes live in gallery_media unless object storage is configured.
+CREATE TABLE IF NOT EXISTS follows (
+  follower_id  UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  following_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (follower_id, following_id),
+  CHECK (follower_id <> following_id)
+);
+CREATE INDEX IF NOT EXISTS follows_following_id ON follows (following_id);
+
+CREATE TABLE IF NOT EXISTS gallery_posts (
+  id           UUID PRIMARY KEY,
+  user_id      UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  kind         TEXT NOT NULL CHECK (kind IN ('daily', 'quarter', 'reel')),
+  quarter      SMALLINT CHECK (quarter IS NULL OR (quarter BETWEEN 1 AND 4)),
+  year         SMALLINT,
+  caption      TEXT NOT NULL DEFAULT '',
+  object_key   TEXT,
+  content_type TEXT,
+  duration_sec NUMERIC(5, 1),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS gallery_posts_user_created ON gallery_posts (user_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS gallery_posts_one_quarter
+  ON gallery_posts (user_id, year, quarter)
+  WHERE kind = 'quarter';
+
+CREATE TABLE IF NOT EXISTS gallery_media (
+  post_id      UUID PRIMARY KEY REFERENCES gallery_posts (id) ON DELETE CASCADE,
+  content_type TEXT NOT NULL,
+  bytes        BYTEA NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS gallery_comments (
+  id         UUID PRIMARY KEY,
+  post_id    UUID NOT NULL REFERENCES gallery_posts (id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  body       TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS gallery_comments_post_created ON gallery_comments (post_id, created_at);

@@ -11,7 +11,19 @@ export function NotificationBell() {
   const { settings } = useAppState();
   const items = useNotifications();
   const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  function placePanel() {
+    const button = ref.current?.querySelector("button");
+    if (!button) return;
+    const rect = button.getBoundingClientRect();
+    const width = Math.min(380, window.innerWidth - 16);
+    let left = rect.right - width;
+    left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+    const top = Math.min(rect.bottom + 8, Math.max(8, window.innerHeight - 160));
+    setPlace({ top, left, width, maxHeight: Math.max(140, window.innerHeight - top - 12) });
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -36,7 +48,14 @@ export function NotificationBell() {
     <div ref={ref} className="relative mr-2">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          if (open) {
+            setOpen(false);
+            return;
+          }
+          placePanel();
+          setOpen(true);
+        }}
         aria-label={count ? `Notifications, ${count} new` : "Notifications"}
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -51,7 +70,12 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div role="dialog" aria-label="Notifications" className="absolute right-0 top-full z-50 mt-3 w-[min(380px,calc(100vw-2.5rem))] overflow-hidden rounded-card border border-line-strong bg-elevated/95 shadow-lift backdrop-blur-xl animate-fade-slide-down">
+        <div
+          role="dialog"
+          aria-label="Notifications"
+          className="fixed z-[80] flex flex-col overflow-hidden rounded-card border border-line-strong bg-elevated/95 shadow-lift backdrop-blur-xl animate-fade-slide-down"
+          style={place ? { top: place.top, left: place.left, width: place.width, maxHeight: place.maxHeight } : undefined}
+        >
           <div className="flex items-center justify-between border-b border-line px-4 py-3.5">
             <span className="text-sm font-semibold text-white">Notifications</span>
             <Link href="/settings" onClick={() => setOpen(false)} className="text-xs text-white/50 hover:text-white">
@@ -63,7 +87,7 @@ export function NotificationBell() {
           ) : count === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-white/50">You&apos;re all caught up.</p>
           ) : (
-            <ul className="max-h-[60vh] divide-y divide-line overflow-y-auto">
+            <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto">
               {items.map((n) => (
                 <li key={n.id} className="group flex items-start gap-3 px-4 py-3 hover:bg-white/[0.04]">
                   <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", n.priority === "high" ? "bg-danger" : "bg-brand")} aria-hidden />

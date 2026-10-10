@@ -105,8 +105,27 @@ export function parseVoiceUtterance(text: string, foods: Parameters<typeof parse
 
   if (distanceKm != null) distanceKm = Math.round(distanceKm * 100) / 100;
   const parsed = foodBits.length ? parseFoodText(foodBits.join(", "), foods) : [];
-  const matched = parsed.filter((p) => p.food && p.nutrition && p.portion && p.portion.grams > 0);
-  for (const item of parsed) if (!item.food || !item.nutrition) unmatched.push(item.text.trim());
+  const matched: ParsedFood[] = [];
+  for (const item of parsed) {
+    const kept = item.food && item.nutrition && item.portion && item.portion.grams > 0 ? item : null;
+    if (kept) {
+      matched.push(kept);
+      continue;
+    }
+    const words = item.name.split(/\s+/).filter(Boolean);
+    let found = false;
+    for (let n = words.length - 1; n >= 1 && !found; n--) {
+      const head = parseFoodText(`${item.quantity} ${words.slice(0, n).join(" ")}`, foods).find(
+        (part) => part.food && part.nutrition && part.portion && part.portion.grams > 0,
+      );
+      if (!head) continue;
+      matched.push(head);
+      const rest = words.slice(n).join(" ").trim();
+      if (rest) unmatched.push(rest);
+      found = true;
+    }
+    if (!found && item.text.trim()) unmatched.push(item.text.trim());
+  }
   const hasActivity = distanceKm != null || activeMinutes != null;
   return { foods: matched, unmatched: unmatched.filter(Boolean), activity: hasActivity ? { distanceKm, activeMinutes } : null, sleepHours, lifts: parsedLifts };
 }

@@ -55,6 +55,12 @@ describe("parseVoiceUtterance", () => {
     expect(draft.unmatched).toEqual([]);
   });
 
+  it("keeps the known food when extra words follow it", () => {
+    const draft = parseVoiceUtterance("chicken noodles", [idli, chicken], EXERCISES);
+    expect(draft.foods.map((f) => f.food?.id)).toEqual(["chicken"]);
+    expect(draft.unmatched).toEqual(["noodles"]);
+  });
+
   it("keeps a minute run on activity instead of a food", () => {
     const draft = parseVoiceUtterance("walked 30 minutes", [], EXERCISES);
     expect(draft.activity?.activeMinutes).toBe(30);

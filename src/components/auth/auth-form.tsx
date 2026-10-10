@@ -104,7 +104,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </div>
 
         {mode === "signup" && (
-          <label className="flex items-start gap-3 text-sm leading-relaxed text-white/70">
+          <label className="flex items-start gap-3 text-xs leading-snug text-white/70">
             <input type="checkbox" className="mt-1 size-4 accent-brand" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
             <span>
               I am 16 or older. I agree that a meal I describe, and a photo if I add one, is sent to the configured model provider to estimate nutrition.{" "}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, RefreshCw } from "lucide-react";
 import { sortedWeights } from "@/calculations/trend";
 import { buildPlanVersion } from "@/services/plan";
@@ -31,7 +31,7 @@ import { Card, CardTitle, FlagList } from "./ui";
 
 type Notice = { message: string; flags: PlanVersion["flags"] };
 
-function Editor({ notice, onSaved }: { notice: Notice | null; onSaved: (n: Notice) => void }) {
+function Editor({ notice, onSaved, onDismiss }: { notice: Notice | null; onSaved: (n: Notice) => void; onDismiss: () => void }) {
   const state = useAppState();
   const today = useToday();
   const latest = sortedWeights(state.weights).at(-1) ?? null;
@@ -115,8 +115,13 @@ function Editor({ notice, onSaved }: { notice: Notice | null; onSaved: (n: Notic
         <TrainingFields g={g} set={setGoal} d={d} setProfile={setProfile} />
       </Card>
       <div className="glass sticky bottom-24 z-30 grid gap-3 rounded-card p-4 shadow-lift">
-        <p className="text-sm text-white/70" role="status">
-          {notice?.message ?? "Goal, schedule or body changes take effect when you regenerate your plan."}
+        <p className="flex items-start justify-between gap-3 text-sm text-white/70" role="status">
+          <span>{notice?.message ?? "Goal, schedule or body changes take effect when you regenerate your plan."}</span>
+          {notice && (
+            <button type="button" className="shrink-0 text-xs text-white/50" onClick={onDismiss}>
+              Close
+            </button>
+          )}
         </p>
         <button type="button" className="btn-primary h-12 w-full" onClick={() => saveProfile(true)}>
           <RefreshCw className="size-4" aria-hidden /> Save & regenerate plan
@@ -132,5 +137,11 @@ function Editor({ notice, onSaved }: { notice: Notice | null; onSaved: (n: Notic
 
 export function ProfileSettings() {
   const [notice, setNotice] = useState<Notice | null>(null);
-  return <Editor notice={notice} onSaved={setNotice} />;
+  useEffect(() => {
+    if (!notice || notice.flags.length > 0) return;
+    if (!notice.message.startsWith("Profile saved") && !notice.message.startsWith("Plan V")) return;
+    const timer = window.setTimeout(() => setNotice(null), 1600);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+  return <Editor notice={notice} onSaved={setNotice} onDismiss={() => setNotice(null)} />;
 }

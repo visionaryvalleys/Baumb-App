@@ -356,6 +356,11 @@ input[type="number"] {
   @apply btn border border-danger/40 bg-danger/10 text-red-200 hover:bg-danger/20;
 }
 
+.body-live {
+  transform-box: view-box;
+  animation: body-breathe 4.4s ease-in-out infinite;
+}
+
 .muscle-shape {
   fill: var(--color-brand);
   transform-box: fill-box;
@@ -365,22 +370,43 @@ input[type="number"] {
 
 .muscle-shape.is-on {
   filter: url(#muscle-glow);
-  animation: muscle-in 620ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: muscle-in 620ms cubic-bezier(0.22, 1, 0.36, 1), muscle-live 1.8s ease-in-out 620ms infinite;
+}
+
+@keyframes body-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  50% {
+    transform: translateY(4px) scale(1.018, 0.985);
+  }
 }
 
 @keyframes muscle-in {
   0% {
-    transform: translateY(var(--from, 0px)) scale(0.98);
+    transform: translateY(var(--from, 0px)) scale(0.94);
   }
   70% {
-    transform: translateY(0) scale(1.03);
+    transform: translateY(0) scale(1.08);
   }
   100% {
     transform: translateY(0) scale(1);
   }
 }
 
+@keyframes muscle-live {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .body-live,
   .muscle-shape,
   .muscle-shape.is-on {
     animation: none !important;

@@ -82,6 +82,24 @@
   object-fit: cover;
   display: block;
 }
+.baumb-archive .word {
+  display: block;
+  margin-top: 8px;
+  text-align: center;
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1.1;
+  color: #f4f2ef;
+  text-shadow: 0 2px 12px #000;
+}
+.baumb-archive .card .word {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  margin-top: 0;
+  opacity: clamp(0, calc(1 - var(--d, 1) * 2.2), 1);
+}
 .baumb-archive .card figure::after {
   content: "";
   position: absolute;
@@ -122,27 +140,20 @@
 }
 .baumb-archive .grid button {
   position: relative;
-  aspect-ratio: 3 / 2;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 0;
   border-radius: 3px;
-  background: #0b0b0b;
+  background: transparent;
   color: inherit;
   cursor: pointer;
-  text-align: left;
+  text-align: center;
 }
-.baumb-archive .grid button span {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 28px 14px 12px;
-  font-family: var(--serif);
-  font-size: 16px;
-  color: #fff;
-  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.82));
+.baumb-archive .grid button img {
+  height: auto;
+  aspect-ratio: 3 / 2;
+  border-radius: 3px;
 }
 
 .baumb-archive .actions,
@@ -225,9 +236,11 @@
   background: #0b0b0b;
 }
 .baumb-archive .close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+  position: fixed;
+  top: calc(76px + env(safe-area-inset-top, 0px));
+  right: calc(var(--pad) + 12px);
+  z-index: 80;
+  pointer-events: auto;
   min-width: 44px;
   min-height: 44px;
   padding: 0 14px;

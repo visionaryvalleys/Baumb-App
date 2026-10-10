@@ -17,6 +17,7 @@ import { VoiceLog } from "./voice-log";
 
 const MENU = [
   { href: "/dashboard", label: "Home" },
+  { href: "/gallery", label: "Gallery" },
   { href: "/transformation", label: "Transformation" },
   { href: "/plan", label: "My Plan" },
   { href: "/nutrition", label: "Nutrition" },
