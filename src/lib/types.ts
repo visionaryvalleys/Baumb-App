@@ -552,5 +552,14 @@ export interface AppState {
   dismissedNotifications: string[];
   /** G coins spent in the reward shop. */
   redemptions: Redemption[];
+  /** Journey progress that is not derived from the journal. XP itself is recalculated from workouts. */
+  game: GameProgress;
   settings: Settings;
+}
+
+export interface GameProgress {
+  /** Highest level whose celebration has already been shown. */
+  seenLevel: number;
+  /** Milestone ids the user has claimed. Earned milestones stay even if unclaimed. */
+  claimed: string[];
 }

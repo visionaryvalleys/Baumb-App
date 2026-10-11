@@ -10,7 +10,7 @@ export default function BoardPage() {
     <>
       <PageHeader
         icon={Trophy}
-        subtitle="Workouts · G coins"
+        subtitle="G coins"
         title={
           <>
             The
@@ -19,7 +19,7 @@ export default function BoardPage() {
           </>
         }
       />
-      <RewardsBoard />
+      <RewardsBoard shopOnly />
     </>
   );
 }

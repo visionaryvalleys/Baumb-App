@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { DEFAULT_MEAL_SLOTS, slotsForMealCount } from "@/calculations/nutrition";
-import { deviceTimezone } from "./date";
+import { deviceTimezone, todayKey } from "./date";
+import { gameProgress, milestoneEarned } from "./game";
 import { gBalance } from "./g-system";
 import type {
   AppState,
@@ -88,6 +89,7 @@ export const EMPTY_STATE: AppState = {
   audit: [],
   dismissedNotifications: [],
   redemptions: [],
+  game: { seenLevel: 1, claimed: [] },
   settings: DEFAULT_SETTINGS,
 };
 
@@ -120,6 +122,10 @@ export function normalizeState(raw: Partial<AppState> | null | undefined): AppSt
     audit: raw.audit ?? [],
     dismissedNotifications: raw.dismissedNotifications ?? [],
     redemptions: raw.redemptions ?? [],
+    game: {
+      seenLevel: Math.max(1, Math.round(Number(raw.game?.seenLevel) || 1)),
+      claimed: Array.isArray(raw.game?.claimed) ? raw.game.claimed.filter((id) => typeof id === "string").slice(0, 40) : [],
+    },
   };
 }
 
@@ -496,6 +502,21 @@ export const actions = {
     setState(() => ({ ...EMPTY_STATE, profile: { ...DEFAULT_PROFILE, timezone: deviceTimezone() } }));
   },
 
+  seeGameLevel(level: number) {
+    setState((s) => {
+      const next = Math.max(1, Math.round(level));
+      if (next <= s.game.seenLevel) return s;
+      if (next > gameProgress(s, todayKey(s.profile.timezone)).level) return s;
+      return { ...s, game: { ...s.game, seenLevel: next } };
+    });
+  },
+  claimMilestone(id: string) {
+    setState((s) => {
+      if (s.game.claimed.includes(id)) return s;
+      if (!milestoneEarned(s, todayKey(s.profile.timezone), id)) return s;
+      return { ...s, game: { ...s.game, claimed: [...s.game.claimed, id] } };
+    });
+  },
   redeemReward(item: { id: string; name: string; cost: number }) {
     setState((s) => {
       if (gBalance(s.workouts, s.redemptions) < item.cost) return s;

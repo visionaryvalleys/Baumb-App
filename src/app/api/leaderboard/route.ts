@@ -10,6 +10,8 @@ interface ScoreRow {
   workout_days: number;
   eligible: boolean;
   g_balance: number;
+  week_count: number;
+  week_start: Date | string | null;
 }
 
 interface AwardRow {
@@ -25,8 +27,19 @@ function clamp(value: unknown, max: number): number {
   return Math.min(max, Math.max(0, n));
 }
 
+function weekKey(value: Date | string | null): string {
+  if (!value) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const y = value.getUTCFullYear();
+    const m = String(value.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(value.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return String(value).slice(0, 10);
+}
+
 async function standingsFor(userId: string) {
-  const scores = await query<ScoreRow>("SELECT user_id, display_name, workout_count, workout_days, eligible, g_balance FROM board_scores WHERE workout_count >= 1 AND workout_days >= 2 ORDER BY workout_count DESC, display_name ASC");
+  const scores = await query<ScoreRow>("SELECT user_id, display_name, workout_count, workout_days, eligible, g_balance, week_count, week_start FROM board_scores WHERE workout_count >= 1 AND workout_days >= 2 ORDER BY workout_count DESC, display_name ASC");
   const award = (await query<AwardRow>("SELECT winner_user_id, winner_name, workout_count, announced_at FROM board_award WHERE id = 1"))[0];
   return {
     standings: scores.map((row) => ({
@@ -35,6 +48,8 @@ async function standingsFor(userId: string) {
       workoutDays: row.workout_days,
       eligible: row.workout_days >= 2 && row.workout_count >= 1,
       gBalance: row.g_balance,
+      weekCount: row.week_count ?? 0,
+      weekStart: weekKey(row.week_start),
       leader: award?.winner_user_id === row.user_id,
       you: row.user_id === userId,
     })),
@@ -47,7 +62,7 @@ async function standingsFor(userId: string) {
 
 async function awardLeader() {
   const top = (
-    await query<ScoreRow>("SELECT user_id, display_name, workout_count, workout_days, eligible, g_balance FROM board_scores WHERE workout_count >= 1 AND workout_days >= 2 ORDER BY workout_count DESC, updated_at ASC LIMIT 1")
+    await query<ScoreRow>("SELECT user_id, display_name, workout_count, workout_days, eligible, g_balance, week_count, week_start FROM board_scores WHERE workout_count >= 1 AND workout_days >= 2 ORDER BY workout_count DESC, updated_at ASC LIMIT 1")
   )[0];
   const current = (await query<AwardRow>("SELECT winner_user_id, winner_name, workout_count, announced_at FROM board_award WHERE id = 1"))[0];
   if (!top) {
@@ -76,7 +91,7 @@ export async function POST(req: NextRequest) {
     assertSameOrigin(req);
     const user = await getSessionUser();
     if (!user) throw new HttpError(401, "Please sign in.");
-    const body = await readJson<{ displayName?: unknown; workoutCount?: unknown; workoutDays?: unknown; eligible?: unknown; gBalance?: unknown }>(req, 4_000);
+    const body = await readJson<{ displayName?: unknown; workoutCount?: unknown; workoutDays?: unknown; eligible?: unknown; gBalance?: unknown; weekCount?: unknown; weekStart?: unknown }>(req, 4_000);
     const displayName = (typeof body.displayName === "string" ? body.displayName : user.name).trim().slice(0, 80) || user.name;
     const workoutCount = clamp(body.workoutCount, 100_000);
     const workoutDays = clamp(body.workoutDays, 100_000);
@@ -87,17 +102,21 @@ export async function POST(req: NextRequest) {
     }
     const eligible = workoutDays >= 2;
     const balance = eligible ? clamp(body.gBalance, 1_000_000) : 0;
+    const weekCount = clamp(body.weekCount, 21);
+    const weekStart = typeof body.weekStart === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.weekStart) ? body.weekStart : null;
     await query(
-      `INSERT INTO board_scores (user_id, display_name, workout_count, workout_days, eligible, g_balance, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, now())
+      `INSERT INTO board_scores (user_id, display_name, workout_count, workout_days, eligible, g_balance, week_count, week_start, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
        ON CONFLICT (user_id) DO UPDATE SET
          display_name = EXCLUDED.display_name,
          workout_count = EXCLUDED.workout_count,
          workout_days = EXCLUDED.workout_days,
          eligible = EXCLUDED.eligible,
          g_balance = EXCLUDED.g_balance,
+         week_count = EXCLUDED.week_count,
+         week_start = EXCLUDED.week_start,
          updated_at = now()`,
-      [user.id, displayName, workoutCount, workoutDays, eligible, balance],
+      [user.id, displayName, workoutCount, workoutDays, eligible, balance, weekCount, weekStart],
     );
     await awardLeader();
     return Response.json(await standingsFor(user.id));

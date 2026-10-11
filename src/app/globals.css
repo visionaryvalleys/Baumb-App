@@ -405,10 +405,41 @@ input[type="number"] {
   }
 }
 
+@keyframes level-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.level-rise {
+  animation: level-rise 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes map-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 106, 26, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(255, 106, 26, 0);
+  }
+}
+
+.map-now {
+  animation: map-glow 2.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .body-live,
   .muscle-shape,
-  .muscle-shape.is-on {
+  .muscle-shape.is-on,
+  .level-rise,
+  .map-now {
     animation: none !important;
     transition-property: opacity !important;
     transition-duration: 180ms !important;

@@ -62,8 +62,12 @@ CREATE TABLE IF NOT EXISTS board_scores (
   workout_days  INT NOT NULL DEFAULT 0,
   eligible      BOOLEAN NOT NULL DEFAULT FALSE,
   g_balance     INT NOT NULL DEFAULT 0,
+  week_count    INT NOT NULL DEFAULT 0,
+  week_start    DATE,
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE board_scores ADD COLUMN IF NOT EXISTS week_count INT NOT NULL DEFAULT 0;
+ALTER TABLE board_scores ADD COLUMN IF NOT EXISTS week_start DATE;
 
 CREATE TABLE IF NOT EXISTS board_award (
   id              INT PRIMARY KEY CHECK (id = 1),
@@ -116,3 +120,33 @@ CREATE TABLE IF NOT EXISTS gallery_comments (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS gallery_comments_post_created ON gallery_comments (post_id, created_at);
+
+CREATE TABLE IF NOT EXISTS music_tracks (
+  id         UUID PRIMARY KEY,
+  user_id    UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  title      TEXT NOT NULL,
+  artist     TEXT NOT NULL DEFAULT '',
+  source     TEXT NOT NULL DEFAULT '',
+  source_url TEXT NOT NULL DEFAULT '',
+  artwork_url TEXT NOT NULL DEFAULT '',
+  audio_url   TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE music_tracks ADD COLUMN IF NOT EXISTS artwork_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE music_tracks ADD COLUMN IF NOT EXISTS audio_url TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS music_tracks_user_created ON music_tracks (user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS music_playlists (
+  id         UUID PRIMARY KEY,
+  user_id    UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS music_playlists_user ON music_playlists (user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS music_playlist_tracks (
+  playlist_id UUID NOT NULL REFERENCES music_playlists (id) ON DELETE CASCADE,
+  track_id    UUID NOT NULL REFERENCES music_tracks (id) ON DELETE CASCADE,
+  position    INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (playlist_id, track_id)
+);

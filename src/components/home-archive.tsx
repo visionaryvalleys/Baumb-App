@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { activeMealSlots } from "@/calculations/nutrition";
 import { formatDate } from "@/lib/date";
@@ -27,7 +28,7 @@ type Frame = {
 const SECTIONS: Frame[] = [
   { id: "workout", word: "Session", title: "Today's session", place: "Workout", href: "/workout", src: "/archive/archive-workout.jpg", note: "The session planned for today. Logging a past workout is separate from starting this one." },
   { id: "meals", word: "Meals", title: "Meals", place: "Nutrition", href: "/nutrition", src: "/archive/archive-meals.jpg", note: "What you have eaten today, against the calories on your plan." },
-  { id: "plan", word: "Plan", title: "Work plan", place: "Plan", href: "/plan", src: "/archive/archive-plan.jpg", note: "Calories, protein, steps and sleep from the plan that is active now." },
+  { id: "music", word: "Music", title: "Music", place: "Music", href: "/music", src: "/archive/archive-music.jpg", note: "Your playlists, saved songs, and recent hits." },
   { id: "gallery", word: "Gallery", title: "Gallery", place: "Gallery", href: "/gallery", src: "/archive/archive-gallery.jpg", note: "Daily posts, one photo each quarter, and reels of 30–90 seconds. Only people who follow you can see them." },
   { id: "transform", word: "Progress", title: "Transformation", place: "Progress", href: "/transformation", src: "/archive/archive-transform.jpg", note: "Where your weight trend sits against the target on your goal." },
   { id: "calendar", word: "Calendar", title: "Calendar", place: "Calendar", href: "/calendar", src: "/archive/archive-calendar.jpg", note: "Each day keeps the meals, workouts and weight you logged." },
@@ -36,7 +37,7 @@ const SECTIONS: Frame[] = [
   { id: "exercises", word: "Exercises", title: "Exercise library", place: "Exercises", href: "/exercises", src: "/archive/archive-exercises.jpg", note: "The movements in your library. Choosing one still only highlights the muscles it trains." },
   { id: "vacation", word: "Rest", title: "Vacation", place: "Time away", href: "/vacation", src: "/archive/archive-holiday.jpg", note: "Dates away from training. Missed sessions stay off the record when workouts are paused." },
   { id: "trainer", word: "Coach", title: "Trainer", place: "Coaching", href: "/trainer", src: "/archive/archive-trainer.jpg", note: "Questions about your plan, food and the last week of training." },
-  { id: "board", word: "Board", title: "Board", place: "Training board", href: "/board", src: "/archive/archive-board.jpg", note: "Names appear after two training days. Redeeming a reward still happens on the board." },
+  { id: "game", word: "Game", title: "Journey", place: "Game", href: "/game", src: "/archive/archive-game.jpg", note: "Levels, today's mission, and a consistency score from the sessions you actually log." },
 ];
 
 function photoSrc(photo: ProgressPhoto) {
@@ -107,6 +108,15 @@ export function HomeArchive() {
   const { result: projection } = useProjection();
   const [grid, setGrid] = useState(true);
   const [openId, setOpenId] = useState<string | null>(null);
+  const router = useRouter();
+  const openFrameRef = useRef<(id: string) => void>(() => {});
+  openFrameRef.current = (id: string) => {
+    if (id === "music") {
+      router.push("/music");
+      return;
+    }
+    setOpenId(id);
+  };
   const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const headlineRef = useRef<HTMLHeadingElement>(null);
@@ -258,7 +268,7 @@ export function HomeArchive() {
       const card = pointer.card;
       pointer = null;
       dragging = false;
-      if (dist < 8 && card) setOpenId(card.dataset.id ?? null);
+      if (dist < 8 && card) openFrameRef.current(card.dataset.id ?? "");
     };
 
     layout();
@@ -316,7 +326,7 @@ export function HomeArchive() {
       <div className="grid" hidden={!grid} aria-hidden={grid ? undefined : true}>
         <div className="rows">
           {frames.map((frame) => (
-            <button key={frame.id} type="button" onClick={() => setOpenId(frame.id)}>
+            <button key={frame.id} type="button" onClick={() => openFrameRef.current(frame.id)}>
               <img src={frame.src} alt="" />
               <span className="word">{frame.word}</span>
             </button>
@@ -369,14 +379,6 @@ export function HomeArchive() {
                 <CalorieField slotId={slotId} date={today} timezone={state.profile.timezone} />
               </div>
             </div>
-            {open.id === "plan" && targets && (
-              <ul className="extra note">
-                <li>Calories {targets.nutrition.calories.toLocaleString()} kcal</li>
-                <li>Protein {targets.nutrition.proteinG} g</li>
-                <li>Steps {targets.steps.toLocaleString()}</li>
-                <li>Sleep {targets.sleepHours[0]}–{targets.sleepHours[1]} h</li>
-              </ul>
-            )}
             {open.id === "activity" && (
               <div className="extra">
                 <EnergyBreakdown summary={summary} />

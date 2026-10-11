@@ -3,13 +3,18 @@
 import { useEffect, useState } from "react";
 import { Trophy } from "lucide-react";
 import { type BoardSnapshot, loadBoard, publishBoard } from "@/lib/board-client";
-import { addDays, formatDate } from "@/lib/date";
+import { addDays, formatDate, startOfWeek } from "@/lib/date";
+import { workoutsThisWeek } from "@/lib/game";
 import { G_PER_WORKOUT, REWARDS, WINNER_SPAN_DAYS, gBalance, isBoardEligible, workoutDayCount } from "@/lib/g-system";
+import { useToday } from "@/lib/hooks";
 import { actions, getState, useAppState } from "@/lib/store";
 import { Card, CardTitle, EmptyState } from "../ui";
 
-export function RankStrip() {
+export function SessionBoard() {
   const state = useAppState();
+  const today = useToday();
+  const week = startOfWeek(today);
+  const mine = workoutsThisWeek(state.workouts, today);
   const [board, setBoard] = useState<BoardSnapshot | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -29,12 +34,37 @@ export function RankStrip() {
     };
   }, [state]);
 
-  if (!ready) return null;
-  const name = [state.profile.firstName, state.profile.lastName].filter(Boolean).join(" ").trim() || "Athlete";
-  const place = board?.standings.findIndex((row) => row.name === name) ?? -1;
-  const line = place >= 0 ? `${place + 1}. ${name}` : "Complete two training days and your name appears here.";
+  const rows = (board?.standings ?? [])
+    .map((row) => ({ ...row, shown: row.weekStart === week ? row.weekCount : 0 }))
+    .sort((a, b) => b.shown - a.shown || b.workoutCount - a.workoutCount || a.name.localeCompare(b.name))
+    .slice(0, 10);
+  const awardEnd = board?.award ? formatDate(addDays(board.award.announcedAt.slice(0, 10), WINNER_SPAN_DAYS - 1)) : null;
 
-  return <p className="text-[15px] leading-snug text-white/80">{line}</p>;
+  return (
+    <Card>
+      <CardTitle action={<Trophy className="size-4 text-brand" aria-hidden />}>This week</CardTitle>
+      <p className="text-[22px] font-semibold tracking-[-0.03em] text-white">{mine} {mine === 1 ? "workout" : "workouts"} this week</p>
+      <p className="mt-1 text-sm text-white/55">Your sessions from Monday through Sunday. The ten names are ordered by workouts this week.</p>
+      {board?.award && (
+        <p className="mt-3 text-sm text-white/70">{board.award.name} holds the award through {awardEnd}, with {board.award.workoutCount} workouts on record.</p>
+      )}
+      {!ready ? null : rows.length > 0 ? (
+        <ol className="mt-4 grid gap-2">
+          {rows.map((row, index) => (
+            <li key={`${row.name}-${index}`} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-4 py-3">
+              <p className="min-w-0 truncate text-[16px] font-medium text-white">
+                {index + 1}. {row.name}
+                {row.leader && <span className="ml-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-brand">Leader</span>}
+              </p>
+              <p className="shrink-0 text-[15px] font-semibold tabular-nums text-white">{row.shown}</p>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="mt-4 text-sm text-white/55">Complete two training days and your name appears here.</p>
+      )}
+    </Card>
+  );
 }
 
 export function RewardsBoard({ listOnly = false, shopOnly = false }: { listOnly?: boolean; shopOnly?: boolean }) {
@@ -104,6 +134,7 @@ export function RewardsBoard({ listOnly = false, shopOnly = false }: { listOnly?
           <p className="mt-3 text-sm leading-relaxed text-white/60">
             {eligible ? `Each workout you log from here adds ${G_PER_WORKOUT} G.` : `${Math.max(0, 2 - days)} training day${days === 1 ? "" : "s"} left before you can earn G and join the board.`}
           </p>
+          {shopOnly && <p className="mt-3 text-sm leading-relaxed text-white/60">This week’s top ten is on the workout session.</p>}
           {state.redemptions.length > 0 && (
             <ul className="mt-4 grid gap-1 text-sm text-white/55">
               {state.redemptions.map((item) => (

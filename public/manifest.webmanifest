@@ -5,5 +5,18 @@
   "orientation": "portrait",
   "background_color": "#08090c",
   "theme_color": "#08090c",
-  "start_url": "/"
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    { "src": "/icon-512.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any" }
+  ],
+  "share_target": {
+    "action": "/music",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }

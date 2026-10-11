@@ -1,4 +1,6 @@
 import { gBalance, isBoardEligible, workoutDayCount } from "./g-system";
+import { workoutsThisWeek } from "./game";
+import { startOfWeek, todayKey } from "./date";
 import type { AppState } from "./types";
 
 export interface BoardStanding {
@@ -7,6 +9,8 @@ export interface BoardStanding {
   workoutDays: number;
   eligible: boolean;
   gBalance: number;
+  weekCount: number;
+  weekStart: string;
   leader: boolean;
 }
 
@@ -33,6 +37,8 @@ export async function publishBoard(state: AppState): Promise<void> {
       workoutDays: workoutDayCount(state.workouts),
       eligible: isBoardEligible(state.workouts),
       gBalance: gBalance(state.workouts, state.redemptions),
+      weekCount: workoutsThisWeek(state.workouts, todayKey(state.profile.timezone)),
+      weekStart: startOfWeek(todayKey(state.profile.timezone)),
     }),
   });
 }
