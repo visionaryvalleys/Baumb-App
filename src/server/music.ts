@@ -1,5 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
+import { musicService, type MusicServiceId } from "@/lib/music-services";
 import { query } from "./db";
 import { HttpError } from "./http";
 
@@ -138,6 +139,18 @@ export async function deletePlaylist(userId: string, id: string): Promise<void> 
   if (!UUID.test(id)) throw new HttpError(404, "That playlist isn't yours.");
   const rows = await query<{ id: string }>("DELETE FROM music_playlists WHERE id = $1 AND user_id = $2 RETURNING id", [id, userId]);
   if (!rows.length) throw new HttpError(404, "That playlist isn't yours.");
+}
+
+export async function getMusicService(userId: string): Promise<MusicServiceId | null> {
+  const rows = await query<{ music_service: string | null }>("SELECT music_service FROM users WHERE id = $1", [userId]);
+  return musicService(rows[0]?.music_service)?.id ?? null;
+}
+
+export async function setMusicService(userId: string, service: string): Promise<MusicServiceId> {
+  const chosen = musicService(service);
+  if (!chosen) throw new HttpError(400, "Choose a player.");
+  await query("UPDATE users SET music_service = $2 WHERE id = $1", [userId, chosen.id]);
+  return chosen.id;
 }
 
 export async function deleteTrack(userId: string, id: string): Promise<void> {

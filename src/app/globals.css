@@ -278,6 +278,19 @@ body {
   }
 }
 
+.music-sheet {
+  position: fixed;
+  top: calc(3.5rem + 1px);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  animation: sheetUp 0.62s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
 @keyframes sheetDown {
   from {
     transform: translateY(0);

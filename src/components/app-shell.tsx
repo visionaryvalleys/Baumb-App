@@ -14,6 +14,7 @@ import { NotificationBell } from "./notifications";
 import { JournalLock } from "./journal-lock";
 import { EmptyState, PageSkeleton } from "./ui";
 import { VoiceLog } from "./voice-log";
+import { MusicPlayer } from "./music-player";
 
 const MENU = [
   { href: "/dashboard", label: "Home" },
@@ -116,7 +117,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         {session.auth === "error" ? <SessionProblem message={session.message} /> : !ready ? <PageSkeleton /> : session.locked ? <JournalLock /> : gated ? <OnboardingGate /> : children}
       </main>
 
-      {ready && onboarded && !session.locked && <VoiceLog />}
+      {ready && onboarded && !session.locked && pathname !== "/music" && <VoiceLog />}
+      {pathname === "/music" && ready && onboarded && !session.locked && session.auth !== "error" && <MusicPlayer />}
 
       <MenuOverlay
         fixed
