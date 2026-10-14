@@ -173,7 +173,6 @@ export function HomeArchive() {
       const len = Math.hypot(x, y, z) || 1;
       return { x: x / len, y: y / len, z: z / len };
     };
-    const front = unit(0, -0.36, 1.1);
     let extra = 0;
     const units = cards.map((card) => {
       const known = home[card.dataset.id ?? ""];
@@ -188,7 +187,6 @@ export function HomeArchive() {
     let alive = true;
     let orient = { x: 0, y: 0, z: 0, w: 1 };
     let velX = 0;
-    let velY = 0;
     let dragging = false;
     let pointer: { id: number; lx: number; ly: number; sx: number; sy: number; card: HTMLButtonElement | null } | null = null;
 
@@ -202,14 +200,12 @@ export function HomeArchive() {
       w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
     });
 
-    const turn = (dx: number, dy: number) => {
+    const turn = (dx: number) => {
       const yh = (dx * Math.PI) / 360;
-      const ph = (-dy * Math.PI) / 360;
       const yaw = { x: 0, y: Math.sin(yh), z: 0, w: Math.cos(yh) };
-      const pitch = { x: Math.sin(ph), y: 0, z: 0, w: Math.cos(ph) };
-      const next = mul(mul(pitch, yaw), orient);
-      const n = Math.hypot(next.x, next.y, next.z, next.w) || 1;
-      orient = { x: next.x / n, y: next.y / n, z: next.z / n, w: next.w / n };
+      const next = mul(yaw, orient);
+      const len = Math.hypot(next.x, next.y, next.z, next.w) || 1;
+      orient = { x: next.x / len, y: next.y / len, z: next.z / len, w: next.w / len };
     };
 
     const spin = (v: { x: number; y: number; z: number }) => {
@@ -265,32 +261,23 @@ export function HomeArchive() {
 
     const beginSnap = () => {
       let best = 0;
-      let bestD = Infinity;
+      let bestAbs = Infinity;
       units.forEach((u, i) => {
         const faced = spin(u);
-        const dx = faced.x - front.x;
-        const dy = faced.y - front.y;
-        const dz = faced.z - front.z;
-        const dist = dx * dx + dy * dy + dz * dz;
-        if (dist < bestD) {
-          bestD = dist;
+        const ang = Math.atan2(faced.x, faced.z);
+        if (Math.abs(ang) < bestAbs) {
+          bestAbs = Math.abs(ang);
           best = i;
         }
       });
-      // Yaw, then pitch, so the nearest picture lands under the title and the row stays level.
-      const chosen = units[best];
-      const yaw = Math.atan2(-chosen.x, chosen.z);
-      const y1 = chosen.y;
-      const z1 = -chosen.x * Math.sin(yaw) + chosen.z * Math.cos(yaw);
-      const pitch = Math.atan2(y1, z1) - Math.atan2(front.y, front.z);
+      const faced = spin(units[best]);
+      const yaw = -Math.atan2(faced.x, faced.z);
       const yawQ = { x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) };
-      const pitchQ = { x: Math.sin(pitch / 2), y: 0, z: 0, w: Math.cos(pitch / 2) };
       snapFrom = orient;
-      snapTo = mul(pitchQ, yawQ);
+      snapTo = normalizeQ(mul(yawQ, orient));
       snapT = 0;
       settling = true;
       velX = 0;
-      velY = 0;
     };
 
     const layout = () => {
@@ -314,11 +301,10 @@ export function HomeArchive() {
         snapT = Math.min(1, snapT + 0.065);
         orient = slerp(snapFrom, snapTo, 1 - (1 - snapT) ** 3);
         if (snapT >= 1) settling = false;
-      } else if (!dragging && (Math.abs(velX) > 0.02 || Math.abs(velY) > 0.02)) {
-        turn(velX, velY);
+      } else if (!dragging && Math.abs(velX) > 0.02) {
+        turn(velX);
         velX *= 0.9;
-        velY *= 0.9;
-        if (Math.hypot(velX, velY) < 0.12) beginSnap();
+        if (Math.abs(velX) < 0.12) beginSnap();
       }
       world.style.transform = "none";
       units.forEach((u, i) => {
@@ -341,19 +327,15 @@ export function HomeArchive() {
       dragging = true;
       settling = false;
       velX = 0;
-      velY = 0;
     };
     const move = (e: PointerEvent) => {
       if (!pointer || e.pointerId !== pointer.id) return;
       const dx = e.clientX - pointer.lx;
-      const dy = e.clientY - pointer.ly;
       pointer.lx = e.clientX;
       pointer.ly = e.clientY;
       const stepX = dx * 0.15;
-      const stepY = dy * 0.15;
-      turn(stepX, stepY);
+      turn(stepX);
       velX = stepX;
-      velY = stepY;
     };
     const up = (e: PointerEvent) => {
       if (!pointer || e.pointerId !== pointer.id) return;
@@ -362,7 +344,7 @@ export function HomeArchive() {
       pointer = null;
       dragging = false;
       if (dist < 8 && card) openFrameRef.current(card.dataset.id ?? "");
-      else if (Math.hypot(velX, velY) < 0.18) beginSnap();
+      else if (Math.abs(velX) < 0.18) beginSnap();
     };
 
     layout();
