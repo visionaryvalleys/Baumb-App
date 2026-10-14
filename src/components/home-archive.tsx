@@ -202,6 +202,8 @@ export function HomeArchive() {
         card.style.transform = `translate3d(${item.x}px, ${item.y}px, 0) scale(${item.scale})`;
         card.style.zIndex = String(rank + 1);
         card.style.opacity = "1";
+        const shade = Math.max(0, Math.min(0.62, (1 - item.depth) * 0.42));
+        card.style.setProperty("--d", shade.toFixed(3));
       });
     };
 

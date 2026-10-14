@@ -18,7 +18,7 @@
 
 .baumb-archive .stage {
   position: absolute;
-  top: calc(3.5rem + 52px + env(safe-area-inset-top, 0px));
+  top: calc(3.5rem + 40px + env(safe-area-inset-top, 0px));
   right: 0;
   bottom: 0;
   left: 0;
@@ -26,13 +26,13 @@
   overflow: hidden;
   pointer-events: auto;
   perspective: 1150px;
-  perspective-origin: 50% 46%;
+  perspective-origin: 50% 40%;
   touch-action: none;
 }
 .baumb-archive .world,
 .baumb-archive .orb {
   position: absolute;
-  top: 46%;
+  top: 40%;
   left: 50%;
   width: 0;
   height: 0;
@@ -40,7 +40,7 @@
 }
 .baumb-archive .headline {
   position: absolute;
-  top: 46%;
+  top: 40%;
   left: 50%;
   z-index: 40;
   width: max-content;
@@ -90,21 +90,23 @@
 }
 .baumb-archive .word {
   display: block;
-  margin-top: 8px;
+  margin-top: 6px;
   text-align: center;
   font-family: var(--serif);
-  font-size: 15px;
-  line-height: 1.1;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
   color: #F8F9FA;
-  text-shadow: 0 2px 12px rgba(30, 42, 39, 0.55);
+  text-shadow: 0 1px 8px rgba(30, 42, 39, 0.85);
 }
 .baumb-archive .card .word {
   position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: 0;
+  top: calc(100% + 6px);
+  left: -12px;
+  right: -12px;
   margin-top: 0;
-  opacity: clamp(0, calc(1 - var(--d, 1) * 2.2), 1);
+  opacity: clamp(0.15, calc(1 - var(--d, 0) * 1.35), 1);
 }
 .baumb-archive .card figure::after {
   content: "";
@@ -128,7 +130,7 @@
 
 .baumb-archive .grid {
   position: absolute;
-  top: calc(3.5rem + 52px + env(safe-area-inset-top, 0px));
+  top: calc(3.5rem + 40px + env(safe-area-inset-top, 0px));
   right: 0;
   bottom: 0;
   left: 0;
@@ -200,7 +202,7 @@
 .baumb-archive .gridbtn {
   position: absolute;
   z-index: 30;
-  top: calc(3.5rem + 8px + env(safe-area-inset-top, 0px));
+  top: calc(3.5rem + env(safe-area-inset-top, 0px));
   left: var(--pad);
   width: 44px;
   height: 44px;
@@ -216,7 +218,7 @@
 .baumb-archive .count {
   position: absolute;
   z-index: 30;
-  top: calc(3.5rem + 18px + env(safe-area-inset-top, 0px));
+  top: calc(3.5rem + 8px + env(safe-area-inset-top, 0px));
   left: calc(var(--pad) + 52px);
   font-size: 12px;
   letter-spacing: 0.08em;
