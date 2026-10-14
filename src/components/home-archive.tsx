@@ -153,141 +153,25 @@ export function HomeArchive() {
     const n = cards.length;
     if (n < 2) return;
 
-    // Resting collage, matching the home sphere: Session under the title,
-    // Game and Meals beside it, Coach and Music at the edges, the rest above.
-    const home: Record<string, [number, number, number]> = {
-      workout: [0, -0.36, 1.1],
-      game: [-0.64, -0.32, 0.76],
-      meals: [0.64, -0.32, 0.76],
-      trainer: [-1.22, -0.1, 0.4],
-      music: [1.22, -0.1, 0.4],
-      gallery: [-0.78, 0.5, 0.42],
-      calendar: [0.78, 0.5, 0.42],
-      review: [0, 0.86, 0.32],
-      activity: [-1.08, 0.18, 0.42],
-      exercises: [1.08, 0.18, 0.42],
-      vacation: [-1.28, 0.78, 0.18],
-      transform: [1.28, 0.78, 0.18],
-    };
-    const unit = (x: number, y: number, z: number) => {
-      const len = Math.hypot(x, y, z) || 1;
-      return { x: x / len, y: y / len, z: z / len };
-    };
-    let extra = 0;
-    const units = cards.map((card) => {
-      const known = home[card.dataset.id ?? ""];
-      if (known) return unit(...known);
-      extra += 1;
-      const t = extra % 2 === 0 ? extra / 2 : -(extra + 1) / 2;
-      return unit(t * 0.55, 0.15, -0.35);
-    });
-
-    let radius = 300;
-    let placed = 280;
+    // One horizontal ring, like a timer wheel laid on its side.
+    // Index 0 (Session) rests in the front-centre slot.
+    const step = (Math.PI * 2) / n;
     let alive = true;
-    let orient = { x: 0, y: 0, z: 0, w: 1 };
-    let velX = 0;
+    let angle = 0;
+    let vel = 0;
     let dragging = false;
-    let pointer: { id: number; lx: number; ly: number; sx: number; sy: number; card: HTMLButtonElement | null } | null = null;
-
-    const mul = (
-      a: { x: number; y: number; z: number; w: number },
-      b: { x: number; y: number; z: number; w: number },
-    ) => ({
-      x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
-      y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
-      z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
-      w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
-    });
-
-    const turn = (dx: number) => {
-      const yh = (dx * Math.PI) / 360;
-      const yaw = { x: 0, y: Math.sin(yh), z: 0, w: Math.cos(yh) };
-      const next = mul(yaw, orient);
-      const len = Math.hypot(next.x, next.y, next.z, next.w) || 1;
-      orient = { x: next.x / len, y: next.y / len, z: next.z / len, w: next.w / len };
-    };
-
-    const spin = (v: { x: number; y: number; z: number }) => {
-      const { x, y, z, w } = orient;
-      const tx = 2 * (y * v.z - z * v.y);
-      const ty = 2 * (z * v.x - x * v.z);
-      const tz = 2 * (x * v.y - y * v.x);
-      return {
-        x: v.x + w * tx + (y * tz - z * ty),
-        y: v.y + w * ty + (z * tx - x * tz),
-        z: v.z + w * tz + (x * ty - y * tx),
-      };
-    };
-
-    const normalizeQ = (q: { x: number; y: number; z: number; w: number }) => {
-      const len = Math.hypot(q.x, q.y, q.z, q.w) || 1;
-      return { x: q.x / len, y: q.y / len, z: q.z / len, w: q.w / len };
-    };
-
-    const slerp = (
-      a: { x: number; y: number; z: number; w: number },
-      b: { x: number; y: number; z: number; w: number },
-      t: number,
-    ) => {
-      let bx = b.x;
-      let by = b.y;
-      let bz = b.z;
-      let bw = b.w;
-      let dot = a.x * bx + a.y * by + a.z * bz + a.w * bw;
-      if (dot < 0) {
-        dot = -dot;
-        bx = -bx;
-        by = -by;
-        bz = -bz;
-        bw = -bw;
-      }
-      if (dot > 0.9995) {
-        return normalizeQ({ x: a.x + t * (bx - a.x), y: a.y + t * (by - a.y), z: a.z + t * (bz - a.z), w: a.w + t * (bw - a.w) });
-      }
-      const theta = Math.acos(Math.min(1, dot));
-      const s = Math.sin(theta);
-      const w1 = Math.sin((1 - t) * theta) / s;
-      const w2 = Math.sin(t * theta) / s;
-      return { x: a.x * w1 + bx * w2, y: a.y * w1 + by * w2, z: a.z * w1 + bz * w2, w: a.w * w1 + bw * w2 };
-    };
-
-    /** Modestly tighter than the card size, so neighbours sit closer without overlapping. */
-    const SPREAD = 0.93;
     let settling = false;
-    let snapFrom = orient;
-    let snapTo = orient;
-    let snapT = 1;
-
-    const beginSnap = () => {
-      let best = 0;
-      let bestAbs = Infinity;
-      units.forEach((u, i) => {
-        const faced = spin(u);
-        const ang = Math.atan2(faced.x, faced.z);
-        if (Math.abs(ang) < bestAbs) {
-          bestAbs = Math.abs(ang);
-          best = i;
-        }
-      });
-      const faced = spin(units[best]);
-      const yaw = -Math.atan2(faced.x, faced.z);
-      const yawQ = { x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) };
-      snapFrom = orient;
-      snapTo = normalizeQ(mul(yawQ, orient));
-      snapT = 0;
-      settling = true;
-      velX = 0;
-    };
+    let snapTo = 0;
+    let radiusX = 220;
+    let radiusY = 78;
+    let pointer: { id: number; lx: number; sx: number; sy: number; t: number; card: HTMLButtonElement | null } | null = null;
 
     const layout = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      radius = Math.max(150, Math.min(480, h * 0.48, w * 0.58));
-      placed = radius * SPREAD;
-      const cardW = Math.round(Math.max(88, radius * (w < 640 ? 0.44 : 0.34)));
-      units.forEach((_, i) => {
-        const card = cards[i];
+      const w = stage.clientWidth || window.innerWidth;
+      const cardW = Math.round(Math.min(156, Math.max(108, w * 0.34)));
+      radiusX = cardW * 2.05;
+      radiusY = Math.round(cardW * 0.98);
+      cards.forEach((card) => {
         card.style.width = `${cardW}px`;
         card.style.height = `${Math.round(cardW / 1.5)}px`;
         card.style.marginLeft = `${-cardW / 2}px`;
@@ -295,47 +179,76 @@ export function HomeArchive() {
       });
     };
 
+    const draw = () => {
+      world.style.transform = "none";
+      const placed: { i: number; depth: number; x: number; y: number; scale: number }[] = [];
+      for (let i = 0; i < n; i++) {
+        const theta = i * step + angle;
+        const x3 = Math.sin(theta);
+        const z3 = Math.cos(theta);
+        const cam = 2.4;
+        const k = cam / (cam + (1 - z3));
+        placed.push({
+          i,
+          depth: z3,
+          x: x3 * radiusX * k,
+          y: z3 * radiusY * (0.82 + 0.18 * k),
+          scale: 0.46 + 0.54 * k,
+        });
+      }
+      placed.sort((a, b) => a.depth - b.depth);
+      placed.forEach((item, rank) => {
+        const card = cards[item.i];
+        card.style.transform = `translate3d(${item.x}px, ${item.y}px, 0) scale(${item.scale})`;
+        card.style.zIndex = String(rank + 1);
+        card.style.opacity = "1";
+      });
+    };
+
+    const beginSnap = () => {
+      vel = 0;
+      snapTo = Math.round(angle / step) * step;
+      settling = true;
+    };
+
     const frame = () => {
       if (!alive) return;
-      if (settling) {
-        snapT = Math.min(1, snapT + 0.065);
-        orient = slerp(snapFrom, snapTo, 1 - (1 - snapT) ** 3);
-        if (snapT >= 1) settling = false;
-      } else if (!dragging && Math.abs(velX) > 0.02) {
-        turn(velX);
-        velX *= 0.9;
-        if (Math.abs(velX) < 0.12) beginSnap();
+      if (!dragging) {
+        if (settling) {
+          angle += (snapTo - angle) * 0.28;
+          if (Math.abs(snapTo - angle) < 0.0008) {
+            angle = snapTo;
+            settling = false;
+          }
+        } else if (Math.abs(vel) > 0.00012) {
+          angle += vel;
+          vel *= 0.88;
+          if (Math.abs(vel) < 0.004) beginSnap();
+        }
       }
-      world.style.transform = "none";
-      units.forEach((u, i) => {
-        const spun = spin(u);
-        const shade = 1 - Math.pow((spun.z + 1) / 2, 0.85);
-        const card = cards[i];
-        card.style.transform = `translate3d(${spun.x * placed}px, ${-spun.y * placed}px, ${spun.z * placed}px)`;
-        card.style.zIndex = String(Math.round(spun.z * 100) + 200);
-        card.style.setProperty("--d", String(Math.round(shade * 1000) / 1000));
-        const hidden = spun.z < 0.02;
-        card.style.opacity = hidden ? "0" : "1";
-        card.style.pointerEvents = hidden ? "none" : "auto";
-      });
+      draw();
       requestAnimationFrame(frame);
     };
 
     const down = (e: PointerEvent) => {
       const card = (e.target as Element | null)?.closest?.(".card") as HTMLButtonElement | null;
-      pointer = { id: e.pointerId, lx: e.clientX, ly: e.clientY, sx: e.clientX, sy: e.clientY, card };
+      pointer = { id: e.pointerId, lx: e.clientX, sx: e.clientX, sy: e.clientY, t: performance.now(), card };
       dragging = true;
       settling = false;
-      velX = 0;
+      vel = 0;
+      stage.setPointerCapture?.(e.pointerId);
     };
     const move = (e: PointerEvent) => {
       if (!pointer || e.pointerId !== pointer.id) return;
       const dx = e.clientX - pointer.lx;
+      const now = performance.now();
+      const dt = Math.min(48, Math.max(16, now - pointer.t));
       pointer.lx = e.clientX;
-      pointer.ly = e.clientY;
-      const stepX = dx * 0.15;
-      turn(stepX);
-      velX = stepX;
+      pointer.t = now;
+      const delta = dx / radiusX;
+      angle += delta;
+      const perFrame = delta * (16 / dt);
+      vel = Math.max(-0.16, Math.min(0.16, perFrame));
     };
     const up = (e: PointerEvent) => {
       if (!pointer || e.pointerId !== pointer.id) return;
@@ -344,7 +257,15 @@ export function HomeArchive() {
       pointer = null;
       dragging = false;
       if (dist < 8 && card) openFrameRef.current(card.dataset.id ?? "");
-      else if (Math.abs(velX) < 0.18) beginSnap();
+      else if (Math.abs(vel) < 0.012) beginSnap();
+    };
+    const wheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      settling = false;
+      const delta = e.deltaX / radiusX;
+      angle += delta;
+      vel = delta * 0.35;
     };
 
     layout();
@@ -353,6 +274,7 @@ export function HomeArchive() {
     stage.addEventListener("pointermove", move);
     stage.addEventListener("pointerup", up);
     stage.addEventListener("pointercancel", up);
+    stage.addEventListener("wheel", wheel, { passive: false });
     window.addEventListener("resize", layout);
     return () => {
       alive = false;
@@ -360,6 +282,7 @@ export function HomeArchive() {
       stage.removeEventListener("pointermove", move);
       stage.removeEventListener("pointerup", up);
       stage.removeEventListener("pointercancel", up);
+      stage.removeEventListener("wheel", wheel);
       window.removeEventListener("resize", layout);
     };
   }, [frameKey]);
