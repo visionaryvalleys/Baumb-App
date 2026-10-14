@@ -18,18 +18,21 @@
 
 .baumb-archive .stage {
   position: absolute;
-  inset: 0;
+  top: calc(3.5rem + 52px + env(safe-area-inset-top, 0px));
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: 10;
   overflow: hidden;
   pointer-events: auto;
   perspective: 1150px;
-  perspective-origin: 50% 46%;
+  perspective-origin: 50% 42%;
   touch-action: none;
 }
 .baumb-archive .world,
 .baumb-archive .orb {
   position: absolute;
-  top: 46%;
+  top: 42%;
   left: 50%;
   width: 0;
   height: 0;
@@ -37,14 +40,17 @@
 }
 .baumb-archive .headline {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: min(56vw, 640px);
-  margin-left: calc(min(56vw, 640px) / -2);
+  top: 42%;
+  left: 50%;
+  z-index: 12;
+  width: max-content;
+  max-width: 90%;
+  margin: 0;
+  transform: translate(-50%, -50%);
   text-align: center;
   font-family: var(--serif);
   font-weight: 400;
-  font-size: clamp(28px, 4vw, 58px);
+  font-size: clamp(20px, 5vw, 28px);
   line-height: 1.05;
   letter-spacing: -0.02em;
   color: #F8F9FA;
@@ -122,12 +128,15 @@
 
 .baumb-archive .grid {
   position: absolute;
-  inset: 0;
+  top: calc(3.5rem + 52px + env(safe-area-inset-top, 0px));
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: 20;
   overflow-y: auto;
   pointer-events: none;
   opacity: 0;
-  padding: calc(3.5rem + 58px) var(--pad) calc(var(--pad) * 5);
+  padding: 12px var(--pad) calc(var(--pad) * 5);
   background: #1E2A27;
 }
 .baumb-archive.is-grid .grid { opacity: 1; pointer-events: auto; }
@@ -314,7 +323,7 @@
 .baumb-archive .extra { margin-top: 18px; }
 
 @media (max-width: 720px) {
-  .baumb-archive .headline { width: min(84vw, 360px); margin-left: calc(min(84vw, 360px) / -2); font-size: clamp(26px, 8vw, 40px); }
+  .baumb-archive .headline { font-size: clamp(18px, 4.8vw, 22px); }
   .baumb-archive .meta { grid-template-columns: 1fr; }
   .baumb-archive .rows { grid-template-columns: 1fr 1fr; }
   .baumb-archive .actions { flex-direction: column; align-items: flex-start; }

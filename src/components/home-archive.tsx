@@ -46,8 +46,6 @@ function photoSrc(photo: ProgressPhoto) {
   return "";
 }
 
-const GOLDEN = Math.PI * (3 - Math.sqrt(5));
-
 function CalorieField({ slotId, date, timezone }: { slotId: string | undefined; date: string; timezone: string }) {
   const [value, setValue] = useState("");
   const [saved, setSaved] = useState<number | null>(null);
@@ -119,7 +117,6 @@ export function HomeArchive() {
   };
   const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
-  const headlineRef = useRef<HTMLHeadingElement>(null);
 
   const frames = useMemo<Frame[]>(() => {
     const photos = [...state.photos]
@@ -151,17 +148,39 @@ export function HomeArchive() {
   useEffect(() => {
     const stage = stageRef.current;
     const world = worldRef.current;
-    const headline = headlineRef.current;
-    if (!stage || !world || !headline) return;
+    if (!stage || !world) return;
     const cards = [...stage.querySelectorAll<HTMLButtonElement>(".card")];
     const n = cards.length;
     if (n < 2) return;
 
-    const units = cards.map((_, i) => {
-      const y = 1 - (i / (n - 1)) * 2;
-      const rad = Math.sqrt(Math.max(0, 1 - y * y));
-      const th = i * GOLDEN;
-      return { x: Math.cos(th) * rad, y, z: Math.sin(th) * rad };
+    // Resting collage, matching the home sphere: Session under the title,
+    // Game and Meals beside it, Coach and Music at the edges, the rest above.
+    const home: Record<string, [number, number, number]> = {
+      workout: [0, -0.36, 1.1],
+      game: [-0.64, -0.32, 0.76],
+      meals: [0.64, -0.32, 0.76],
+      trainer: [-1.22, -0.1, 0.4],
+      music: [1.22, -0.1, 0.4],
+      gallery: [-0.78, 0.5, 0.42],
+      calendar: [0.78, 0.5, 0.42],
+      review: [0, 0.86, 0.32],
+      activity: [-1.08, 0.18, 0.42],
+      exercises: [1.08, 0.18, 0.42],
+      vacation: [-1.28, 0.78, 0.18],
+      transform: [1.28, 0.78, 0.18],
+    };
+    const unit = (x: number, y: number, z: number) => {
+      const len = Math.hypot(x, y, z) || 1;
+      return { x: x / len, y: y / len, z: z / len };
+    };
+    const front = unit(0, -0.36, 1.1);
+    let extra = 0;
+    const units = cards.map((card) => {
+      const known = home[card.dataset.id ?? ""];
+      if (known) return unit(...known);
+      extra += 1;
+      const t = extra % 2 === 0 ? extra / 2 : -(extra + 1) / 2;
+      return unit(t * 0.55, 0.15, -0.35);
     });
 
     let radius = 300;
@@ -205,13 +224,6 @@ export function HomeArchive() {
       };
     };
 
-    const asRotate = (q: { x: number; y: number; z: number; w: number }) => {
-      const len = Math.hypot(q.x, q.y, q.z);
-      if (len < 1e-8) return "rotate3d(0, 1, 0, 0deg)";
-      const angle = (2 * Math.atan2(len, q.w) * 180) / Math.PI;
-      return `rotate3d(${q.x / len}, ${q.y / len}, ${q.z / len}, ${angle}deg)`;
-    };
-
     const normalizeQ = (q: { x: number; y: number; z: number; w: number }) => {
       const len = Math.hypot(q.x, q.y, q.z, q.w) || 1;
       return { x: q.x / len, y: q.y / len, z: q.z / len, w: q.w / len };
@@ -253,28 +265,28 @@ export function HomeArchive() {
 
     const beginSnap = () => {
       let best = 0;
-      let bestZ = -2;
+      let bestD = Infinity;
       units.forEach((u, i) => {
         const faced = spin(u);
-        if (faced.z > bestZ) {
-          bestZ = faced.z;
+        const dx = faced.x - front.x;
+        const dy = faced.y - front.y;
+        const dz = faced.z - front.z;
+        const dist = dx * dx + dy * dy + dz * dz;
+        if (dist < bestD) {
+          bestD = dist;
           best = i;
         }
       });
-      const faced = spin(units[best]);
-      const glen = Math.hypot(0, -0.42, 0.82);
-      const goal = { x: 0, y: -0.42 / glen, z: 0.82 / glen };
-      const dot = faced.x * goal.x + faced.y * goal.y + faced.z * goal.z;
-      const align = dot < -0.999
-        ? { x: 1, y: 0, z: 0, w: 0 }
-        : normalizeQ({
-            x: faced.y * goal.z - faced.z * goal.y,
-            y: faced.z * goal.x - faced.x * goal.z,
-            z: faced.x * goal.y - faced.y * goal.x,
-            w: 1 + dot,
-          });
+      // Yaw, then pitch, so the nearest picture lands under the title and the row stays level.
+      const chosen = units[best];
+      const yaw = Math.atan2(-chosen.x, chosen.z);
+      const y1 = chosen.y;
+      const z1 = -chosen.x * Math.sin(yaw) + chosen.z * Math.cos(yaw);
+      const pitch = Math.atan2(y1, z1) - Math.atan2(front.y, front.z);
+      const yawQ = { x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) };
+      const pitchQ = { x: Math.sin(pitch / 2), y: 0, z: 0, w: Math.cos(pitch / 2) };
       snapFrom = orient;
-      snapTo = normalizeQ(mul(align, orient));
+      snapTo = mul(pitchQ, yawQ);
       snapT = 0;
       settling = true;
       velX = 0;
@@ -284,9 +296,9 @@ export function HomeArchive() {
     const layout = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
-      radius = Math.max(120, Math.min(460, h * 0.42, w * 0.48));
+      radius = Math.max(150, Math.min(480, h * 0.48, w * 0.58));
       placed = radius * SPREAD;
-      const cardW = Math.round(Math.max(78, radius * (w < 640 ? 0.42 : 0.34)));
+      const cardW = Math.round(Math.max(88, radius * (w < 640 ? 0.44 : 0.34)));
       units.forEach((_, i) => {
         const card = cards[i];
         card.style.width = `${cardW}px`;
@@ -308,17 +320,17 @@ export function HomeArchive() {
         velY *= 0.9;
         if (Math.hypot(velX, velY) < 0.12) beginSnap();
       }
-      world.style.transform = asRotate(orient);
-      const inv = { x: -orient.x, y: -orient.y, z: -orient.z, w: orient.w };
-      const flat = asRotate(inv);
-      headline.style.transform = `${flat} translateY(-42px) translateZ(${radius * 0.55}px)`;
+      world.style.transform = "none";
       units.forEach((u, i) => {
         const spun = spin(u);
         const shade = 1 - Math.pow((spun.z + 1) / 2, 0.85);
         const card = cards[i];
-        card.style.transform = `translate3d(${u.x * placed}px, ${-u.y * placed}px, ${u.z * placed}px) ${flat}`;
+        card.style.transform = `translate3d(${spun.x * placed}px, ${-spun.y * placed}px, ${spun.z * placed}px)`;
+        card.style.zIndex = String(Math.round(spun.z * 100) + 200);
         card.style.setProperty("--d", String(Math.round(shade * 1000) / 1000));
-        card.style.opacity = spun.z > 0.92 ? "0" : "1";
+        const hidden = spun.z < 0.02;
+        card.style.opacity = hidden ? "0" : "1";
+        card.style.pointerEvents = hidden ? "none" : "auto";
       });
       requestAnimationFrame(frame);
     };
@@ -393,10 +405,10 @@ export function HomeArchive() {
               </button>
             ))}
           </div>
-          <h1 className="headline" ref={headlineRef}>
-            <span>Train</span> <span>Track</span> <span>Transform</span>
-          </h1>
         </div>
+        <h1 className="headline">
+          <span>Train</span> <span>Track</span> <span>Transform</span>
+        </h1>
       </div>
       <div className="vig" />
       {open && (
