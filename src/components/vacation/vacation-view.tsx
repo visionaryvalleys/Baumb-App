@@ -121,7 +121,7 @@ export function VacationView() {
       </div>
 
       {sorted.length === 0 ? (
-        <EmptyState icon={Palmtree} title="No vacations yet" description="Plan one above. BAUMB keeps tracking honestly while you enjoy it." />
+        <EmptyState icon={Palmtree} title="No vacations yet" description="Plan one above. Ostin keeps tracking honestly while you enjoy it." />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {sorted.map((v) => {

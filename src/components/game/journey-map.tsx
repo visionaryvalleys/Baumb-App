@@ -9,13 +9,13 @@ const GAP = 138;
 const BANNER = 84;
 
 const WORLD: Record<string, { wash: string; ink: string }> = {
-  Opening: { wash: "rgba(224,101,46,0.20)", ink: "#ffb088" },
-  Foundations: { wash: "rgba(143,168,136,0.18)", ink: "#c9d7c2" },
-  "The Trail": { wash: "rgba(196,176,220,0.18)", ink: "#ddd0ee" },
-  "The Table": { wash: "rgba(224,140,90,0.18)", ink: "#f0c2a0" },
-  "Night Miles": { wash: "rgba(120,140,180,0.18)", ink: "#d5deee" },
-  "Home Stretch": { wash: "rgba(180,120,90,0.18)", ink: "#f0d0bc" },
-  "The Next Gate": { wash: "rgba(196,161,90,0.16)", ink: "#ead7a4" },
+  Opening: { wash: "rgba(86,116,109,0.28)", ink: "#DFE5E8" },
+  Foundations: { wash: "rgba(86,116,109,0.18)", ink: "#F8F9FA" },
+  "The Trail": { wash: "rgba(98,109,116,0.22)", ink: "#DFE5E8" },
+  "The Table": { wash: "rgba(86,116,109,0.24)", ink: "#F8F9FA" },
+  "Night Miles": { wash: "rgba(98,109,116,0.28)", ink: "#DFE5E8" },
+  "Home Stretch": { wash: "rgba(86,116,109,0.16)", ink: "#F8F9FA" },
+  "The Next Gate": { wash: "rgba(223,229,232,0.14)", ink: "#F8F9FA" },
 };
 
 interface Pin {
@@ -103,7 +103,7 @@ export function JourneyMap({
       <svg className="absolute inset-0 h-full w-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden>
         <path d={full} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="22" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
         <path d={full} fill="none" stroke="rgba(255,244,236,0.55)" strokeWidth="8" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        {done && <path d={done} fill="none" stroke="#ff6a1a" strokeWidth="8" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
+        {done && <path d={done} fill="none" stroke="var(--color-brand)" strokeWidth="8" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
       </svg>
       {topPin && (
         <p className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40" style={{ top: 18 }}>
@@ -132,16 +132,16 @@ export function JourneyMap({
               aria-current={current ? "step" : undefined}
               aria-label={`${pin.level.level}. ${pin.level.name}. ${locked ? "Locked" : cleared ? "Done" : "Current"}`}
               onClick={() => onSelect(pin.level.level)}
-              className={`absolute grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 ${current ? "map-now border-[#ff6a1a]" : cleared ? "border-[#e0652e]" : "border-white/25"} ${selected === pin.level.level ? "ring-2 ring-white/70 ring-offset-2 ring-offset-black" : ""}`}
+              className={`absolute grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 ${current ? "map-now border-brand" : cleared ? "border-brand/70" : "border-white/25"} ${selected === pin.level.level ? "ring-2 ring-white/70 ring-offset-2 ring-offset-black" : ""}`}
               style={{
                 left: `${pin.x * 100}%`,
                 top: pin.y,
                 width: size,
                 height: size,
                 background: current
-                  ? `conic-gradient(#ff6a1a ${pct * 360}deg, rgba(255,255,255,0.14) ${pct * 360}deg)`
+                  ? `conic-gradient(var(--color-brand) ${pct * 360}deg, rgba(255,255,255,0.14) ${pct * 360}deg)`
                   : cleared
-                    ? "#e0652e"
+                    ? "color-mix(in oklab, var(--color-brand) 72%, black)"
                     : "rgba(12,10,9,0.92)",
                 opacity: locked && pin.level.level > level + 1 ? 0.55 : 1,
               }}
@@ -160,13 +160,13 @@ export function JourneyMap({
             </button>
             {cleared && (
               <span className="pointer-events-none absolute flex -translate-x-1/2 gap-1" style={{ left: `${pin.x * 100}%`, top: pin.y + size / 2 + 4 }} aria-hidden>
-                <i className="size-1.5 rounded-full bg-[#ffb088]" />
-                <i className="size-1.5 rounded-full bg-[#ffb088]" />
-                <i className="size-1.5 rounded-full bg-[#ffb088]" />
+                <i className="size-1.5 rounded-full bg-brand" />
+                <i className="size-1.5 rounded-full bg-brand" />
+                <i className="size-1.5 rounded-full bg-brand" />
               </span>
             )}
             {current && rewardWaiting && (
-              <span className="pointer-events-none absolute size-3 -translate-x-1/2 rounded-full bg-[#ff6a1a] ring-2 ring-black" style={{ left: `calc(${pin.x * 100}% + 24px)`, top: pin.y - 28 }} aria-hidden />
+              <span className="pointer-events-none absolute size-3 -translate-x-1/2 rounded-full bg-brand ring-2 ring-black" style={{ left: `calc(${pin.x * 100}% + 24px)`, top: pin.y - 28 }} aria-hidden />
             )}
           </div>
         );

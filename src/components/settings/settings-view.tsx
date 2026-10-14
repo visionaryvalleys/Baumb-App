@@ -5,6 +5,7 @@ import { Bell, Check, Download, Palette, RotateCcw, Sparkles, Upload } from "luc
 import { buildSampleState } from "@/lib/sample";
 import { publishBoard } from "@/lib/board-client";
 import { DEFAULT_ACCENT, actions, getState, migrateLegacy, resolveAccent, useAppState } from "@/lib/store";
+import { THEMES } from "@/lib/themes";
 import type { AppState } from "@/lib/types";
 import { Card, CardTitle, Segmented, cn } from "../ui";
 import { JournalSetupCard } from "../journal-lock";
@@ -12,14 +13,10 @@ import { AccountCard } from "./account-card";
 import { CalculationLog } from "./calculation-log";
 
 const ACCENTS = [
-  { value: DEFAULT_ACCENT, label: "Signal" },
-  { value: "#5b8def", label: "Blue" },
-  { value: "#f2b705", label: "BAUMB Gold" },
-  { value: "#e10600", label: "Race Red" },
-  { value: "#22d3ee", label: "Ice" },
-  { value: "#a3e635", label: "Volt" },
-  { value: "#f472b6", label: "Rose" },
-  { value: "#ffffff", label: "Mono" },
+  { value: DEFAULT_ACCENT, label: "Pine" },
+  { value: "#3E5852", label: "Shade" },
+  { value: "#626D74", label: "Ridge" },
+  { value: "#8EAEA4", label: "Glacier" },
 ];
 
 function looksLikeState(v: unknown): v is Partial<AppState> {
@@ -57,7 +54,7 @@ export function SettingsView() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `baumb-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `ostin-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -74,7 +71,7 @@ export function SettingsView() {
       actions.logAudit("data_import", `Imported backup ${file.name}`, { file: file.name, schemaVersion: parsed.schemaVersion ?? 1 }, { workouts: parsed.workouts?.length ?? 0, weighIns: parsed.weights?.length ?? 0, mealItems: (parsed.meals ?? []).length });
       setMessage({ tone: "ok", text: `Imported ${parsed.workouts?.length ?? 0} workouts, ${parsed.weights?.length ?? 0} weigh-ins and ${(parsed.meals ?? []).length} meal items.` });
     } catch {
-      setMessage({ tone: "error", text: "That file isn't a valid BAUMB backup." });
+      setMessage({ tone: "error", text: "That file isn't a valid Ostin backup." });
     }
   }
 
@@ -84,14 +81,34 @@ export function SettingsView() {
       <JournalSetupCard />
 
       <Card>
-        <CardTitle action={<Palette className="size-4 text-white/50" aria-hidden />}>Accent colour</CardTitle>
+        <CardTitle action={<Palette className="size-4 text-white/50" aria-hidden />}>Theme</CardTitle>
+        <div className="grid grid-cols-2 gap-2">
+          {THEMES.map((theme) => {
+            const active = (state.settings.theme ?? "pine") === theme.id;
+            return (
+              <button
+                key={theme.id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => actions.updateSettings({ theme: theme.id, accent: theme.brand })}
+                className={cn("rounded-control p-2 text-left text-[12px] transition", active ? "bg-white/[0.08] text-white ring-1 ring-white/15" : "text-white/55 hover:bg-white/[0.04]")}
+              >
+                <span className="relative block h-14 overflow-hidden rounded-xl" style={{ background: `radial-gradient(circle at 50% 35%, ${theme.lift}, ${theme.ground} 72%)` }}>
+                  <span className="absolute bottom-2 left-2 size-3 rounded-full" style={{ background: theme.brand }} />
+                </span>
+                <span className="mt-2 block px-1">{theme.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mb-3 mt-5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">Accent</p>
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
           {ACCENTS.map((a) => {
             const active = resolveAccent(state.settings.accent) === a.value;
             return (
-              <button key={a.value} type="button" onClick={() => actions.updateSettings({ accent: a.value })} aria-pressed={active} className={cn("flex flex-col items-center gap-2 rounded-control p-2 text-[11px] transition", active ? "bg-white/[0.08] text-white ring-1 ring-white/15" : "text-white/55 hover:bg-white/[0.04]")}>
+              <button key={a.value} type="button" onClick={() => actions.updateSettings({ accent: a.value, theme: state.settings.theme ?? "pine" })} aria-pressed={active} className={cn("flex flex-col items-center gap-2 rounded-control p-2 text-[11px] transition", active ? "bg-white/[0.08] text-white ring-1 ring-white/15" : "text-white/55 hover:bg-white/[0.04]")}>
                 <span className="grid size-9 place-items-center rounded-full ring-1 ring-white/10" style={{ background: a.value }}>
-                  {active && <Check className="size-4 text-black" aria-hidden />}
+                  {active && <Check className="size-4 text-[#F8F9FA]" aria-hidden />}
                 </span>
                 {a.label}
               </button>
@@ -100,7 +117,7 @@ export function SettingsView() {
         </div>
         <label className="mt-5 flex items-center gap-3 text-sm text-white/70">
           Custom
-          <input type="color" value={resolveAccent(state.settings.accent)} onChange={(e) => actions.updateSettings({ accent: e.target.value })} className="h-9 w-14 cursor-pointer rounded-lg border border-line bg-transparent" />
+          <input type="color" value={resolveAccent(state.settings.accent)} onChange={(e) => actions.updateSettings({ accent: e.target.value, theme: state.settings.theme ?? "pine" })} className="h-9 w-14 cursor-pointer rounded-lg border border-line bg-transparent" />
         </label>
       </Card>
 
@@ -162,7 +179,7 @@ export function SettingsView() {
         </div>
         {resetOpen && (
           <div role="alertdialog" aria-labelledby="reset-title" className="mt-4 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-4">
-            <p id="reset-title" className="text-[16px] font-semibold text-white">This returns BAUMB to the start.</p>
+            <p id="reset-title" className="text-[16px] font-semibold text-white">This returns Ostin to the start.</p>
             <p className="mt-2 text-sm leading-relaxed text-white/70">Workouts, meals, your plan, weigh-ins, photos and G coins are cleared on this device and in your account. Your sign-in stays. This cannot be undone.</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" className="btn-ghost" onClick={() => setResetOpen(false)}>
@@ -175,7 +192,7 @@ export function SettingsView() {
                   actions.reset();
                   void publishBoard(getState());
                   setResetOpen(false);
-                  setMessage({ tone: "ok", text: "BAUMB is back at the start." });
+                  setMessage({ tone: "ok", text: "Ostin is back at the start." });
                 }}
               >
                 Reset everything

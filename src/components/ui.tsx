@@ -189,7 +189,7 @@ export function Segmented<T extends string | number>({
           className={cn(
             "min-h-11 min-w-0 flex-1 basis-[40%] whitespace-normal rounded-[16px] text-center font-medium leading-tight transition duration-200",
             size === "sm" ? "px-1.5 py-1.5 text-[12px]" : "px-2 py-2 text-[13px]",
-            o.value === value ? "bg-brand text-[#111110]" : "bg-transparent text-muted",
+            o.value === value ? "bg-brand text-[#F8F9FA]" : "bg-transparent text-muted",
           )}
         >
           {o.label}

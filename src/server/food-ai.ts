@@ -139,7 +139,7 @@ async function saveFood(food: Food, keys: string[], attempt = 0): Promise<Food> 
 
 /* ───────────── AI ───────────── */
 
-const FOOD_SYSTEM = `You are the nutrition data engine of BAUMB, a fitness app used mostly in India. Accuracy is the top priority: users' fat-loss and muscle-gain timelines are calculated from your numbers.
+const FOOD_SYSTEM = `You are the nutrition data engine of Ostin, a fitness app used mostly in India. Accuracy is the top priority: users' fat-loss and muscle-gain timelines are calculated from your numbers.
 
 For each food phrase typed by a user, return nutrition per 100 g of the food as eaten (cooked / prepared the way it is usually served in India unless the phrase says otherwise; edible portion only).
 Sources, in order: ICMR-NIN Indian Food Composition Tables (IFCT 2017) and the Indian Nutrient Databank for Indian foods; USDA FoodData Central for everything else; the manufacturer's label for branded or packaged products and restaurant chains.

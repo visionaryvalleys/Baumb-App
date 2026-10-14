@@ -33,7 +33,7 @@ const NAMED: LevelDef[] = [
   { level: 7, name: "The Endurance Trail", xp: 540, chapter: "The Trail" },
   { level: 8, name: "Recovery Master", xp: 700, chapter: "The Trail" },
   { level: 9, name: "Team Arena", xp: 880, chapter: "The Trail", special: true, chapterEnd: true },
-  { level: 10, name: "Baumb Visionary", xp: 1100, chapter: "Vision" },
+  { level: 10, name: "Ostin Visionary", xp: 1100, chapter: "Vision" },
   { level: 11, name: "Quiet Return", xp: 1360, chapter: "Vision" },
   { level: 12, name: "Long Road", xp: 1660, chapter: "Vision", chapterEnd: true },
 ];

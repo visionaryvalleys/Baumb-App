@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Backdrop } from "./backdrop";
+import { OstinMark } from "./brand";
 import { cn } from "./ui";
 
 const HOLD_MS = 1500;
@@ -30,14 +31,10 @@ export function Splash({ next }: { next: string }) {
     <div className={cn("page-ground fixed inset-0 grid place-items-center overflow-hidden transition-opacity duration-300", leaving && "opacity-0")}>
       <Backdrop />
 
-      <div className="relative flex flex-col items-center rounded-[28px] border border-line bg-card px-10 py-12" role="img" aria-label="BAUMB">
-        <svg viewBox="0 0 28 28" className="size-10 text-fg" aria-hidden>
-          <rect x="2" y="2" width="11" height="11" rx="2" className="fill-brand" />
-          <rect x="13" y="13" width="13" height="13" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
-          <rect x="17" y="17" width="5" height="5" rx="1" className="fill-brand" />
-        </svg>
-        <div className="mt-5 text-[2.4rem] font-semibold leading-none tracking-[-0.03em] text-fg" aria-hidden>
-          Baumb
+      <div className="relative flex flex-col items-center rounded-[28px] border border-line bg-card px-10 py-12" role="img" aria-label="Ostin">
+        <OstinMark className="size-14" />
+        <div className="mt-5 font-wordmark text-[22px] font-semibold uppercase leading-none tracking-[0.34em] text-fg" aria-hidden>
+          Ostin
         </div>
         <p className="mt-3 text-[13px] text-muted">Train · Track · Transform</p>
       </div>

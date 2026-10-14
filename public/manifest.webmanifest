@@ -1,10 +1,10 @@
 {
-  "name": "BAUMB",
-  "short_name": "BAUMB",
+  "name": "Ostin",
+  "short_name": "Ostin",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#08090c",
-  "theme_color": "#08090c",
+  "background_color": "#1E2A27",
+  "theme_color": "#1E2A27",
   "start_url": "/",
   "scope": "/",
   "icons": [

@@ -112,7 +112,7 @@ export function GameView() {
         {nextMilestone && (
           <p className="mt-4 text-sm text-white/60">Next: {nextMilestone.name}, at {nextMilestone.days} training days.</p>
         )}
-        <Link href="/board" className="mt-4 inline-block text-sm text-[#ffb088] underline">G shop</Link>
+        <Link href="/board" className="mt-4 inline-block text-sm text-brand underline">G shop</Link>
       </Card>
     </div>
   );

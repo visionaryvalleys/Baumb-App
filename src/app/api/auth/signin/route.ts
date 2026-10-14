@@ -15,10 +15,11 @@ export async function POST(req: NextRequest) {
     if (!email || !password) throw new HttpError(400, "Enter your email and password.");
     rateLimit(`signin:${clientKey(req)}:${email}`, 8, 15 * 60_000);
 
-    const rows = await query<{ id: string; name: string; password_hash: string }>("SELECT id, name, password_hash FROM users WHERE email = $1", [email]);
+    const rows = await query<{ id: string; name: string; password_hash: string | null }>("SELECT id, name, password_hash FROM users WHERE email = $1", [email]);
     const row = rows[0];
+    if (row && !row.password_hash) throw new HttpError(401, "This account signs in with Google.");
     // Hash even when the email is unknown so response time doesn't reveal which emails exist.
-    const ok = row ? await verifyPassword(password, row.password_hash) : await verifyPassword(password, await (dummyHash ??= hashPassword("not-a-real-password-1")));
+    const ok = row?.password_hash ? await verifyPassword(password, row.password_hash) : await verifyPassword(password, await (dummyHash ??= hashPassword("not-a-real-password-1")));
     if (!row || !ok) throw new HttpError(401, "Incorrect email or password.");
 
     const id = row.id.toLowerCase();

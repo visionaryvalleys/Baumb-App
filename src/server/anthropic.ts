@@ -38,9 +38,9 @@ async function post(body: object, signal: AbortSignal): Promise<Response> {
 async function failure(res: Response): Promise<HttpError> {
   const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
   console.error(`[ai] Anthropic ${res.status}: ${body?.error?.message ?? res.statusText}`);
-  if (res.status === 401 || res.status === 403) return new HttpError(502, "BAUMB couldn't answer right now.");
-  if (res.status === 429 || res.status === 529) return new HttpError(503, "BAUMB is busy right now. Try again in a moment.");
-  return new HttpError(502, "BAUMB couldn't answer right now.");
+  if (res.status === 401 || res.status === 403) return new HttpError(502, "Ostin couldn't answer right now.");
+  if (res.status === 429 || res.status === 529) return new HttpError(503, "Ostin is busy right now. Try again in a moment.");
+  return new HttpError(502, "Ostin couldn't answer right now.");
 }
 
 /** One request whose answer is guaranteed to match `schema` (structured outputs). */

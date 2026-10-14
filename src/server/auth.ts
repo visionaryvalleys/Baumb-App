@@ -11,6 +11,7 @@ export interface SessionUser {
   id: string;
   email: string;
   name: string;
+  hasPassword: boolean;
 }
 
 function scryptAsync(password: string, salt: Buffer, keyLen: number, opts: { N: number; r: number; p: number }): Promise<Buffer> {
@@ -34,31 +35,39 @@ export async function verifyPassword(password: string, stored: string): Promise<
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
-export async function createSession(userId: string, userAgent: string | null): Promise<void> {
+export async function startSession(userId: string, userAgent: string | null) {
   const token = randomBytes(32).toString("base64url");
   const expires = new Date(Date.now() + SESSION_DAYS * 86_400_000);
   const hash = hashToken(token);
   const ua = userAgent?.slice(0, 300) ?? null;
   await query("INSERT INTO sessions (token_hash, user_id, expires_at, user_agent) VALUES ($1, $2, $3, $4)", [hash, userId, expires, ua]);
   await query("UPDATE users SET last_sign_in_at = now() WHERE id = $1", [userId]);
-  (await cookies()).set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    expires,
-  });
+  return {
+    token,
+    options: {
+      httpOnly: true,
+      sameSite: "lax" as const,
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      expires,
+    },
+  };
+}
+
+export async function createSession(userId: string, userAgent: string | null): Promise<void> {
+  const session = await startSession(userId, userAgent);
+  (await cookies()).set(SESSION_COOKIE, session.token, session.options);
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  const rows = await query<{ id: string; email: string; name: string }>(
-    "SELECT u.id, u.email, u.name FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.expires_at > now()",
+  const rows = await query<{ id: string; email: string; name: string; has_password: boolean }>(
+    "SELECT u.id, u.email, u.name, (u.password_hash IS NOT NULL) AS has_password FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.expires_at > now()",
     [hashToken(token)],
   );
   const row = rows[0];
-  return row ? { id: row.id.toLowerCase(), email: row.email, name: row.name } : null;
+  return row ? { id: row.id.toLowerCase(), email: row.email, name: row.name, hasPassword: row.has_password } : null;
 }
 
 export async function destroySession(): Promise<void> {

@@ -1,43 +1,44 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-inter), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-inter), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-playfair), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-ostin), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-ostin), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-ostin), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-wordmark: var(--font-ostin), "Segoe UI", sans-serif;
 }
 
 @theme {
-  /* Black field from the archive, with surfaces a step lighter than the page. */
-  --color-base: #0a0a0a;
-  --color-base-2: #161411;
-  --color-card: #141210;
-  --color-elevated: #1c1916;
+  /* Pine field. Themes override these from the saved palette. */
+  --color-base: #24312E;
+  --color-base-2: #2C3B37;
+  --color-card: #2C3B37;
+  --color-elevated: #384842;
   --color-line: rgb(255 255 255 / 0.1);
   --color-line-strong: rgb(255 255 255 / 0.16);
 
-  /* Text */
-  --color-fg: #f4f2ef;
-  --color-muted: #8c8783;
-  --color-subtle: #6f6a66;
+  /* Eternal Snow and Karakoram Mist. No grey type. */
+  --color-fg: #F8F9FA;
+  --color-muted: #DFE5E8;
+  --color-subtle: #DFE5E8;
 
-  /* Accents. `brand` follows the user's accent setting. */
-  --color-brand: #ff6a1a;
+  /* Deodar pine. `brand` follows the user's accent setting. */
+  --color-brand: #56746D;
   --color-brand-strong: color-mix(in oklab, var(--color-brand) 88%, white);
   --color-cyan: #38d6ee;
   --color-violet: #8b7cf6;
   --color-mint: #3ddc97;
-  --color-danger: #fb923c;
+  --color-danger: #B86B73;
   /* Effort, in natural pigment rather than signal-lamp green. */
   --color-sage: #8fa888;
-  --color-honey: #c4a15a;
+  --color-honey: #8EAEA4;
   --color-iris: #c4b0dc;
 
   /* Legacy names kept so existing classes resolve to the new palette */
-  --color-bm-night: #0a0a0a;
-  --color-bm-dark: #161411;
+  --color-bm-night: #1E2A27;
+  --color-bm-dark: #24312E;
   --color-bm-yellow: var(--color-brand);
   --color-bm-red: var(--color-danger);
-  --color-surface: #141210;
+  --color-surface: #2C3B37;
   --color-surface-raised: rgb(236 235 230 / 0.05);
 
   --breakpoint-sm: 240rem;
@@ -222,19 +223,20 @@
 
 :root {
   color-scheme: dark;
-  /* Flat black, with a soft falloff at the edges. Shared by every full-page ground. */
-  --page-ground: radial-gradient(ellipse 90% 80% at 50% 42%, #161311 0%, #000 70%);
+  --color-ground: #1E2A27;
+  /* Soft falloff at the edges. Themes replace this with their own field. */
+  --page-ground: radial-gradient(ellipse 90% 80% at 50% 42%, #31443E 0%, #1E2A27 70%);
 }
 
 body {
-  background-color: #000;
+  background-color: var(--color-ground);
   background-image: var(--page-ground);
   background-attachment: fixed;
   color: var(--color-fg);
 }
 
 @utility page-ground {
-  background-color: #000;
+  background-color: var(--color-ground);
   background-image: var(--page-ground);
   background-attachment: fixed;
 }
@@ -358,7 +360,7 @@ input[type="number"] {
 }
 
 @utility btn-primary {
-  @apply btn-base bg-brand text-sm text-[#111110] hover:bg-brand-strong;
+  @apply btn-base bg-brand text-sm text-[#F8F9FA] hover:bg-brand-strong;
 }
 
 @utility btn-ghost {
@@ -436,10 +438,10 @@ input[type="number"] {
 @keyframes map-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(255, 106, 26, 0.45);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-brand) 45%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 12px rgba(255, 106, 26, 0);
+    box-shadow: 0 0 0 12px color-mix(in oklab, var(--color-brand) 0%, transparent);
   }
 }
 
@@ -502,4 +504,16 @@ input[type="number"] {
   .effort-glint {
     animation: none;
   }
+}
+
+/* Faded white type reads as grey. Secondary copy stays Karakoram Mist. */
+.text-white\/30,
+.text-white\/35,
+.text-white\/40,
+.text-white\/45,
+.text-white\/50,
+.text-white\/55,
+.text-white\/60,
+.text-white\/70 {
+  color: #DFE5E8;
 }

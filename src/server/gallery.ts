@@ -144,7 +144,7 @@ export async function setFollow(viewerId: string, targetId: string, follow: bool
   if (!UUID.test(targetId)) throw new HttpError(400, "Choose a member to follow.");
   if (targetId.toLowerCase() === viewerId) throw new HttpError(400, "You can't follow yourself.");
   const found = await query<{ id: string }>("SELECT id FROM users WHERE id = $1", [targetId]);
-  if (!found.length) throw new HttpError(404, "That member isn't on BAUMB.");
+  if (!found.length) throw new HttpError(404, "That member isn't on Ostin.");
   if (follow) await query("INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", [viewerId, targetId]);
   else await query("DELETE FROM follows WHERE follower_id = $1 AND following_id = $2", [viewerId, targetId]);
 }

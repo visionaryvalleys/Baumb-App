@@ -520,6 +520,8 @@ export interface AppNotification {
 
 export interface Settings {
   accent: string;
+  /** Named palette for the field, surfaces, and accent. Absent on older saves. */
+  theme?: string;
   /** In-app reminders on/off. */
   notifications: boolean;
 }

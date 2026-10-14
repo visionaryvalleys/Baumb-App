@@ -5,15 +5,20 @@ import { ArrowRight, UserRound } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect } from "react";
 import { cn } from "./ui";
 
+export function OstinMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={cn("size-7 shrink-0 text-brand", className)} aria-hidden>
+      <path d="M16 6.4a9.6 9.6 0 1 0 7.2 3.3" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+      <circle cx="24" cy="8.7" r="1.7" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function BaumbLogo({ className, href = "/" }: { className?: string; href?: string }) {
   return (
-    <Link href={href} className={cn("flex h-10 items-center gap-2.5", className)} aria-label="BAUMB home">
-      <svg viewBox="0 0 28 28" className="size-7 shrink-0" aria-hidden>
-        <rect x="2" y="2" width="11" height="11" rx="2" className="fill-brand" />
-        <rect x="13" y="13" width="13" height="13" rx="2" className="fill-none stroke-fg" strokeWidth="1.6" />
-        <rect x="17" y="17" width="5" height="5" rx="1" className="fill-brand" />
-      </svg>
-      <span className="font-display text-[22px] font-normal leading-none tracking-[-0.02em] text-fg">Baumb</span>
+    <Link href={href} className={cn("flex h-10 items-center gap-2.5", className)} aria-label="Ostin home">
+      <OstinMark />
+      <span className="font-wordmark text-[15px] font-semibold uppercase leading-none tracking-[0.22em] text-fg">Ostin</span>
     </Link>
   );
 }

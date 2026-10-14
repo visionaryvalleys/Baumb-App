@@ -58,7 +58,7 @@ export function MealEstimate() {
       setItems(body.items);
       setNote(body.note ?? "");
     } catch {
-      setError("Can't reach BAUMB. Check your connection.");
+      setError("Can't reach Ostin. Check your connection.");
     } finally {
       setBusy(false);
     }

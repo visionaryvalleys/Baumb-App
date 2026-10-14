@@ -36,13 +36,28 @@ const MAX_PROJECTIONS = 60;
 const MAX_AUDIT = 300;
 const MAX_ENERGY_RECORDS = 400;
 
-export const DEFAULT_ACCENT = "#ff6a1a";
-/** Earlier default accents. Accounts still on one of these follow the current default. */
-const LEGACY_DEFAULT_ACCENTS = new Set(["#edb40b", "#4d8dff"]);
+export const DEFAULT_ACCENT = "#56746D";
+/** Earlier default accents, including brass and orange. Those accounts follow Pine. */
+const LEGACY_DEFAULT_ACCENTS = new Set(["#edb40b", "#4d8dff", "#d4b483", "#ff6a1a", "#9dbe8a", "#c4b0dc"]);
+const GLACIAL_THEMES = new Set(["pine", "ridge", "mist", "snow"]);
 
 export function resolveAccent(accent: string | undefined): string {
   const value = (accent ?? "").toLowerCase();
   return !value || LEGACY_DEFAULT_ACCENTS.has(value) ? DEFAULT_ACCENT : value;
+}
+
+/** Previous palettes (ink, ember, grove, dusk) move onto Pine. */
+function normalizeSettings(saved: Settings | undefined): Settings {
+  const accent = (saved?.accent ?? "").toLowerCase();
+  const theme = saved?.theme ?? "";
+  const themeOk = GLACIAL_THEMES.has(theme);
+  const accentOk = Boolean(accent) && !LEGACY_DEFAULT_ACCENTS.has(accent);
+  return {
+    ...DEFAULT_SETTINGS,
+    ...saved,
+    accent: themeOk && accentOk ? saved?.accent || DEFAULT_ACCENT : DEFAULT_ACCENT,
+    theme: themeOk ? theme : "pine",
+  };
 }
 
 export const DEFAULT_PROFILE: Profile = {
@@ -61,7 +76,7 @@ export const DEFAULT_PROFILE: Profile = {
   conditions: [],
 };
 
-export const DEFAULT_SETTINGS: Settings = { accent: DEFAULT_ACCENT, notifications: true };
+export const DEFAULT_SETTINGS: Settings = { accent: DEFAULT_ACCENT, theme: "pine", notifications: true };
 
 export const EMPTY_STATE: AppState = {
   schemaVersion: 2,
@@ -101,7 +116,7 @@ export function normalizeState(raw: Partial<AppState> | null | undefined): AppSt
     ...raw,
     schemaVersion: 2,
     profile: { ...DEFAULT_PROFILE, ...raw.profile },
-    settings: { ...DEFAULT_SETTINGS, ...raw.settings },
+    settings: normalizeSettings(raw.settings),
     plans: raw.plans ?? [],
     workouts: raw.workouts ?? [],
     weights: raw.weights ?? [],

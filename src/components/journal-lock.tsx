@@ -27,7 +27,7 @@ export function JournalLock() {
     <Card className="mx-auto max-w-md">
       <CardTitle action={<LockKeyhole className="size-4 text-white/50" aria-hidden />}>Journal locked</CardTitle>
       <p className="text-sm leading-relaxed text-white/70">
-        {session.user?.name ? `${session.user.name}, this` : "This"} journal was encrypted on a device that knows the passphrase. BAUMB does not store that passphrase. Enter it here to open the journal in this browser.
+        {session.user?.name ? `${session.user.name}, this` : "This"} journal was encrypted on a device that knows the passphrase. Ostin does not store that passphrase. Enter it here to open the journal in this browser.
       </p>
       <form onSubmit={(e) => void submit(e)} className="mt-5 grid gap-3">
         <label className="grid gap-1.5 text-sm text-white/70">
@@ -77,7 +77,7 @@ export function JournalSetupCard() {
             }
           }}
         >
-          <p className="text-sm leading-relaxed text-white/70">The passphrase encrypts meals, workouts, and photos before they are saved. BAUMB does not store it. Losing it means the saved journal cannot be opened.</p>
+          <p className="text-sm leading-relaxed text-white/70">The passphrase encrypts meals, workouts, and photos before they are saved. Ostin does not store it. Losing it means the saved journal cannot be opened.</p>
           <label className="grid gap-1.5 text-sm text-white/70">
             Passphrase
             <input type="password" autoComplete="new-password" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} className="h-11 rounded-control bg-white/[0.04] px-3 text-white ring-1 ring-inset ring-white/10" />

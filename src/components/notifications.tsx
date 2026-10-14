@@ -63,7 +63,7 @@ export function NotificationBell() {
       >
         <Bell className="size-[18px] text-white/85" aria-hidden />
         {count > 0 && (
-          <span className={cn("absolute -right-0.5 -top-0.5 grid min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold leading-[18px] text-[#05070b] ring-2 ring-base", urgent ? "bg-danger" : "bg-brand")}>
+          <span className={cn("absolute -right-0.5 -top-0.5 grid min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold leading-[18px] text-[#F8F9FA] ring-2 ring-[var(--color-ground)]", urgent ? "bg-danger" : "bg-brand")}>
             {count > 9 ? "9+" : count}
           </span>
         )}

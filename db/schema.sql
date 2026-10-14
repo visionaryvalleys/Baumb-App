@@ -1,4 +1,4 @@
--- BAUMB schema for Postgres (Neon). Applied automatically on first connection. Safe to run repeatedly.
+-- Ostin schema for Postgres (Neon). Applied automatically on first connection. Safe to run repeatedly.
 CREATE TABLE IF NOT EXISTS users (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email           TEXT NOT NULL UNIQUE,
@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS age_confirmed BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_consent_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS music_service TEXT;
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub ON users (google_sub) WHERE google_sub IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash TEXT PRIMARY KEY,

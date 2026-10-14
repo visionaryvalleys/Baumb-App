@@ -139,7 +139,7 @@ function Composer({ id, onSend, streaming = false, placeholder = "Ask about your
   return (
     <form onSubmit={submit} className="flex items-end gap-1.5 rounded-[28px] border border-white/10 bg-[#1b2622] py-1.5 pl-2 pr-1.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]">
       <label htmlFor={id} className="sr-only">
-        Ask BAUMB Trainer
+        Ask Ostin Trainer
       </label>
       <textarea
         id={id}
@@ -197,7 +197,7 @@ export function TrainerChat() {
       style={{ fontFamily: "Segoe UI, ui-sans-serif, system-ui, sans-serif" }}
     >
       <div className="flex min-h-11 items-center justify-between">
-        <h1 className="text-[15px] font-medium tracking-[-0.01em] text-white/90">BAUMB Trainer</h1>
+        <h1 className="text-[15px] font-medium tracking-[-0.01em] text-white/90">Ostin Trainer</h1>
         {turns.length > 0 && (
           <button type="button" onClick={clearTrainer} className="grid size-11 place-items-center rounded-full bg-white/[0.06] text-white/70 ring-1 ring-inset ring-white/10" aria-label="New chat">
             <RotateCcw className="size-4" aria-hidden />
@@ -282,7 +282,7 @@ export function TrainerSheet() {
   );
 }
 
-/** The quick way in from the dashboard: ask here and the answer opens in BAUMB Trainer. */
+/** The quick way in from the dashboard: ask here and the answer opens in Ostin Trainer. */
 export function TrainerPrompt() {
   const router = useRouter();
   const session = useSession();
@@ -298,7 +298,7 @@ export function TrainerPrompt() {
       <div className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
         <div className="min-w-0">
           <h2 id="trainer-prompt" className="text-[17px] font-semibold text-white">
-            Ask BAUMB Trainer
+            Ask Ostin Trainer
           </h2>
           <p className="mt-0.5 text-sm text-white/55">Food, training, sleep or recovery. Answers use your plan and today&apos;s logs.</p>
         </div>

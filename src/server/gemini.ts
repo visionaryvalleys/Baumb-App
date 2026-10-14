@@ -25,10 +25,10 @@ async function post(action: string, body: object, signal: AbortSignal): Promise<
 async function failure(res: Response): Promise<HttpError> {
   const body = (await res.json().catch(() => null)) as { error?: { message?: string; status?: string } } | null;
   console.error(`[ai] Gemini ${res.status}: ${body?.error?.message ?? res.statusText}`);
-  if (res.status === 400 && /api key/i.test(body?.error?.message ?? "")) return new HttpError(502, "BAUMB couldn't answer right now.");
-  if (res.status === 401 || res.status === 403) return new HttpError(502, "BAUMB couldn't answer right now.");
-  if (res.status === 429) return new HttpError(503, "BAUMB is busy right now. Try again in a minute.");
-  return new HttpError(502, "BAUMB couldn't answer right now.");
+  if (res.status === 400 && /api key/i.test(body?.error?.message ?? "")) return new HttpError(502, "Ostin couldn't answer right now.");
+  if (res.status === 401 || res.status === 403) return new HttpError(502, "Ostin couldn't answer right now.");
+  if (res.status === 429) return new HttpError(503, "Ostin is busy right now. Try again in a minute.");
+  return new HttpError(502, "Ostin couldn't answer right now.");
 }
 
 interface Candidate {
@@ -111,7 +111,7 @@ export async function geminiStream(opts: AiStreamOptions): Promise<ReadableStrea
       const msg = JSON.parse(data) as { candidates?: Candidate[]; error?: { code?: number; message?: string } };
       if (msg.error) {
         console.error(`[ai] Gemini stream error: ${msg.error.message ?? data.slice(0, 500)}`);
-        throw new HttpError(msg.error.code === 429 ? 503 : 502, msg.error.code === 429 ? "BAUMB is busy right now. Try again in a minute." : "BAUMB couldn't answer right now.");
+        throw new HttpError(msg.error.code === 429 ? 503 : 502, msg.error.code === 429 ? "Ostin is busy right now. Try again in a minute." : "Ostin couldn't answer right now.");
       }
       const candidate = msg.candidates?.[0];
       const text = textOf(candidate);

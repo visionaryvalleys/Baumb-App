@@ -250,7 +250,7 @@ export function VoiceLog() {
         <div className={cn("fixed inset-0 z-30 bg-black/35 transition-opacity duration-300", closing && "opacity-0")} onClick={closeSheet}>
           <div
             role="dialog"
-            aria-label={rendered === "trainer" ? "BAUMB Trainer" : "Result"}
+            aria-label={rendered === "trainer" ? "Ostin Trainer" : "Result"}
             className={cn("glass absolute inset-x-0 bottom-0 max-h-[78dvh] rounded-t-[1.75rem] px-5 pb-[max(8.5rem,env(safe-area-inset-bottom))] pt-3", closing ? "animate-sheet-down" : "animate-sheet-up")}
             style={drag ? { transform: `translateY(${drag}px)` } : undefined}
             onAnimationEnd={(event) => {
@@ -321,7 +321,7 @@ export function VoiceLog() {
             type="button"
             onClick={() => (rendered === "trainer" && !closing ? closeSheet() : openSheet("trainer"))}
             className="glass grid h-12 w-12 place-items-center rounded-2xl text-white"
-            aria-label="BAUMB Trainer"
+            aria-label="Ostin Trainer"
             aria-pressed={rendered === "trainer" && !closing}
           >
             <MessageCircle className="size-5" aria-hidden />
@@ -331,14 +331,14 @@ export function VoiceLog() {
           type="button"
           onClick={talk}
           className={cn(
-            "relative grid h-11 w-12 place-items-center rounded-2xl text-[#05070b] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.35)] backdrop-blur-xl",
-            listening || reading ? "bg-white" : "bg-brand",
+            "relative grid h-11 w-12 place-items-center rounded-2xl shadow-[inset_0_1px_0_0_rgb(255_255_255/0.35)] backdrop-blur-xl",
+            listening || reading ? "bg-[#F8F9FA] text-[#56746D]" : "bg-brand text-[#F8F9FA]",
           )}
           aria-label={listening ? "Listening" : "Microphone"}
           aria-pressed={listening}
         >
           <Mic className="size-5" aria-hidden />
-          {listening && <span className="absolute inset-x-2 bottom-1.5 h-0.5 overflow-hidden rounded-full bg-black/15"><span className="block h-full bg-black/70" style={{ width: `${Math.round(level * 100)}%` }} /></span>}
+          {listening && <span className="absolute inset-x-2 bottom-1.5 h-0.5 overflow-hidden rounded-full bg-[#56746D]/25"><span className="block h-full bg-[#56746D]" style={{ width: `${Math.round(level * 100)}%` }} /></span>}
         </button>
       </div>
     </>

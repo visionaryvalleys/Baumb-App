@@ -12,7 +12,7 @@ import { Card, CardTitle, KindTag, Segmented, cn } from "../ui";
 import { EventsPanel } from "./events-panel";
 
 const STATUS_STYLE: Record<DayStatus, string> = {
-  workout: "bg-brand text-[#05070b]",
+  workout: "bg-brand text-[#F8F9FA]",
   missed: "bg-transparent text-red-300 ring-1 ring-inset ring-red-400/50",
   vacation: "bg-cyan/15 text-cyan",
   injury: "bg-danger/20 text-red-100",

@@ -64,13 +64,13 @@ function ActivityForm({ date }: { date: LocalDate }) {
       <div>
         <label htmlFor="minutes" className="label">Walking / moving time (min, optional)</label>
         <input id="minutes" type="number" inputMode="numeric" min={1} max={1440} className="field" value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="e.g. 75" />
-        <p className="mt-1.5 text-xs text-white/45">With time, BAUMB works out your pace: brisk walking and running cost more per km than strolling.</p>
+        <p className="mt-1.5 text-xs text-white/45">With time, Ostin works out your pace: brisk walking and running cost more per km than strolling.</p>
       </div>
       {device && (
         <div>
           <label htmlFor="active" className="label">Active calories from device (optional)</label>
           <input id="active" type="number" inputMode="numeric" min={0} className="field" value={active} onChange={(e) => setActive(e.target.value)} />
-          <p className="mt-1.5 text-xs text-white/45">When provided, this replaces BAUMB&apos;s step and workout estimates for the day so nothing is counted twice.</p>
+          <p className="mt-1.5 text-xs text-white/45">When provided, this replaces Ostin&apos;s step and workout estimates for the day so nothing is counted twice.</p>
         </div>
       )}
       <button type="submit" className="btn-primary w-full">

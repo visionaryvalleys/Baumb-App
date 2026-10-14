@@ -134,7 +134,7 @@ function ExerciseStage({
           return (
             <button key={item.exerciseId} type="button" onClick={() => onPick(index)} className="flex items-center justify-between gap-3 border border-line bg-card px-4 py-3 text-left">
               <span className="flex items-center gap-3">
-                <span className={cn("grid size-8 place-items-center text-[12px]", finished ? "bg-brand text-[#111110]" : "border border-line text-muted")}>
+                <span className={cn("grid size-8 place-items-center text-[12px]", finished ? "bg-brand text-[#F8F9FA]" : "border border-line text-muted")}>
                   {finished ? <Check className="size-4" aria-hidden /> : index + 1}
                 </span>
                 <span>
@@ -150,7 +150,7 @@ function ExerciseStage({
         return (
           <div key={item.exerciseId} className="relative border border-line bg-card p-4">
             <div className="flex items-center gap-3">
-              <span className="grid size-8 place-items-center bg-brand text-[12px] text-[#111110]">{index + 1}</span>
+              <span className="grid size-8 place-items-center bg-brand text-[12px] text-[#F8F9FA]">{index + 1}</span>
               <div>
                 <p className="text-[17px] text-fg">{name}</p>
                 <p className="text-[12px] uppercase tracking-[0.12em] text-muted">{progress.warmupDone ? `Set ${Math.max(currentSet + 1, 1)} of 3` : "Warm-up · 8 reps · not counted"}</p>

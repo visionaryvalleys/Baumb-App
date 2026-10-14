@@ -69,7 +69,7 @@ export function resolveDirection(input: TargetInput, flags: SafetyFlag[]): Direc
 export function targetSafetyFlags(input: TargetInput): SafetyFlag[] {
   const flags: SafetyFlag[] = [];
   const { goal, heightCm, weightKg, sex, age } = input;
-  if (age < 18) flags.push({ level: "warning", message: "BAUMB plans are designed for adults. Please involve a parent, coach or doctor." });
+  if (age < 18) flags.push({ level: "warning", message: "Ostin plans are designed for adults. Please involve a parent, coach or doctor." });
   if (goal.targetWeightKg != null) {
     const targetBmi = bmi(goal.targetWeightKg, heightCm);
     if (targetBmi < 18.5)

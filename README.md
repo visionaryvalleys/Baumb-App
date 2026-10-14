@@ -1,4 +1,4 @@
-# BAUMB — Fitness App
+# Ostin — Fitness App
 
 A personal transformation app: onboarding builds a goal-specific calorie, macro, step and workout plan, daily logging tracks what actually happened, and a projection engine estimates how long it will take to reach your target. Accounts and everything users enter are stored in Neon Postgres, progress photos in Cloudflare R2, with an offline cache in the browser, and a cinematic, motorsport-inspired UI. Built with Next.js 16 (App Router, Turbopack), React 19, TypeScript, Tailwind CSS v4 and Vitest.
 
@@ -10,7 +10,7 @@ A personal transformation app: onboarding builds a goal-specific calorie, macro,
 | `/signup`, `/signin` | Create an account or sign in, set directly on the gym backdrop; every other app route requires a session  |
 | `/onboarding`     | About you → body & timezone → goal (8 types) → target → training (experience: Beginner < 6 months, Intermediate 6–12 months, Pro 1+ year; days; workout structure with a week preview) → strength test (sex-specific lifts, weight × reps) → calculated plan preview with starting weights |
 | `/dashboard`      | Transformation ring and window, today's plan, calories / balance / protein / steps, energy breakdown          |
-| `/trainer`        | BAUMB Trainer: AI chat about your food, training, sleep and recovery, answered from your own plan and logs     |
+| `/trainer`        | Ostin Trainer: AI chat about your food, training, sleep and recovery, answered from your own plan and logs     |
 | `/plan`           | Calorie explanation, macros, steps, safety flags, 7-day schedule, adaptive review, plan version history       |
 | `/nutrition`      | Your own meals of the day (Breakfast, Lunch, Snacks, Dinner by default; add Pre-workout, Post-workout or any other, up to 10), each with inline "Add food": type "5 vada, 3 dosa, 1 katori sambar" and calories, protein, carbs, fat and fibre are calculated from the Indian food database and checked by AI (see below); each food shows its research source and the grams can be typed directly. Logged items can be edited (amount, serving or grams) and their nutrition recalculates. A goal-based daily meal plan (vegetarian, eggetarian or non-veg) sizes each meal to the day's targets; every food can be swapped, the grams you actually eat can be entered (the rest of the meal re-balances) and a whole meal can be logged in one tap. Daily totals vs targets, calories vs goal (surplus moves the goal date, never adds workouts), energy for the day, quick add, vacation card |
 | `/workout`        | Today's session with load suggestions (double progression + RPE, adjusted for recovery, weekly volume, calorie deficit, low logged intake and time away after a break) |
@@ -26,7 +26,7 @@ A personal transformation app: onboarding builds a goal-specific calorie, macro,
 
 The header bell shows in-app reminders derived from your data (weigh-ins, unlogged food, planned workouts, events, vacations, weekly reviews, plan check-ins, estimate changes); dismissals are remembered per occurrence.
 
-**BAUMB Trainer** (`/trainer`), an AI chat about health, food, training, sleep and recovery, is the second item in the main navigation and the menu (with a Trainer button in the header on smaller screens), and the dashboard has an "Ask BAUMB Trainer" box under today's workout that opens the answer there. The conversation fills the screen with the question box always in reach, and it carries on while the user moves between pages. Answers are streamed and grounded in a short summary of the user's own profile, plan, today's food and the last 7 days (`src/lib/health-context.ts`). The trainer keeps to health topics, respects the plan's calorie floors and sends medical questions to a doctor.
+**Ostin Trainer** (`/trainer`), an AI chat about health, food, training, sleep and recovery, is the second item in the main navigation and the menu (with a Trainer button in the header on smaller screens), and the dashboard has an "Ask Ostin Trainer" box under today's workout that opens the answer there. The conversation fills the screen with the question box always in reach, and it carries on while the user moves between pages. Answers are streamed and grounded in a short summary of the user's own profile, plan, today's food and the last 7 days (`src/lib/health-context.ts`). The trainer keeps to health topics, respects the plan's calorie floors and sends medical questions to a doctor.
 
 ## Calculation engine
 
@@ -53,9 +53,9 @@ Values in the UI are labelled **recorded**, **calculated**, **estimated** or **p
 - **Sync**: every change is saved to the browser immediately and to the database about a second later. If the network or database is down, changes are kept and retried; if two devices edit at once, the newer saved copy on the server wins.
 - **API**: `POST /api/auth/signup`, `POST /api/auth/signin`, `POST /api/auth/signout`, `GET /api/auth/me`, `GET`/`PUT /api/data`, `GET /api/photos/[id]`, `GET /api/foods`, `POST /api/foods/resolve`, `POST /api/ai/chat`. Sign-in, sign-up and the AI routes are rate limited per user, and mutating requests must be same-origin JSON.
 
-### AI food check and BAUMB Trainer (Gemini, OpenAI or Anthropic)
+### AI food check and Ostin Trainer (Gemini, OpenAI or Anthropic)
 
-Set `GEMINI_API_KEY` (model `gemini-3.8-flash` by default; Google AI Studio has a free tier), `OPENAI_API_KEY` (model `gpt-6.1-sol`, through the Responses API) or `ANTHROPIC_API_KEY` (Claude) in `.env.local` and restart; other settings are in `.env.example`. When several are set the order is Gemini, OpenAI, Anthropic, unless `AI_PROVIDER` says otherwise. Without a key the app works as before, using database values, and the trainer says it isn't switched on. The UI never mentions AI, models or the database: food rows show only the published source of their values, and the trainer speaks as BAUMB Trainer.
+Set `GEMINI_API_KEY` (model `gemini-3.8-flash` by default; Google AI Studio has a free tier), `OPENAI_API_KEY` (model `gpt-6.1-sol`, through the Responses API) or `ANTHROPIC_API_KEY` (Claude) in `.env.local` and restart; other settings are in `.env.example`. When several are set the order is Gemini, OpenAI, Anthropic, unless `AI_PROVIDER` says otherwise. Without a key the app works as before, using database values, and the trainer says it isn't switched on. The UI never mentions AI, models or the database: food rows show only the published source of their values, and the trainer speaks as Ostin Trainer.
 
 - **One row per food, not per portion.** The quantity is parsed in the browser ("5 idli" → 5 × 1 idli), and only the food name is looked up, normalised to a key (`idli`). Nutrition is stored per 100 g with named servings, so every amount is a multiplication in the app.
 - **Lookup order:** the browser's saved results → server memory (LRU, 50k keys) → `food_keys` (primary-key lookup) → the AI model, only for a phrase nobody has entered before. The answer is saved, so the next user with the same phrase (or a spelling the AI recognised) gets it from the database.
@@ -99,7 +99,7 @@ New users sign up and are taken through onboarding. To explore with data, open *
 src/
   app/
     page.tsx              Logo splash → sign in
-    (app)/                App routes sharing the BAUMB shell
+    (app)/                App routes sharing the Ostin shell
     (auth)/               Sign in / sign up
     api/                  Auth, data, food and AI route handlers
   server/                 Database pool, password hashing, sessions, request helpers, OpenAI and Claude clients, AI food resolver, caches and limits
@@ -119,7 +119,7 @@ All tokens live in `@theme` in `src/app/globals.css`; shared primitives are in `
 
 - **Font:** Inter (`next/font/google`): light hero headings and metrics, uppercase tracked section labels, muted supporting text
 - **Surfaces:** base `#08090C`, secondary `#0D1015`, card `#11151C`, elevated `#161B23`, hairline borders `rgb(255 255 255 / 0.08)`
-- **Accent:** electric blue `#4D8DFF` by default (BAUMB Gold and others selectable in Settings), with cyan, violet, mint and danger as supporting tones
+- **Accent:** electric blue `#4D8DFF` by default (Ostin Gold and others selectable in Settings), with cyan, violet, mint and danger as supporting tones
 - **Backdrop:** the gym photograph fading into the base colour, lit by a static blue/violet/cyan aurora (`Backdrop`, `Aurora`)
 - **Glass:** `glass` utility (translucent gradient, hairline border, `blur(20px)`), used for primary cards; `panel` for quieter inset blocks
 - **Controls:** `btn-primary` (solid accent), `btn-ghost` (quiet glass), `btn-danger`, `field`; visible `:focus-visible` rings in the accent colour

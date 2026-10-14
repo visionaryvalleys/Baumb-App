@@ -146,7 +146,7 @@ export function HomeArchive() {
   const targets = summary.info.plan?.targets;
   const intake = summary.intake;
   const slotId = activeMealSlots(state.mealSlots)[0]?.id;
-  const name = state.profile.firstName || "Baumb";
+  const name = state.profile.firstName || "Ostin";
 
   useEffect(() => {
     const stage = stageRef.current;

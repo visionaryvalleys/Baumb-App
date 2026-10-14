@@ -19,6 +19,19 @@ export function validatePassword(password: string): string | null {
   return null;
 }
 
+/** The second entry when a password is being set, not when it is being used to sign in. */
+export function confirmPassword(password: string, confirm: string): string | null {
+  if (!confirm) return "Confirm your password.";
+  if (password !== confirm) return "Those passwords don't match.";
+  return null;
+}
+
+/** Only same-site paths, so a crafted link can't bounce users to another site after sign-in. */
+export function safeNextPath(raw: string | null | undefined, fallback = "/dashboard") {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/signin") || raw.startsWith("/signup")) return fallback;
+  return raw;
+}
+
 export function validateName(name: string): string | null {
   const n = name.trim();
   if (!n) return "Enter your name.";

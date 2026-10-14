@@ -6,7 +6,7 @@ import { ArrowRight, DatabaseZap, LogOut, Sparkles } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { buildSampleState } from "@/lib/sample";
 import { ensureSession, retrySession, signOut, useSession } from "@/lib/session";
-import { DEFAULT_ACCENT, actions, getState, resolveAccent, useAppState, useHydrated } from "@/lib/store";
+import { actions, getState, useAppState, useHydrated } from "@/lib/store";
 import { useRecordKeeper } from "@/lib/use-records";
 import { Backdrop } from "./backdrop";
 import { BaumbLogo, MenuButton, MenuOverlay, ProfileButton } from "./brand";
@@ -39,23 +39,12 @@ function activeHref(pathname: string, links: { href: string }[]): string | undef
   return links.find((n) => pathname === n.href || pathname.startsWith(`${n.href}/`))?.href;
 }
 
-/** Applies the user's accent colour to every `brand` utility. */
-function useAccent() {
-  const { settings } = useAppState();
-  useEffect(() => {
-    const root = document.documentElement;
-    const accent = resolveAccent(settings.accent);
-    if (accent !== DEFAULT_ACCENT) root.style.setProperty("--color-brand", accent);
-    else root.style.removeProperty("--color-brand");
-  }, [settings.accent]);
-}
-
 function OnboardingGate() {
   return (
     <EmptyState
       icon={Sparkles}
       title="Let's build your plan"
-      description="Tell BAUMB about your body, your goal and your week. You'll get calorie and protein targets, a workout plan sized to your available time, and an estimated transformation window."
+      description="Tell Ostin about your body, your goal and your week. You'll get calorie and protein targets, a workout plan sized to your available time, and an estimated transformation window."
     >
       <Link href="/onboarding" className="btn-primary">
         Start onboarding <ArrowRight className="size-4" aria-hidden />
@@ -69,7 +58,7 @@ function OnboardingGate() {
 
 function SessionProblem({ message }: { message: string | null }) {
   return (
-    <EmptyState icon={DatabaseZap} title="Can't load your account" description={message ?? "BAUMB didn't respond. Check your connection and try again."}>
+    <EmptyState icon={DatabaseZap} title="Can't load your account" description={message ?? "Ostin didn't respond. Check your connection and try again."}>
       <button type="button" className="btn-primary" onClick={() => void retrySession()}>
         Try again
       </button>
@@ -84,7 +73,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const session = useSession();
   const { onboarded } = useAppState();
   const [menuOpen, setMenuOpen] = useState(false);
-  useAccent();
   useRecordKeeper(session.ready && !session.locked);
 
   useEffect(() => {
@@ -102,7 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className={home ? "relative h-dvh overflow-hidden" : "relative min-h-dvh"}>
       <Backdrop />
 
-      <header className={home ? "sticky top-0 z-40 border-b border-transparent bg-transparent" : "sticky top-0 z-40 border-b border-white/10 bg-black/45 backdrop-blur-md"}>
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[var(--color-ground)]">
         <div className="mx-auto flex h-14 w-full max-w-[480px] items-center justify-between px-3">
           <BaumbLogo />
           <div className="flex items-center">

@@ -65,7 +65,7 @@ export async function PUT(req: NextRequest) {
     } else if (looksLikeState(body.state)) {
       const stored = await storePhotos(user.id, body.state, previousState && !isJournalEnvelope(previousState) ? previousState : null);
       json = JSON.stringify(stored);
-    } else throw new HttpError(400, "That isn't valid BAUMB data.");
+    } else throw new HttpError(400, "That isn't valid Ostin data.");
 
     let saved: { revision: number } | undefined;
     try {

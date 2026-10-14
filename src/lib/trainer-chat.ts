@@ -81,7 +81,7 @@ export async function askTrainer(question: string, context: string) {
     });
     if (!res.ok || !res.body) {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
-      return patchLast({ content: body.error ?? "BAUMB Trainer couldn't answer right now. Please try again.", failed: true }, false);
+      return patchLast({ content: body.error ?? "Ostin Trainer couldn't answer right now. Please try again.", failed: true }, false);
     }
     const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
     let answer = "";
@@ -94,7 +94,7 @@ export async function askTrainer(question: string, context: string) {
     patchLast(answer.trim() ? { content: answer } : { content: "No answer came back. Please try again.", failed: true }, false);
   } catch {
     const partial = state.turns.at(-1)?.content;
-    patchLast(controller?.signal.aborted ? { content: partial || "Stopped.", failed: !partial } : { content: "Can't reach BAUMB right now. Check your connection and try again.", failed: true }, false);
+    patchLast(controller?.signal.aborted ? { content: partial || "Stopped.", failed: !partial } : { content: "Can't reach Ostin right now. Check your connection and try again.", failed: true }, false);
   } finally {
     controller = null;
   }

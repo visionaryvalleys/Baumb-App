@@ -10,6 +10,7 @@ export interface AccountUser {
   id: string;
   email: string;
   name: string;
+  hasPassword?: boolean;
 }
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated" | "error";
@@ -256,7 +257,7 @@ export function ensureSession(): Promise<void> {
       if (status === 200 && body.user) await loadAccount(body.user);
       else set({ auth: status === 401 ? "unauthenticated" : "error", message: body.error ?? null });
     } catch {
-      set({ auth: "error", message: "Can't reach BAUMB. Check your connection." });
+      set({ auth: "error", message: "Can't reach Ostin. Check your connection." });
     }
   })();
   return started;
@@ -276,13 +277,40 @@ async function authenticate(path: string, payload: Record<string, string>): Prom
     await started;
     return snapshot.ready ? null : (snapshot.message ?? "Couldn't load your data.");
   } catch {
-    return "Can't reach BAUMB. Check your connection and try again.";
+    return "Can't reach Ostin. Check your connection and try again.";
   }
 }
 
 export const signIn = (email: string, password: string) => authenticate("/api/auth/signin", { email, password });
-export const signUp = (name: string, email: string, password: string) =>
-  authenticate("/api/auth/signup", { name, email, password, ageConfirmed: "yes", aiConsent: "yes" });
+export const signUp = (name: string, email: string, password: string, passwordConfirm: string) =>
+  authenticate("/api/auth/signup", { name, email, password, passwordConfirm, ageConfirmed: "yes", aiConsent: "yes" });
+export async function finishGoogleSignUp(name: string): Promise<{ error: string | null; next: string | null }> {
+  try {
+    const { status, body } = await api<{ user?: AccountUser; error?: string; next?: string }>("/api/auth/google/finish", {
+      method: "POST",
+      body: JSON.stringify({ name, ageConfirmed: "yes", aiConsent: "yes" }),
+    });
+    if (!body.user) return { error: body.error ?? `Request failed (${status}).`, next: null };
+    started = loadAccount(body.user);
+    await started;
+    return { error: snapshot.ready ? null : (snapshot.message ?? "Couldn't load your data."), next: body.next ?? null };
+  } catch {
+    return { error: "Can't reach Ostin. Check your connection and try again.", next: null };
+  }
+}
+
+export async function savePassword(password: string, confirm: string, currentPassword = ""): Promise<string | null> {
+  try {
+    const { status, body } = await api<{ saved?: boolean; error?: string }>("/api/auth/password", {
+      method: "POST",
+      body: JSON.stringify({ password, confirm, currentPassword }),
+    });
+    if (status === 200 && body.saved) return null;
+    return body.error ?? `Request failed (${status}).`;
+  } catch {
+    return "Can't reach Ostin. Check your connection and try again.";
+  }
+}
 
 export async function signOut() {
   if (timer != null) {

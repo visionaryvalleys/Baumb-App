@@ -165,7 +165,7 @@ export function TransformationView() {
         <Card>
           <CardTitle>Estimate updated</CardTitle>
           {!change ? (
-            <p className="text-sm text-white/50">Once there&apos;s a previous estimate to compare with, BAUMB explains exactly what moved it.</p>
+            <p className="text-sm text-white/50">Once there&apos;s a previous estimate to compare with, Ostin explains exactly what moved it.</p>
           ) : (
             <>
               <div className="text-lg font-semibold text-white">
