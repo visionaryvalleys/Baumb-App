@@ -1,6 +1,9 @@
 import { goalConfig } from "@/data/goals";
-import type { Goal, HealthCondition, Lifestyle, PlanTargets, SafetyFlag, Sex } from "@/lib/types";
-import { KCAL_PER_KG, LIFESTYLE_STEPS, calculateBMR, estimatePlannedTDEE } from "./energy";
+import type { Experience, Goal, HealthCondition, Lifestyle, PlanTargets, SafetyFlag, Sex } from "@/lib/types";
+import { KCAL_PER_KG, LIFESTYLE_STEPS, calculateBMR, calibrateMaintenance, startingMaintenance } from "./energy";
+
+/** Evidence-based starting range for adults who lift, in grams per kilogram. */
+export const PROTEIN_RANGE_G_PER_KG = { low: 1.4, practical: 1.6, high: 2.0 } as const;
 
 export const MAX_DEFICIT_KCAL = 1000;
 export const MAX_DEFICIT_RATIO = 0.25;
@@ -18,6 +21,9 @@ export interface TargetInput {
   lifestyle: Lifestyle;
   goal: Pick<Goal, "type" | "targetWeightKg" | "targetBodyFatPct" | "daysPerWeek" | "sessionMinutes">;
   conditions?: HealthCondition[];
+  experience?: Experience;
+  /** Logged intake and weight trend. Used only when enough days were actually logged. */
+  observed?: { avgIntakeKcal: number | null; loggedDays: number; weeklyWeightChangeKg: number | null };
 }
 
 export interface TargetResult {
@@ -92,6 +98,19 @@ export function targetSafetyFlags(input: TargetInput): SafetyFlag[] {
   return flags;
 }
 
+/** Grams for a body weight, kept inside 1.4–2.0 g/kg. High BMI uses a height-based reference so the target does not scale without limit. */
+export function proteinTarget(weightKg: number, heightCm: number, perKg: number) {
+  const index = bmi(weightKg, heightCm);
+  const ref = index > 30 ? 27 * (heightCm / 100) ** 2 : weightKg;
+  const used = Math.min(PROTEIN_RANGE_G_PER_KG.high, Math.max(PROTEIN_RANGE_G_PER_KG.low, perKg));
+  return {
+    grams: Math.round(used * ref),
+    low: Math.round(PROTEIN_RANGE_G_PER_KG.low * ref),
+    high: Math.round(PROTEIN_RANGE_G_PER_KG.high * ref),
+    perKg: used,
+  };
+}
+
 /** Protein is fixed first, fat gets a share with a floor for hormonal health, carbs fill the rest. */
 export function macrosForCalories(calories: number, proteinG: number, fatPct: number, weightKg: number) {
   const fatG = Math.round(Math.max((fatPct * calories) / 9, 0.6 * weightKg));
@@ -106,20 +125,21 @@ export function calculateTargets(input: TargetInput): TargetResult | null {
   const flags = targetSafetyFlags(input);
   const direction = resolveDirection(input, flags);
 
-  const { tdee } = estimatePlannedTDEE({
-    bmr,
-    weightKg: input.weightKg,
-    heightCm: input.heightCm,
-    sex: input.sex,
-    lifestyle: input.lifestyle,
-    daysPerWeek: input.goal.daysPerWeek,
-    sessionMinutes: input.goal.sessionMinutes,
+  const starting = startingMaintenance(bmr, input.lifestyle);
+  const calibrated = calibrateMaintenance(input.observed ?? { avgIntakeKcal: null, loggedDays: 0, weeklyWeightChangeKg: null });
+  const tdee = calibrated ?? starting;
+  flags.push({
+    level: "info",
+    message: calibrated
+      ? "Maintenance was checked against logged meals and the weight trend. Days with no meals were left out, not treated as zero. A wearable calorie total was not added on top."
+      : "Maintenance starts from Mifflin–St Jeor times an activity factor. It is a starting estimate. After several weeks of logged meals and weigh-ins it can be checked against intake and weight. A wearable calorie total is not added on top.",
   });
 
   const pct = direction === "loss" ? cfg.lossRatePct! : direction === "gain" ? cfg.gainRatePct! : ([0, 0] as [number, number]);
   const sign = direction === "loss" ? -1 : 1;
   const rangeKg: [number, number] = [sign * (pct[0] / 100) * input.weightKg, sign * (pct[1] / 100) * input.weightKg];
-  let rate = (rangeKg[0] + rangeKg[1]) / 2;
+  const beginnerGain = input.experience === "beginner" && direction === "gain";
+  let rate = beginnerGain ? rangeKg[0] : (rangeKg[0] + rangeKg[1]) / 2;
   let adjustment = (rate * KCAL_PER_KG) / 7;
 
   const sensitive = (input.conditions ?? []).some((c) => c === "heart" || c === "diabetes" || c === "thyroid" || c === "blood_pressure");
@@ -156,9 +176,8 @@ export function calculateTargets(input: TargetInput): TargetResult | null {
     rangeKg[1] = rate * 1.2;
   }
 
-  const bodyMassIndex = bmi(input.weightKg, input.heightCm);
-  const proteinRefKg = bodyMassIndex > 30 ? 27 * (input.heightCm / 100) ** 2 : input.weightKg;
-  const proteinG = Math.round(cfg.proteinGPerKg * proteinRefKg);
+  const protein = proteinTarget(input.weightKg, input.heightCm, input.experience === "beginner" && direction !== "loss" ? Math.min(cfg.proteinGPerKg, PROTEIN_RANGE_G_PER_KG.practical) : cfg.proteinGPerKg);
+  const proteinG = protein.grams;
   const { fatG, carbsG, fiberG } = macrosForCalories(calories, proteinG, cfg.fatPctOfCalories, input.weightKg);
   if (carbsG < 80) flags.push({ level: "info", message: "Carbohydrates are low at this calorie level; training performance may dip." });
 

@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, History, Palmtree, Sparkles } from "lucide-react";
-import { calculateWeeklyReview, evaluateAdaptivePlan, type RowStatus } from "@/calculations/review";
+import { calculateMonthlyProgress, estimateWeeklyPath } from "@/calculations/progress-report";
+import { calculateWeeklyReview, evaluateAdaptivePlan, evaluateMonthlyPlan, type RowStatus } from "@/calculations/review";
 import { addDays, formatDate, startOfWeek } from "@/lib/date";
-import { useToday, useUnit } from "@/lib/hooks";
+import { useActivePlan, useToday, useUnit } from "@/lib/hooks";
 import { useAppState } from "@/lib/store";
+import { useProjection } from "@/lib/use-projection";
 import { toDisplayLength, lengthUnit, toDisplayWeight } from "@/lib/units";
+import { TrendChart } from "../progress/trend-chart";
 import { BigNumber, Card, CardTitle, KindTag, SectionLabel, cn } from "../ui";
 
 const STATUS: Record<RowStatus, { label: string; cls: string }> = {
@@ -21,10 +25,29 @@ export function ReviewView() {
   const state = useAppState();
   const today = useToday();
   const unit = useUnit();
+  const openLine = useSearchParams().get("line") === "1";
   const [weekStart, setWeekStart] = useState(startOfWeek(today));
+  const [showLine, setShowLine] = useState(openLine);
+  const plan = useActivePlan();
+  const { result } = useProjection();
   const review = useMemo(() => calculateWeeklyReview(state, weekStart, today), [state, weekStart, today]);
+  const month = useMemo(() => calculateMonthlyProgress(state, today), [state, today]);
   const adaptive = useMemo(() => evaluateAdaptivePlan(state, today), [state, today]);
+  const monthPlan = useMemo(() => evaluateMonthlyPlan(state, today), [state, today]);
   const isCurrent = weekStart === startOfWeek(today);
+
+  useEffect(() => {
+    if (!openLine) return;
+    setShowLine(true);
+    const frame = requestAnimationFrame(() => document.getElementById("weight-line")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    return () => cancelAnimationFrame(frame);
+  }, [openLine]);
+  const loggedWeeks = month.points.filter((point) => point.averageKg != null);
+  const lineStart = result.currentKg ?? result.startKg ?? plan?.bodyWeightKg ?? null;
+  const lineTarget = result.targetKg ?? plan?.goal.targetWeightKg ?? null;
+  const lineRate = plan?.targets.weeklyRateKg ?? 0;
+  const lineDestination = lineTarget ?? (lineStart == null ? null : Math.round((lineStart + lineRate * 8) * 10) / 10);
+  const linePath = loggedWeeks.length < 2 && lineStart != null && lineDestination != null ? estimateWeeklyPath(lineStart, lineDestination, lineRate, lineTarget == null ? 8 : 26) : [];
   const saved = state.weeklyReviews.find((r) => r.weekStart === weekStart) ?? null;
   const changedSinceSaved = !!saved && saved.rows.some((r) => review.rows.find((x) => x.key === r.key)?.actual !== r.actual);
   const history = [...state.weeklyReviews].reverse().slice(0, 12);
@@ -42,6 +65,7 @@ export function ReviewView() {
           <ChevronRight className="size-4" aria-hidden />
         </button>
         {!review.complete && <KindTag kind="estimated" label="Week in progress" />}
+        <KindTag kind="estimated" label={`${review.confidence} confidence`} />
         {review.plan && <span className="text-xs text-white/45">Plan V{review.plan.version}</span>}
         {saved && (
           <span className="text-xs text-white/45">
@@ -117,7 +141,84 @@ export function ReviewView() {
       </Card>
 
       <Card>
-        <CardTitle action={<Sparkles className="size-4 text-brand" aria-hidden />}>Adaptive check-in</CardTitle>
+        <CardTitle action={<KindTag kind="estimated" label={`${month.confidence} confidence`} />}>Monthly progress</CardTitle>
+        <p className="mb-4 text-sm text-[#DFE5E8]">{month.summary}</p>
+        <div className="mb-4 rounded-2xl bg-white/[0.04] px-4 py-3">
+          <div className="text-base font-semibold text-[#F8F9FA]">{monthPlan.headline}</div>
+          <p className="mt-1 text-sm text-[#DFE5E8]">{monthPlan.detail}</p>
+          {monthPlan.suggestions.length > 0 && (
+            <ul className="mt-3 space-y-2 text-sm text-[#F8F9FA]">
+              {monthPlan.suggestions.map((suggestion) => (
+                <li key={suggestion.id}>
+                  <span className="font-semibold">{suggestion.title}.</span> {suggestion.detail}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {month.startKg != null && month.latestKg != null && month.points.filter((p) => p.averageKg != null).length >= 2 ? (
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <SectionLabel>Starting weekly average</SectionLabel>
+              <div className="text-2xl font-semibold tabular-nums text-[#F8F9FA]">
+                {toDisplayWeight(month.startKg, unit)} <span className="text-sm font-normal">{unit}</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <SectionLabel>Latest weekly average</SectionLabel>
+              <div className="text-2xl font-semibold tabular-nums text-[#F8F9FA]">
+                {toDisplayWeight(month.latestKg, unit)} <span className="text-sm font-normal">{unit}</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="mb-4 text-sm text-[#DFE5E8]">
+            {month.startKg != null ? `One weekly average so far: ${toDisplayWeight(month.startKg, unit)} ${unit}.` : "No weekly average yet."} A second week draws the line.
+          </p>
+        )}
+        <div id="weight-line">
+        <button type="button" className="text-sm font-medium text-[#F8F9FA] underline" onClick={() => setShowLine((open) => !open)}>
+          {showLine ? "Hide the weight line" : "Show the weight line"}
+        </button>
+        {showLine && (
+          <div className="mt-4">
+            {loggedWeeks.length >= 2 ? (
+              <TrendChart points={month.points.map((point) => ({ label: point.label, kg: point.averageKg == null ? null : toDisplayWeight(point.averageKg, unit) }))} unit={unit} />
+            ) : linePath.length >= 2 ? (
+              <TrendChart points={linePath.map((point) => ({ label: point.label, kg: toDisplayWeight(point.kg, unit) }))} unit={unit} />
+            ) : (
+              <p className="text-sm text-[#DFE5E8]">Add a current weight to draw the estimate.</p>
+            )}
+          </div>
+        )}
+        </div>
+        <p className="mt-2 text-sm text-[#DFE5E8]">Weekly average body weight, not daily weigh-ins.</p>
+        <div className="-mx-5 mt-4 overflow-x-auto sm:-mx-6">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-[11px] uppercase tracking-[0.12em] text-white/45">
+                <th className="px-5 py-2 font-medium">Metric</th>
+                <th className="px-5 py-2 font-medium">Why it matters</th>
+                <th className="px-5 py-2 font-medium">Suggested review</th>
+                <th className="px-5 py-2 font-medium">This month</th>
+              </tr>
+            </thead>
+            <tbody>
+              {month.metrics.map((m) => (
+                <tr key={m.metric} className="border-b border-line/60 last:border-0">
+                  <td className="px-5 py-3 font-medium text-white">{m.metric}</td>
+                  <td className="px-5 py-3 text-[#DFE5E8]">{m.why}</td>
+                  <td className="px-5 py-3 text-[#DFE5E8]">{m.review}</td>
+                  <td className="px-5 py-3 text-[#F8F9FA]">{m.actual}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Card>
+        <CardTitle action={<Sparkles className="size-4 text-brand" aria-hidden />}>This week</CardTitle>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
             <div className="text-xl font-semibold tracking-tight text-white">{adaptive.headline}</div>

@@ -1,353 +1,248 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Copy, Plus, Search, Trash2, X } from "lucide-react";
-import { todayKey } from "@/lib/date";
-import { EXERCISES, WORKOUT_TYPES, getExercise } from "@/lib/exercises";
-import { sortByDateDesc } from "@/lib/stats";
+import { Pencil } from "lucide-react";
+import { plannedWorkoutOn } from "@/calculations/calendar";
+import { buildSplitSession } from "@/calculations/workout";
+import { programmeDay, splitChoice, splitsForWeek, type SplitId, SPLIT_CHOICES } from "@/calculations/day-split";
+import { startOfWeek, todayKey } from "@/lib/date";
+import type { WorkoutExercise } from "@/lib/types";
 import { actions, newId, useAppState } from "@/lib/store";
-import type { WorkoutType } from "@/lib/types";
-import { fromDisplayWeight, toDisplayWeight, weightUnit } from "@/lib/units";
-import { Card, CardTitle, cn } from "./ui";
+import { weightUnit } from "@/lib/units";
+import { Card, cn } from "./ui";
+import { SplitWorkout } from "./workout/split-workout";
 
-interface DraftSet {
-  reps: string;
-  weight: string;
+const SESSION_MINUTES = [30, 45, 60, 75, 80, 90] as const;
+
+function sessionMinutes(value: number) {
+  if ((SESSION_MINUTES as readonly number[]).includes(value)) return value;
+  return SESSION_MINUTES.reduce((best, minutes) => (Math.abs(minutes - value) < Math.abs(best - value) ? minutes : best));
 }
 
-interface DraftExercise {
-  key: string;
-  exerciseId: string;
-  sets: DraftSet[];
-}
+function DurationBar({ value, onChange }: { value: number; onChange: (minutes: number) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const index = Math.max(0, SESSION_MINUTES.findIndex((minutes) => minutes === value));
 
-const DEFAULT_NAMES: Record<WorkoutType, string> = {
-  strength: "Strength Session",
-  cardio: "Cardio Session",
-  hiit: "HIIT Session",
-  mobility: "Mobility Flow",
-  sport: "Sport",
-};
+  function indexFromClientX(clientX: number) {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 16) return index;
+    const usable = rect.width - 16;
+    const x = Math.min(usable, Math.max(0, clientX - rect.left - 8));
+    return Math.round((x / usable) * (SESSION_MINUTES.length - 1));
+  }
 
-function ExercisePicker({ onPick, onClose }: { onPick: (id: string) => void; onClose: () => void }) {
-  const [query, setQuery] = useState("");
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q ? EXERCISES.filter((e) => `${e.name} ${e.muscle} ${e.equipment}`.toLowerCase().includes(q)) : EXERCISES;
-  }, [query]);
+  function pick(clientX: number) {
+    onChange(SESSION_MINUTES[indexFromClientX(clientX)]);
+  }
 
   return (
-    <div className="rounded-2xl border border-line bg-surface-raised p-3">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/50" aria-hidden />
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search exercises, muscles, equipment…"
-            className="field pl-9"
-            onKeyDown={(e) => {
-              if (e.key === "Escape") onClose();
-              if (e.key === "Enter" && results[0]) {
-                e.preventDefault();
-                onPick(results[0].id);
-              }
-            }}
-          />
-        </div>
-        <button type="button" onClick={onClose} className="btn-ghost px-2.5" aria-label="Close exercise picker">
-          <X className="size-4" aria-hidden />
-        </button>
+    <div className="sm:col-span-3">
+      <div className="mb-1 flex items-baseline justify-between gap-3">
+        <span id="duration-label" className="label">Duration</span>
+        <span className="text-sm font-semibold tabular-nums text-[#F8F9FA]">{value} minutes</span>
       </div>
-      <ul className="mt-2 max-h-64 overflow-y-auto">
-        {results.map((e) => (
-          <li key={e.id}>
-            <button
-              type="button"
-              onClick={() => onPick(e.id)}
-              className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm hover:bg-white/[0.05]"
-            >
-              <span className="text-white/90">{e.name}</span>
-              <span className="text-xs capitalize text-white/50">
-                {e.muscle} · {e.equipment}
-              </span>
-            </button>
-          </li>
+      <div
+        ref={trackRef}
+        role="slider"
+        tabIndex={0}
+        aria-labelledby="duration-label"
+        aria-valuemin={SESSION_MINUTES[0]}
+        aria-valuemax={SESSION_MINUTES[SESSION_MINUTES.length - 1]}
+        aria-valuenow={value}
+        aria-valuetext={`${value} minutes`}
+        className="relative h-11 touch-none select-none"
+        onClick={(e) => pick(e.clientX)}
+        onPointerDown={(e) => {
+          pick(e.clientX);
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {
+            // A tap still selects the nearest stop when capture is unavailable.
+          }
+        }}
+        onPointerMove={(e) => {
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) pick(e.clientX);
+        }}
+        onKeyDown={(e) => {
+          if (e.key !== "ArrowRight" && e.key !== "ArrowUp" && e.key !== "ArrowLeft" && e.key !== "ArrowDown") return;
+          e.preventDefault();
+          const step = e.key === "ArrowRight" || e.key === "ArrowUp" ? 1 : -1;
+          onChange(SESSION_MINUTES[Math.min(SESSION_MINUTES.length - 1, Math.max(0, index + step))]);
+        }}
+      >
+        <div className="absolute left-2 right-2 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-white/15" />
+        <div
+          className="absolute left-2 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-brand"
+          style={{ width: `calc((100% - 16px) * ${index / (SESSION_MINUTES.length - 1)})` }}
+        />
+        {SESSION_MINUTES.map((minutes, i) => (
+          <span
+            key={minutes}
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full",
+              i === index ? "size-5 bg-[#F8F9FA] ring-4 ring-brand" : i < index ? "size-2.5 bg-brand" : "size-2.5 bg-white/45",
+            )}
+            style={{ left: `calc(8px + (100% - 16px) * ${i / (SESSION_MINUTES.length - 1)})` }}
+          />
         ))}
-        {results.length === 0 && <li className="px-3 py-6 text-center text-sm text-white/50">No matches</li>}
-      </ul>
+      </div>
+      <div className="relative h-4">
+        {SESSION_MINUTES.map((minutes, i) => (
+          <span
+            key={minutes}
+            className={cn(
+              "absolute -translate-x-1/2 text-[10px] tabular-nums",
+              minutes === value ? "font-semibold text-[#F8F9FA]" : "text-[#DFE5E8]",
+            )}
+            style={{ left: `calc(8px + (100% - 16px) * ${i / (SESSION_MINUTES.length - 1)})` }}
+          >
+            {minutes}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
 
 export function WorkoutForm() {
-  return <WorkoutFormInner />;
-}
-
-function WorkoutFormInner() {
   const router = useRouter();
-  const { profile, workouts } = useAppState();
+  const { goal, plans, profile, workouts, activePlanId } = useAppState();
+  const today = todayKey(profile.timezone);
   const unit = weightUnit(profile.unitSystem);
-  const tz = profile.timezone;
-
-  const [type, setType] = useState<WorkoutType>("strength");
-  const [name, setName] = useState("");
-  const [date, setDate] = useState(() => todayKey(tz));
-  const [duration, setDuration] = useState("45");
-  const [notes, setNotes] = useState("");
-  const [exercises, setExercises] = useState<DraftExercise[]>([]);
-  const [picking, setPicking] = useState(false);
+  const days = goal?.daysPerWeek ?? plans.find((plan) => plan.id === activePlanId)?.goal.daysPerWeek ?? 4;
+  const saved = goal?.daySplits;
+  const splits = splitsForWeek(days, saved);
+  const worked = new Set(workouts.filter((workout) => workout.date >= startOfWeek(today) && workout.date < today).map((workout) => workout.date)).size;
+  const day = programmeDay(worked, days);
+  const todaySplit = splitChoice(splits[day - 1] ?? splits[0]);
+  const [duration, setDuration] = useState(45);
+  const [editing, setEditing] = useState<number | null>(null);
+  const [live, setLive] = useState<ReturnType<typeof buildSplitSession> | null>(null);
   const [error, setError] = useState("");
+  const sessionId = useRef(newId());
+  const sessionAt = useRef(Date.now());
 
-  const lastWorkout = sortByDateDesc(workouts)[0];
-
-  function addExercise(exerciseId: string) {
-    setExercises((xs) => [...xs, { key: newId(), exerciseId, sets: [{ reps: "10", weight: "" }] }]);
-    setPicking(false);
+  function choose(index: number, id: SplitId) {
+    const next = splits.slice();
+    next[index] = id;
+    actions.setDaySplits(next);
+    setEditing(null);
   }
 
-  function updateSet(exKey: string, index: number, patch: Partial<DraftSet>) {
-    setExercises((xs) =>
-      xs.map((x) => (x.key === exKey ? { ...x, sets: x.sets.map((s, i) => (i === index ? { ...s, ...patch } : s)) } : x)),
-    );
-  }
-
-  function addSet(exKey: string) {
-    setExercises((xs) =>
-      xs.map((x) => (x.key === exKey ? { ...x, sets: [...x.sets, { ...(x.sets[x.sets.length - 1] ?? { reps: "10", weight: "" }) }] } : x)),
-    );
-  }
-
-  function removeSet(exKey: string, index: number) {
-    setExercises((xs) =>
-      xs
-        .map((x) => (x.key === exKey ? { ...x, sets: x.sets.filter((_, i) => i !== index) } : x))
-        .filter((x) => x.sets.length > 0),
-    );
-  }
-
-  function repeatLast() {
-    if (!lastWorkout) return;
-    setType(lastWorkout.type);
-    setName(lastWorkout.name);
-    setDuration(String(lastWorkout.durationMin));
-    setExercises(
-      lastWorkout.exercises.map((ex) => ({
-        key: newId(),
-        exerciseId: ex.exerciseId,
-        sets: ex.sets.map((s) => ({
-          reps: String(s.reps),
-          weight: s.weightKg > 0 ? String(toDisplayWeight(s.weightKg, unit)) : "",
-        })),
-      })),
-    );
-  }
-
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    const durationMin = Number(duration);
-    if (!Number.isFinite(durationMin) || durationMin <= 0 || durationMin > 600) {
-      setError("Enter a duration between 1 and 600 minutes.");
-      return;
-    }
-    if (!date) {
-      setError("Pick a date for this workout.");
-      return;
-    }
-
-    actions.addWorkout({
-      id: newId(),
-      name: name.trim() || DEFAULT_NAMES[type],
-      type,
-      date,
-      durationMin: Math.round(durationMin),
-      notes: notes.trim(),
-      createdAt: Date.now(),
+  function record(exercises: WorkoutExercise[], status: "completed" | "partial") {
+    const plan = plans.find((item) => item.id === activePlanId) ?? null;
+    const planned = plannedWorkoutOn(plan, today);
+    actions.saveWorkout({
+      id: sessionId.current,
+      name: todaySplit.label,
+      type: "strength",
+      date: today,
+      durationMin: duration,
+      exercises,
+      notes: "",
+      createdAt: sessionAt.current,
       timestamp: Date.now(),
-      timezone: tz,
-      status: "completed",
-      exercises: exercises
-        .map((x) => ({
-          exerciseId: x.exerciseId,
-          sets: x.sets
-            .map((s) => ({
-              reps: Math.max(0, Math.round(Number(s.reps) || 0)),
-              weightKg: Math.max(0, fromDisplayWeight(Number(s.weight) || 0, unit)),
-            }))
-            .filter((s) => s.reps > 0),
-        }))
-        .filter((x) => x.sets.length > 0),
+      timezone: profile.timezone,
+      planId: plan?.id ?? null,
+      planDayId: planned?.id ?? null,
+      status,
     });
-    router.push("/workouts");
+  }
+
+  function start() {
+    if (!goal) {
+      setError("Finish signup so Ostin knows the days in your programme.");
+      return;
+    }
+    const bodyWeight = plans.find((plan) => plan.id === activePlanId)?.bodyWeightKg ?? 75;
+    setLive(
+      buildSplitSession(todaySplit.id, goal, profile.equipment, duration, {
+        sex: profile.sex,
+        weightKg: bodyWeight,
+        injuries: profile.injuries,
+        conditions: profile.conditions,
+      }),
+    );
+  }
+
+  if (live) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-[#DFE5E8]">Day {day} · {todaySplit.label} · {duration} minutes</p>
+        <SplitWorkout
+          prescriptions={live}
+          workouts={workouts}
+          unit={unit}
+          injuries={profile.injuries}
+          conditions={profile.conditions}
+          durationMin={duration}
+          onSet={(exercises, status) => record(exercises, status)}
+          onDone={(exercises, status) => {
+            record(exercises, status);
+            router.push("/workouts/new");
+          }}
+        />
+      </div>
+    );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-4 lg:grid-cols-3">
-      <div className="space-y-4 lg:col-span-2">
-        <Card>
-          <CardTitle
-            action={
-              lastWorkout && (
-                <button type="button" onClick={repeatLast} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-brand hover:bg-brand/10">
-                  <Copy className="size-3.5" aria-hidden /> Repeat “{lastWorkout.name}”
-                </button>
-              )
-            }
-          >
-            Session
-          </CardTitle>
-          <div className="mb-5 flex flex-wrap gap-2" role="radiogroup" aria-label="Workout type">
-            {WORKOUT_TYPES.map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                role="radio"
-                aria-checked={type === t.value}
-                onClick={() => setType(t.value)}
-                className={cn(
-                  "rounded-full border px-4 py-1.5 text-sm font-medium transition",
-                  type === t.value ? "border-brand/60 bg-brand/15 text-brand" : "border-line text-white/60 hover:border-white/20 hover:text-white/90",
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="sm:col-span-3">
-              <label htmlFor="name" className="label">
-                Name
-              </label>
-              <input id="name" className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder={DEFAULT_NAMES[type]} maxLength={60} />
-            </div>
-            <div className="sm:col-span-2">
-              <label htmlFor="date" className="label">
-                Date
-              </label>
-              <input id="date" type="date" className="field [color-scheme:dark]" value={date} max={todayKey(tz)} onChange={(e) => setDate(e.target.value)} />
-            </div>
-            <div>
-              <label htmlFor="duration" className="label">
-                Duration (min)
-              </label>
-              <input id="duration" type="number" inputMode="numeric" min={1} max={600} className="field" value={duration} onChange={(e) => setDuration(e.target.value)} />
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <CardTitle action={<span className="text-xs text-white/50">{exercises.length} added</span>}>Exercises</CardTitle>
-
-          <div className="space-y-4">
-            {exercises.map((x) => {
-              const info = getExercise(x.exerciseId);
-              return (
-                <div key={x.key} className="panel p-4 animate-fade-in">
-                  <div className="mb-3 flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-white">{info?.name}</div>
-                      <div className="text-xs capitalize text-white/50">{info?.muscle}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setExercises((xs) => xs.filter((e) => e.key !== x.key))}
-                      className="rounded-lg p-2 text-white/50 hover:bg-white/[0.06] hover:text-red-300"
-                      aria-label={`Remove ${info?.name}`}
-                    >
-                      <Trash2 className="size-4" aria-hidden />
-                    </button>
+    <div className="space-y-4">
+      <Card>
+        <DurationBar value={duration} onChange={(minutes) => setDuration(sessionMinutes(minutes))} />
+      </Card>
+      <p className="text-sm text-[#DFE5E8]">Let’s start Day {day} – {todaySplit.short}.</p>
+      {error && <p role="alert" className="text-sm text-[#E0B07A]">{error}</p>}
+      <button type="button" className="btn-primary h-12 w-full" onClick={start}>
+        Start Day {day}
+      </button>
+      <Card>
+        <h2 className="mb-4 text-[13px] font-medium text-white/70">Split</h2>
+        <ul className="space-y-2">
+          {splits.map((id, index) => {
+            const choice = splitChoice(id);
+            const open = editing === index;
+            return (
+              <li key={`${id}-${index}`} className={cn("rounded-card px-3 py-3", index + 1 === day && "bg-white/[0.05]")}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.14em] text-[#DFE5E8]">Day {index + 1}</div>
+                    <div className="text-sm font-semibold text-[#F8F9FA]">{choice.label}</div>
                   </div>
-
-                  <div className="grid grid-cols-[2.25rem_1fr_1fr_2.25rem] items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-white/50">
-                    <span>Set</span>
-                    <span>{info?.tracksWeight ? `Weight (${unit})` : ""}</span>
-                    <span>{x.exerciseId === "plank" ? "Seconds" : info?.muscle === "cardio" ? "Minutes" : "Reps"}</span>
-                    <span />
-                  </div>
-                  {x.sets.map((s, i) => (
-                    <div key={i} className="mt-2 grid grid-cols-[2.25rem_1fr_1fr_2.25rem] items-center gap-2">
-                      <span className="grid size-8 place-items-center rounded-full bg-white/[0.05] text-sm font-semibold tabular-nums text-white/70">{i + 1}</span>
-                      {info?.tracksWeight ? (
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          min={0}
-                          step="0.5"
-                          className="field h-11 py-2 text-[15px] tabular-nums"
-                          value={s.weight}
-                          placeholder="0"
-                          aria-label={`Set ${i + 1} weight`}
-                          onChange={(e) => updateSet(x.key, i, { weight: e.target.value })}
-                        />
-                      ) : (
-                        <span className="text-xs text-white/40">Bodyweight</span>
-                      )}
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        className="field h-11 py-2 text-[15px] tabular-nums"
-                        value={s.reps}
-                        aria-label={`Set ${i + 1} reps`}
-                        onChange={(e) => updateSet(x.key, i, { reps: e.target.value })}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeSet(x.key, i)}
-                        className="grid size-9 place-items-center rounded-lg text-white/40 hover:bg-white/[0.06] hover:text-white/80"
-                        aria-label={`Remove set ${i + 1}`}
-                      >
-                        <X className="size-4" aria-hidden />
-                      </button>
-                    </div>
-                  ))}
-                  <button type="button" onClick={() => addSet(x.key)} className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-brand hover:bg-brand/10">
-                    <Plus className="size-3.5" aria-hidden /> Add set
+                  <button
+                    type="button"
+                    className="grid size-9 place-items-center rounded-lg border border-dashed border-white/45 text-[#F8F9FA]"
+                    aria-label={`Edit Day ${index + 1} split`}
+                    onClick={() => setEditing(open ? null : index)}
+                  >
+                    <Pencil className="size-3.5" aria-hidden />
                   </button>
                 </div>
-              );
-            })}
-
-            {picking ? (
-              <ExercisePicker onPick={addExercise} onClose={() => setPicking(false)} />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setPicking(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-control border border-dashed border-line-strong py-4 text-sm font-medium text-white/60 transition hover:border-brand/50 hover:bg-brand/5 hover:text-brand"
-              >
-                <Plus className="size-4" aria-hidden /> Add exercise
-              </button>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-        <Card>
-          <CardTitle>Notes</CardTitle>
-          <textarea
-            className="field min-h-28 resize-y"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="How did it feel? Energy, sleep, form cues…"
-            maxLength={500}
-          />
-        </Card>
-        {error && (
-          <p role="alert" className="rounded-control border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-red-200">
-            {error}
-          </p>
-        )}
-        <button type="submit" className="btn-primary h-14 w-full text-sm">
-          <Check className="size-4" aria-hidden /> Save workout
-        </button>
-        <button type="button" onClick={() => router.back()} className="btn-ghost w-full">
-          Cancel
-        </button>
-      </div>
-    </form>
+                {open && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {SPLIT_CHOICES.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={cn(
+                          "rounded-full border px-3 py-1.5 text-xs",
+                          option.id === id ? "border-brand bg-brand/20 text-[#F8F9FA]" : "border-white/15 text-[#DFE5E8]",
+                        )}
+                        onClick={() => choose(index, option.id)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </Card>
+    </div>
   );
 }
+

@@ -2,8 +2,10 @@
 
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Dumbbell, Lock, Minus, Plus } from "lucide-react";
+import { avoidReason } from "@/calculations/health";
 import { calculateReadiness, calculateVolumeTrend } from "@/calculations/recovery";
 import { calculateIntakeImpact } from "@/calculations/intake-impact";
+import { nextFromLast, performanceFrom, progressBetween } from "@/calculations/strength-progress";
 import { suggestNextLoad } from "@/calculations/workout";
 import { WEEKDAY_NAMES, addDays, daysBetween, weekdayIndex } from "@/lib/date";
 import { getExercise } from "@/lib/exercises";
@@ -12,7 +14,7 @@ import { effortTone, type EffortTone } from "@/lib/effort";
 import { lastPerformance } from "@/lib/stats";
 import { publishBoard } from "@/lib/board-client";
 import { actions, getState, newId, useAppState } from "@/lib/store";
-import type { PlanVersion, Unit, WorkoutDay } from "@/lib/types";
+import type { PlanVersion, Unit, Workout, WorkoutDay } from "@/lib/types";
 import { fromDisplayWeight, toDisplayWeight } from "@/lib/units";
 import { SessionCoach } from "./week-plan";
 import { EmptyState, cn } from "../ui";
@@ -20,16 +22,35 @@ import { EmptyState, cn } from "../ui";
 interface WorkingDraft {
   weight: string;
   reps: string;
+  /** Empty until the user records repetitions in reserve. */
+  rir: string;
   done: boolean;
 }
 
 interface ExerciseDraft {
   warmupWeight: string;
   warmupDone: boolean;
+  technique: "broken" | null;
   sets: WorkingDraft[];
 }
 
 const WARMUP_REPS = 8;
+
+function strengthNote(workouts: Workout[], exerciseId: string, date: string, range: { sets: number; repsMin: number; repsMax: number }) {
+  const found = [];
+  const ordered = [...workouts].filter((workout) => workout.date < date).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+  for (const workout of ordered) {
+    const exercise = workout.exercises.find((item) => item.exerciseId === exerciseId);
+    if (!exercise) continue;
+    const performance = performanceFrom(workout, exercise);
+    if (!performance.sets.length) continue;
+    found.push(performance);
+    if (found.length === 2) break;
+  }
+  if (!found.length) return "";
+  if (found.length === 1) return nextFromLast(found[0], range);
+  return progressBetween(found[0], found[1], range).summary;
+}
 
 function performanceLine(lastReps: number | null, lastWeight: number | null, todayWeight: number | null, unit: Unit, tracksWeight: boolean) {
   if (lastReps == null) return "First time on this lift.";
@@ -74,6 +95,8 @@ function ExerciseStage({
   onWarmupDone,
   onSetRepsStep,
   onSetStep,
+  onSetRepsReserve,
+  onToggleTechnique,
   onSetDone,
   onSkipRest,
   onTrim,
@@ -92,6 +115,8 @@ function ExerciseStage({
   onWarmupDone: () => void;
   onSetRepsStep: (index: number, delta: number) => void;
   onSetStep: (index: number, delta: number) => void;
+  onSetRepsReserve: (index: number, delta: number) => void;
+  onToggleTechnique: () => void;
   onSetDone: (index: number) => void;
   onSkipRest: () => void;
   onTrim: () => void;
@@ -192,6 +217,25 @@ function ExerciseStage({
                   </div>
                 )
               )}
+              {progress.warmupDone && openSet && (
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <span className="text-[12px] uppercase tracking-[0.14em] text-muted">RIR, optional</span>
+                  <span className="flex items-center gap-2">
+                    <button type="button" className="grid size-9 place-items-center border border-line text-fg" aria-label="Decrease reps in reserve" onClick={() => onSetRepsReserve(currentSet, -1)}>
+                      <Minus className="size-3.5" aria-hidden />
+                    </button>
+                    <span className="w-8 text-center text-[15px] tabular-nums text-fg">{openSet.rir === "" ? "—" : openSet.rir}</span>
+                    <button type="button" className="grid size-9 place-items-center border border-line text-fg" aria-label="Increase reps in reserve" onClick={() => onSetRepsReserve(currentSet, 1)}>
+                      <Plus className="size-3.5" aria-hidden />
+                    </button>
+                  </span>
+                </div>
+              )}
+              {progress.warmupDone && (
+                <button type="button" className="mt-2 text-left text-[13px] text-muted" onClick={onToggleTechnique}>
+                  {progress.technique === "broken" ? "Technique marked off for this exercise" : "Mark if technique broke down"}
+                </button>
+              )}
             </div>
 
             {restLeft > 0 ? (
@@ -224,23 +268,26 @@ function ExerciseStage({
 }
 
 function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: WorkoutDay; unit: Unit; date: string }) {
-  const { workouts, profile, recovery, meals, plans } = useAppState();
+  const { workouts, profile, recovery, meals, plans, dayOverrides } = useAppState();
   const readiness = useMemo(() => calculateReadiness(recovery, date, plan.targets.sleepHours), [recovery, date, plan]);
   const intake = useMemo(() => calculateIntakeImpact(meals, plans, addDays(date, -7), addDays(date, -1)), [meals, plans, date]);
+  const injuryDay = dayOverrides.some((override) => override.date === date && override.status === "injury");
   const suggestions = useMemo(
     () =>
       day.exercises.map((p) => {
         const muscle = getExercise(p.exerciseId)?.muscle;
         const last = lastPerformance(workouts, p.exerciseId, date);
+        const blocked = injuryDay ? "This day is marked as an injury day. Rest it, and do not add load." : avoidReason(p.exerciseId, profile.injuries, profile.conditions);
         return suggestNextLoad(p, last?.sets ?? null, {
           readiness,
           volumeRatio: muscle ? calculateVolumeTrend(workouts, muscle, date).ratio : null,
           inDeficit: plan.targets.energyAdjustment < 0,
           lowFuel: intake.lowFuel,
           daysSinceLast: last ? daysBetween(last.date, date) : null,
+          blocked,
         });
       }),
-    [day, workouts, date, readiness, plan, intake.lowFuel],
+    [day, workouts, date, readiness, plan, intake.lowFuel, injuryDay, profile.injuries, profile.conditions],
   );
   const notes = day.exercises.map((p, i) => {
     const exercise = getExercise(p.exerciseId);
@@ -255,7 +302,9 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
         : set
           ? effortTone(todayReps, set.reps)
           : "keep";
-    const nudge = !set ? "" : tone === "under" ? " Below last time — add a little." : tone === "grow" ? " Ahead of last time." : " Hold it, then one more rep if the set is clean.";
+    const blocked = injuryDay ? "This day is marked as an injury day. Rest it, and do not add load." : avoidReason(p.exerciseId, profile.injuries, profile.conditions);
+    const history = blocked || strengthNote(workouts, p.exerciseId, date, { sets: p.sets, repsMin: p.repsMin, repsMax: p.repsMax });
+    const nudge = history || (!set ? "" : tone === "under" ? " Below last time — add a little." : tone === "grow" ? " Ahead of last time." : " Hold it, then one more rep if the set is clean.");
     return {
       line:
         performanceLine(
@@ -264,7 +313,7 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
           todayKg != null && todayKg > 0 ? toDisplayWeight(todayKg, unit) : null,
           unit,
           tracksWeight,
-        ) + nudge,
+        ) + (nudge ? ` ${nudge}` : ""),
       cue: exercise?.cue ?? "",
       tone,
     };
@@ -277,7 +326,8 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
       return {
         warmupWeight: warmKg > 0 ? String(toDisplayWeight(warmKg, unit)) : weight,
         warmupDone: false,
-        sets: [0, 1, 2].map(() => ({ weight, reps: String(s.repsTarget), done: false })),
+        technique: null,
+        sets: [0, 1, 2].map(() => ({ weight, reps: String(s.repsTarget), rir: "", done: false })),
       };
     }),
   );
@@ -332,10 +382,14 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
         ...draft.sets.filter((set) => set.done).map((set) => ({
           reps: Math.max(0, Math.round(Number(set.reps) || 0)),
           weightKg: Math.max(0, fromDisplayWeight(Number(set.weight) || 0, unit)),
+          unit,
+          ...(set.rir === "" ? {} : { rir: Math.max(0, Math.round(Number(set.rir) || 0)) }),
         })),
       ].filter((set) => set.reps > 0);
       return {
         exerciseId: p.exerciseId,
+        primaryMuscle: getExercise(p.exerciseId)?.muscle ?? null,
+        technique: draft.technique,
         planned: { sets: 3, repsMin: p.repsMin, repsMax: p.repsMax, weightKg: suggestions[i].weightKg, restSec: p.restSec, rpeTarget: p.rpeTarget },
         sets: logged,
       };
@@ -381,6 +435,12 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
         }}
         onSetRepsStep={(si, delta) => patchSet(active, si, { reps: String(Math.max(1, Math.round(Number(drafts[active]?.sets[si]?.reps) || 0) + delta)) })}
         onSetStep={(si, delta) => stepWeight(active, si, delta)}
+        onSetRepsReserve={(si, delta) => {
+          const current = drafts[active]?.sets[si]?.rir ?? "";
+          const next = current === "" ? (delta > 0 ? "0" : "") : String(Math.max(0, Math.min(10, Number(current) + delta)));
+          patchSet(active, si, { rir: next });
+        }}
+        onToggleTechnique={() => patchExercise(active, { technique: drafts[active]?.technique === "broken" ? null : "broken" })}
         onSetDone={(si) => {
           patchSet(active, si, { done: true });
           const moreSets = drafts[active].sets.some((set, index) => index !== si && !set.done);

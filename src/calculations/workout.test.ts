@@ -169,6 +169,14 @@ describe("suggestNextLoad (progressive overload)", () => {
     expect(suggestNextLoad(p, null).action).toBe("start");
   });
 
+  it("does not add load when a saved injury blocks the exercise", () => {
+    const ready = [10, 10, 10].map((reps) => ({ reps, weightKg: 80, rpe: 8 }));
+    const s = suggestNextLoad(p, ready, { blocked: "Leave this exercise out today. It loads a saved shoulder note." });
+    expect(s.action).toBe("hold");
+    expect(s.weightKg).toBe(80);
+    expect(s.reason).toContain("shoulder");
+  });
+
   it("adds load when every set hits the top of the range at target effort", () => {
     const s = suggestNextLoad(p, [10, 10, 10].map((reps) => ({ reps, weightKg: 80, rpe: 8 })));
     expect(s.action).toBe("increase_load");

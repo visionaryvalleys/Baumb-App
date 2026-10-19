@@ -16,6 +16,7 @@ import {
   TrainingFields,
   draftToGoal,
   draftToProfile,
+  draftHeightCm,
   draftWeightKg,
   goalToDraft,
   profileToDraft,

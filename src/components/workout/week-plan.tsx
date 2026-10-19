@@ -2,8 +2,10 @@
 
 import { WEEKDAY_SHORT, addDays, weekdayIndex } from "@/lib/date";
 import { EQUIPMENT_LABELS } from "@/data/goals";
-import { vacationOn } from "@/calculations/calendar";
+import { overrideOn, vacationOn } from "@/calculations/calendar";
+import { avoidReason } from "@/calculations/health";
 import { calculateDailyNutrition } from "@/calculations/nutrition";
+import { calculateReadiness } from "@/calculations/recovery";
 import { getExercise } from "@/lib/exercises";
 import { useActivePlan, useToday, useUnit } from "@/lib/hooks";
 import { combineTones, effortAdvice, effortLabel, effortTone, type EffortTone } from "@/lib/effort";
@@ -40,9 +42,12 @@ const TONE_CLASS: Record<EffortTone, string> = {
 
 export function SessionCoach({ day }: { day: WorkoutDay | null }) {
   const today = useToday();
-  const { workouts, meals, profile } = useAppState();
+  const { workouts, meals, profile, recovery, dayOverrides } = useAppState();
   const plan = useActivePlan();
   if (!plan || !day) return null;
+  const injuryDay = overrideOn(dayOverrides, today)?.status === "injury";
+  const leftOut = day.exercises.flatMap((item) => (avoidReason(item.exerciseId, profile.injuries, profile.conditions) ? [getExercise(item.exerciseId)?.name ?? "An exercise"] : []));
+  const readiness = calculateReadiness(recovery, today, plan.targets.sleepHours);
   const tones = day.exercises.map((item) => liftTone(workouts, item, today));
   const known = day.exercises.some((item) => lastPerformance(workouts, item.exerciseId, today));
   const training = known ? combineTones(tones) : "keep";
@@ -50,8 +55,16 @@ export function SessionCoach({ day }: { day: WorkoutDay | null }) {
   const diet = dietLine(eaten.totals?.calories ?? null, plan.targets.nutrition.calories, eaten.totals?.proteinG ?? null, plan.targets.nutrition.proteinG);
   return (
     <section className={cn("border border-line px-4 py-3", training === "grow" && diet.tone !== "under" && "effort-glint")} aria-label="Today's effort">
-      <p className={cn("text-[12px] font-semibold uppercase tracking-[0.14em]", TONE_CLASS[training])}>{known ? effortLabel(training) : "First session"}</p>
-      <p className="mt-1 text-[14px] leading-relaxed text-fg">{known ? effortAdvice(training) : `First time through ${day.name}. Start with the plan, and add a little only when the sets feel tidy.`}</p>
+      <p className={cn("text-[12px] font-semibold uppercase tracking-[0.14em]", injuryDay ? "effort-under" : TONE_CLASS[training])}>{injuryDay ? "Injury day" : known ? effortLabel(training) : "First session"}</p>
+      <p className="mt-1 text-[14px] leading-relaxed text-fg">
+        {injuryDay
+          ? "This day is saved as an injury day. Rest. It does not count as a missed workout, and the next set does not get heavier."
+          : known
+            ? effortAdvice(training)
+            : `First time through ${day.name}. Start with the plan, and add a little only when the sets feel tidy.`}
+      </p>
+      {leftOut.length > 0 && <p className="mt-2 text-[14px] leading-relaxed effort-under">Leave out {leftOut.join(", ")}. Those movements load an injury or condition saved on the profile.</p>}
+      {readiness.status === "poor" || readiness.status === "reduced" ? <p className="mt-2 text-[14px] leading-relaxed effort-under">{readiness.summary}</p> : null}
       <p className={cn("mt-2 text-[14px] leading-relaxed", TONE_CLASS[diet.tone])}>{diet.text}</p>
       <p className="mt-2 text-[12px] leading-relaxed text-muted">Compared with the sessions and meals saved on this account{profile.firstName ? ` for ${profile.firstName}` : ""}.</p>
     </section>

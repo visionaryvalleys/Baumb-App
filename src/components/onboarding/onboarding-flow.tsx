@@ -17,6 +17,7 @@ import {
   TrainingFields,
   draftToGoal,
   draftToProfile,
+  draftHeightCm,
   draftWeightKg,
   goalToDraft,
   profileToDraft,
@@ -91,7 +92,7 @@ export function OnboardingFlow() {
 
   function problemsFor(index: number): Errors {
     if (index === 0) return { ...validateAbout(d), ...validateBody(d) };
-    if (index === 1) return { ...validateHealth(d), ...validateTarget(g, d.unitSystem) };
+    if (index === 1) return { ...validateHealth(d), ...validateTarget(g, d.unitSystem, { weightKg: draftWeightKg(d), heightCm: draftHeightCm(d), sex: d.sex }) };
     return {};
   }
 
@@ -103,7 +104,7 @@ export function OnboardingFlow() {
 
   function finish() {
     const aboutErrors = { ...validateAbout(d), ...validateBody(d) };
-    const scopeErrors = { ...validateHealth(d), ...validateTarget(g, d.unitSystem) };
+    const scopeErrors = { ...validateHealth(d), ...validateTarget(g, d.unitSystem, { weightKg: draftWeightKg(d), heightCm: draftHeightCm(d), sex: d.sex }) };
     if (Object.keys(aboutErrors).length || Object.keys(scopeErrors).length) {
       setErrors(Object.keys(aboutErrors).length ? aboutErrors : scopeErrors);
       setStep(Object.keys(aboutErrors).length ? 0 : 1);

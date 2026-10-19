@@ -49,7 +49,7 @@ export function WorkoutList() {
     return (
       <EmptyState icon={Activity} title="No workouts yet" description="Every logged session builds your history, streaks, and personal records.">
         <Link href="/workouts/new" className="btn-primary">
-          <Plus className="size-4" aria-hidden /> Log workout
+          <Plus className="size-4" aria-hidden /> Let&apos;s workout
         </Link>
       </EmptyState>
     );

@@ -67,6 +67,15 @@ export function healthConstraints(injuries: InjuryArea[] = [], conditions: Healt
   return { avoidIds, gentle, flags };
 }
 
+/** Why this exercise should be left out today, from the injuries and conditions saved on the profile. */
+export function avoidReason(exerciseId: string, injuries: InjuryArea[] = [], conditions: HealthCondition[] = []): string | null {
+  const injuryHits = listed(injuries).filter((area) => (INJURY_AVOID[area as Exclude<InjuryArea, "none">] ?? []).includes(exerciseId));
+  const conditionHits = listed(conditions).filter((condition) => (CONDITION_AVOID[condition as HealthCondition] ?? []).includes(exerciseId));
+  if (!injuryHits.length && !conditionHits.length) return null;
+  const bits = [...injuryHits, ...conditionHits];
+  return `Leave this exercise out today. It loads a saved ${bits.join(" and ")} note. This is not a medical clearance.`;
+}
+
 /** Swaps a movement that would load an injured area for a pattern that does not. */
 export function adjustPattern(pattern: MovementPattern, injuries: InjuryArea[] = []): MovementPattern {
   const injuryList = listed(injuries);

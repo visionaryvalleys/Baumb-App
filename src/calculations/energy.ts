@@ -9,6 +9,34 @@ export const TEF_RATIO = 0.1;
 /** Net walking cost in kcal per kg of body weight per km (gross ≈ 0.75–0.8, minus resting already in BMR). */
 export const NET_WALK_KCAL_PER_KG_KM = 0.5;
 
+/**
+ * Starting activity factors for Mifflin–St Jeor. These are a first guess, especially for a sedentary job.
+ * They are not added to a wearable's calorie total.
+ */
+export const ACTIVITY_FACTOR: Record<Lifestyle, number> = {
+  sedentary: 1.2,
+  light: 1.375,
+  moderate: 1.55,
+  active: 1.725,
+};
+
+/** REE × activity factor. A starting maintenance estimate, before intake and weight can check it. */
+export function startingMaintenance(ree: number, lifestyle: Lifestyle): number {
+  return Math.round(ree * ACTIVITY_FACTOR[lifestyle]);
+}
+
+/**
+ * Maintenance implied by logged intake and the weekly weight trend.
+ * Missing meal days must already be excluded from `avgIntakeKcal`. A null intake stays null, not zero.
+ * Loss means intake was below maintenance, so maintenance sits above the average that was logged.
+ */
+export function calibrateMaintenance(input: { avgIntakeKcal: number | null; loggedDays: number; weeklyWeightChangeKg: number | null }): number | null {
+  if (input.avgIntakeKcal == null || input.loggedDays < 12 || input.weeklyWeightChangeKg == null) return null;
+  const implied = input.avgIntakeKcal - (input.weeklyWeightChangeKg * KCAL_PER_KG) / 7;
+  if (implied < 1000 || implied > 6000) return null;
+  return Math.round(implied);
+}
+
 /** Typical daily steps for each lifestyle, used only when no step data exists. */
 export const LIFESTYLE_STEPS: Record<Lifestyle, number> = {
   sedentary: 4000,

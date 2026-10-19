@@ -1,25 +1,25 @@
 import type { Metadata } from "next";
 import { Zap } from "lucide-react";
 import { PageHeader } from "@/components/ui";
-import { WorkoutForm } from "@/components/workout-form";
+import { WorkoutDesk } from "@/components/workout/workout-desk";
 
-export const metadata: Metadata = { title: "Log workout" };
+export const metadata: Metadata = { title: "Let's workout" };
 
 export default function NewWorkoutPage() {
   return (
     <>
       <PageHeader
         icon={Zap}
-        subtitle="Capture it while it's fresh"
+        subtitle="One session for the day"
         title={
           <>
-            Log
+            Let&apos;s
             <br />
-            <span className="font-semibold text-brand">Workout</span>
+            <span className="font-semibold text-brand">workout</span>
           </>
         }
       />
-      <WorkoutForm />
+      <WorkoutDesk />
     </>
   );
 }

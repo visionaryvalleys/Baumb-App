@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GoalType } from "@/lib/types";
-import { calculateTargets, MAX_DEFICIT_KCAL, MIN_CALORIES, type TargetInput } from "./targets";
+import { calculateTargets, MAX_DEFICIT_KCAL, MIN_CALORIES, proteinTarget, type TargetInput } from "./targets";
 
 function input(type: GoalType, partial: Partial<TargetInput> = {}, goal: Partial<TargetInput["goal"]> = {}): TargetInput {
   return {
@@ -61,6 +61,30 @@ describe("calculateTargets", () => {
     const r = calculateTargets(input("fat_loss", { weightKg: 45, heightCm: 175 }))!;
     expect(r.direction).toBe("maintain");
     expect(r.flags.some((f) => /abnormal/.test(f.message))).toBe(true);
+  });
+
+  it("keeps protein inside 1.4–2.0 g/kg, with 1.6 g/kg as the practical target", () => {
+    const range = proteinTarget(75, 175, 1.6);
+    expect(range.low).toBe(105);
+    expect(range.high).toBe(150);
+    expect(range.grams).toBe(120);
+    const recomp = calculateTargets(input("recomposition"))!;
+    expect(recomp.targets.nutrition.proteinG).toBeLessThanOrEqual(Math.round(2 * 82));
+  });
+
+  it("gives a beginner a smaller surplus than the midpoint", () => {
+    const beginner = calculateTargets(input("muscle_gain", { experience: "beginner" }))!;
+    const later = calculateTargets(input("muscle_gain", { experience: "intermediate" }))!;
+    expect(beginner.targets.nutrition.calories).toBeLessThan(later.targets.nutrition.calories);
+    expect(beginner.targets.nutrition.calories).toBeGreaterThanOrEqual(beginner.targets.tdee);
+  });
+
+  it("replaces the activity-factor start once enough logged intake and weight exist", () => {
+    const start = calculateTargets(input("general"))!;
+    const checked = calculateTargets(input("general", { observed: { avgIntakeKcal: 2500, loggedDays: 14, weeklyWeightChangeKg: 0 } }))!;
+    expect(checked.targets.tdee).toBe(2500);
+    expect(checked.targets.tdee).not.toBe(start.targets.tdee);
+    expect(checked.flags.some((f) => f.message.includes("wearable"))).toBe(true);
   });
 
   it("uses an adjusted weight for protein at high body weight", () => {

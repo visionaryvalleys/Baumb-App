@@ -29,6 +29,7 @@ export function buildPlanVersion(input: BuildPlanInput): PlanVersion | null {
     lifestyle: profile.lifestyle,
     goal,
     conditions: profile.conditions,
+    experience: goal.experience,
   });
   if (!targetResult) return null;
   const workout = generateWorkoutPlan(goal, profile.equipment, {
@@ -56,6 +57,7 @@ export function applyAdaptiveSuggestion(
   prev: PlanVersion,
   suggestion: AdaptiveSuggestion,
   meta: { id: string; version: number; effectiveFrom: LocalDate; now: number },
+  profile?: Pick<Profile, "equipment" | "sex" | "injuries" | "conditions">,
 ): PlanVersion {
   const targets = { ...prev.targets, nutrition: { ...prev.targets.nutrition } };
   let reason = suggestion.title;
@@ -76,6 +78,21 @@ export function applyAdaptiveSuggestion(
     targets.steps += suggestion.stepsDelta;
     reason = `Adaptive review: ${suggestion.title.toLowerCase()}`;
   }
+  let goal = prev.goal;
+  let workout = prev.workout;
+  let flags = prev.flags;
+  if (suggestion.kind === "schedule" && suggestion.daysPerWeek && suggestion.sessionMinutes && profile) {
+    goal = { ...prev.goal, daysPerWeek: suggestion.daysPerWeek, sessionMinutes: suggestion.sessionMinutes };
+    const generated = generateWorkoutPlan(goal, profile.equipment, {
+      sex: profile.sex,
+      weightKg: prev.bodyWeightKg,
+      injuries: profile.injuries,
+      conditions: profile.conditions,
+    });
+    workout = generated.plan;
+    flags = [...prev.flags, ...generated.flags.filter((flag) => !prev.flags.some((existing) => existing.message === flag.message))];
+    reason = `Adaptive review: ${suggestion.title.toLowerCase()}`;
+  }
   return {
     ...prev,
     id: meta.id,
@@ -83,7 +100,9 @@ export function applyAdaptiveSuggestion(
     createdAt: meta.now,
     effectiveFrom: meta.effectiveFrom,
     reason,
+    goal,
     targets,
-    flags: prev.flags,
+    workout,
+    flags,
   };
 }

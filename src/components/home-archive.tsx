@@ -2,16 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { activeMealSlots } from "@/calculations/nutrition";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatDate } from "@/lib/date";
-import { useDaySummary, useToday, useUnit } from "@/lib/hooks";
-import { actions, newId, useAppState } from "@/lib/store";
-import { formatWeight } from "@/lib/units";
-import { useProjection } from "@/lib/use-projection";
+import { useAppState } from "@/lib/store";
 import type { ProgressPhoto } from "@/lib/types";
-import { EnergyBreakdown } from "./energy-breakdown";
-import { HomeVacation } from "./home-vacation";
+import { OpeningEstimate } from "./progress/opening-estimate";
 import "./archive/archive.css";
 
 type Frame = {
@@ -26,13 +21,13 @@ type Frame = {
 };
 
 const SECTIONS: Frame[] = [
-  { id: "workout", word: "Session", title: "Today's session", place: "Workout", href: "/workout", src: "/archive/archive-workout.jpg", note: "The session planned for today. Logging a past workout is separate from starting this one." },
+  { id: "workout", word: "Session", title: "Today's session", place: "Workout", href: "/workouts/new", src: "/archive/archive-workout.jpg", note: "The same session as Let’s workout: the day’s plan, the timer, and the sets." },
   { id: "meals", word: "Meals", title: "Meals", place: "Nutrition", href: "/nutrition", src: "/archive/archive-meals.jpg", note: "What you have eaten today, against the calories on your plan." },
   { id: "music", word: "Music", title: "Music", place: "Music", href: "/music", src: "/archive/archive-music.jpg", note: "Your playlists, saved songs, and recent hits." },
   { id: "gallery", word: "Gallery", title: "Gallery", place: "Gallery", href: "/gallery", src: "/archive/archive-gallery.jpg", note: "Daily posts, one photo each quarter, and reels of 30–90 seconds. Only people who follow you can see them." },
   { id: "transform", word: "Progress", title: "Transformation", place: "Progress", href: "/transformation", src: "/archive/archive-transform.jpg", note: "Where your weight trend sits against the target on your goal." },
   { id: "calendar", word: "Calendar", title: "Calendar", place: "Calendar", href: "/calendar", src: "/archive/archive-calendar.jpg", note: "Each day keeps the meals, workouts and weight you logged." },
-  { id: "review", word: "Review", title: "Weekly review", place: "Review", href: "/review", src: "/archive/archive-review.jpg", note: "The week's check against the plan. Nothing here changes a target on its own." },
+  { id: "review", word: "Review", title: "Weekly review", place: "Review", href: "/calendar?line=1", src: "/archive/archive-review.jpg", note: "The week's check against the plan. Nothing here changes a target on its own." },
   { id: "activity", word: "Recovery", title: "Activity and recovery", place: "Recovery", href: "/activity", src: "/archive/archive-activity.jpg", note: "Steps, expenditure and how the day was recovered." },
   { id: "exercises", word: "Exercises", title: "Exercise library", place: "Exercises", href: "/exercises", src: "/archive/archive-exercises.jpg", note: "The movements in your library. Choosing one still only highlights the muscles it trains." },
   { id: "vacation", word: "Rest", title: "Vacation", place: "Time away", href: "/vacation", src: "/archive/archive-holiday.jpg", note: "Dates away from training. Missed sessions stay off the record when workouts are paused." },
@@ -46,75 +41,12 @@ function photoSrc(photo: ProgressPhoto) {
   return "";
 }
 
-function CalorieField({ slotId, date, timezone }: { slotId: string | undefined; date: string; timezone: string }) {
-  const [value, setValue] = useState("");
-  const [saved, setSaved] = useState<number | null>(null);
-
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    const kcal = Math.round(Number(value));
-    if (!slotId || !Number.isFinite(kcal) || kcal <= 0) return;
-    actions.addMealItem({
-      id: newId(),
-      foodId: "entered-calories",
-      foodName: "Entered calories",
-      servingId: "entry",
-      servingLabel: `${kcal} kcal`,
-      quantity: 1,
-      grams: 1,
-      meal: slotId,
-      date,
-      timestamp: Date.now(),
-      timezone,
-      nutrition: { calories: kcal, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 },
-    });
-    setSaved(kcal);
-    setValue("");
-  }
-
-  if (!slotId) {
-    return <p className="saved">Set the meals in your day before entering calories.</p>;
-  }
-
-  return (
-    <form className="kcal" onSubmit={submit}>
-      <input
-        inputMode="decimal"
-        type="number"
-        min={1}
-        step={1}
-        value={value}
-        placeholder="kcal"
-        aria-label="Calories to add today"
-        onChange={(e) => {
-          setSaved(null);
-          setValue(e.target.value);
-        }}
-      />
-      <button type="submit">Add calories</button>
-      {saved != null && <p className="saved">{saved.toLocaleString()} kcal added to today.</p>}
-    </form>
-  );
-}
-
-/** Home is the photo archive. Each frame opens today's progress and a calorie field. */
+/** Home is the photo archive. Each frame opens the same page as its section. */
 export function HomeArchive() {
   const state = useAppState();
-  const today = useToday();
-  const unit = useUnit();
-  const summary = useDaySummary(today);
-  const { result: projection } = useProjection();
   const [grid, setGrid] = useState(true);
-  const [openId, setOpenId] = useState<string | null>(null);
   const router = useRouter();
   const openFrameRef = useRef<(id: string) => void>(() => {});
-  openFrameRef.current = (id: string) => {
-    if (id === "music") {
-      router.push("/music");
-      return;
-    }
-    setOpenId(id);
-  };
   const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
 
@@ -139,11 +71,11 @@ export function HomeArchive() {
   }, [state.photos]);
 
   const frameKey = frames.map((frame) => frame.id).join("|");
-  const open = frames.find((frame) => frame.id === openId) ?? null;
-  const targets = summary.info.plan?.targets;
-  const intake = summary.intake;
-  const slotId = activeMealSlots(state.mealSlots)[0]?.id;
   const name = state.profile.firstName || "Ostin";
+  openFrameRef.current = (id: string) => {
+    const frame = frames.find((item) => item.id === id);
+    if (frame) router.push(frame.href);
+  };
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -289,17 +221,8 @@ export function HomeArchive() {
     };
   }, [frameKey]);
 
-  useEffect(() => {
-    if (!openId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenId(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [openId]);
-
   return (
-    <div className={open ? "baumb-archive is-lit" : grid ? "baumb-archive is-grid" : "baumb-archive"}>
+    <div className={grid ? "baumb-archive is-grid" : "baumb-archive"}>
       <div className="stage" ref={stageRef}>
         <div className="world" ref={worldRef}>
           <div className="orb">
@@ -318,13 +241,9 @@ export function HomeArchive() {
         </h1>
       </div>
       <div className="vig" />
-      {open && (
-        <button type="button" className="close" onClick={() => setOpenId(null)}>
-          Close
-        </button>
-      )}
 
       <div className="grid" hidden={!grid} aria-hidden={grid ? undefined : true}>
+        <OpeningEstimate />
         <div className="rows">
           {frames.map((frame) => (
             <button key={frame.id} type="button" onClick={() => openFrameRef.current(frame.id)}>
@@ -343,56 +262,9 @@ export function HomeArchive() {
       </p>
 
       <div className="actions">
-        <Link href="/workouts/new">Log workout</Link>
+        <Link href="/workouts/new">Let&apos;s workout</Link>
         <Link href="/nutrition">Log meals</Link>
       </div>
-
-      {open && (
-        <div className="lit" role="dialog" aria-modal="true" aria-labelledby="frame-title">
-          <div className="plate">
-            <div className="shot">
-              <img src={open.src} alt="" />
-            </div>
-            <div className="meta">
-              <div>
-                <h2 id="frame-title">{open.title}</h2>
-                <div className="where">{open.place}</div>
-                <Link href={open.href} className="open-section">
-                  Open {open.place}
-                </Link>
-              </div>
-              <div>
-                <p className="note">{open.note}</p>
-                <div className="stats">
-                  <div>
-                    <b>{intake ? Math.round(intake.calories).toLocaleString() : "—"}</b>
-                    <span>{targets ? `of ${targets.nutrition.calories.toLocaleString()} kcal today` : "kcal logged today"}</span>
-                  </div>
-                  <div>
-                    <b>{projection.progressPct != null ? `${Math.round(projection.progressPct * 100)}%` : "—"}</b>
-                    <span>toward target</span>
-                  </div>
-                  <div>
-                    <b>{projection.currentKg != null ? formatWeight(projection.currentKg, unit) : "—"}</b>
-                    <span>weight trend</span>
-                  </div>
-                </div>
-                <CalorieField slotId={slotId} date={today} timezone={state.profile.timezone} />
-              </div>
-            </div>
-            {open.id === "activity" && (
-              <div className="extra">
-                <EnergyBreakdown summary={summary} />
-              </div>
-            )}
-            {open.id === "vacation" && (
-              <div className="extra">
-                <HomeVacation today={today} />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

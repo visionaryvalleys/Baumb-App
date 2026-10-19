@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowRight, DatabaseZap, LogOut, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, DatabaseZap, LogOut, Sparkles } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { buildSampleState } from "@/lib/sample";
 import { ensureSession, retrySession, signOut, useSession } from "@/lib/session";
@@ -22,12 +22,12 @@ const MENU = [
   { href: "/transformation", label: "Transformation" },
   { href: "/music", label: "Music" },
   { href: "/nutrition", label: "Nutrition" },
-  { href: "/workout", label: "Workout" },
+  { href: "/workouts/new", label: "Workout" },
   { href: "/game", label: "Game" },
   { href: "/activity", label: "Activity & Recovery" },
   { href: "/progress", label: "Progress" },
   { href: "/calendar", label: "Calendar" },
-  { href: "/review", label: "Weekly Review" },
+  { href: "/calendar?line=1", label: "Weekly Review" },
   { href: "/exercises", label: "Exercises" },
   { href: "/profile", label: "Profile & Goal" },
   { href: "/settings", label: "Settings" },
@@ -85,6 +85,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const ready = hydrated && session.ready;
   const gated = ready && !onboarded && !UNGATED.some((p) => pathname.startsWith(p));
   const home = pathname === "/dashboard";
+  const showBack = !home && pathname !== "/onboarding";
 
   return (
     <div className={home ? "relative h-dvh overflow-hidden" : "relative min-h-dvh"}>
@@ -92,7 +93,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[var(--color-ground)]">
         <div className="mx-auto flex h-14 w-full max-w-[480px] items-center justify-between px-3">
-          <BaumbLogo />
+          <div className="flex min-w-0 items-center">
+            {showBack && (
+              <Link href="/dashboard" aria-label="Back to home" className="-ml-1 grid size-11 shrink-0 place-items-center text-[#F8F9FA]">
+                <ArrowLeft className="size-5" aria-hidden />
+              </Link>
+            )}
+            <BaumbLogo />
+          </div>
           <div className="flex items-center">
             {ready && onboarded && <NotificationBell />}
             <ProfileButton />

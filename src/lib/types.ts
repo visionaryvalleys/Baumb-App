@@ -87,6 +87,8 @@ export interface Goal {
   daysPerWeek: number;
   sessionMinutes: number;
   split?: SplitPreference;
+  /** Split chosen for each training day, in day order. Absent until the person edits one. */
+  daySplits?: string[];
   strengthTests?: StrengthTest[];
 }
 
@@ -292,6 +294,10 @@ export interface WorkoutSet {
   reps: number;
   /** Always stored in kilograms. */
   weightKg: number;
+  /** Unit the load was entered in. The kilograms field stays the stored load. */
+  unit?: Unit;
+  /** Repetitions in reserve, only when the user recorded them. */
+  rir?: number | null;
   rpe?: number | null;
   /** A warm-up is logged with the session and left out of working-set totals. */
   warmup?: boolean;
@@ -317,8 +323,14 @@ export interface PlannedExercise {
 /** `planned` and `sets` (actual) are stored side by side; actual never overwrites planned. */
 export interface WorkoutExercise {
   exerciseId: string;
+  /** Primary muscle from the catalogue at the time the set was logged. */
+  primaryMuscle?: MuscleGroup | null;
+  /** Set only when the user marks technique. Unset means it was not tracked. */
+  technique?: "clean" | "broken" | null;
   planned?: PlannedExercise | null;
   sets: WorkoutSet[];
+  /** Extra sets they felt they still had. 5 means five or more. */
+  reserve?: number | null;
 }
 
 export interface Workout {

@@ -21,7 +21,7 @@ export default function WorkoutsPage() {
         }
         action={
           <Link href="/workouts/new" className="btn-primary">
-            <Plus className="size-4" aria-hidden /> Log workout
+            <Plus className="size-4" aria-hidden /> Let&apos;s workout
           </Link>
         }
       />

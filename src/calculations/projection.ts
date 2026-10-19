@@ -65,6 +65,51 @@ export function formatDateRange(asOf: LocalDate, lowWeeks: number, highWeeks: nu
   return `${month(a)} ${a.getFullYear()} – ${month(b)} ${b.getFullYear()}`;
 }
 
+export interface ReviewWindow {
+  id: "consistency" | "early" | "measurable" | "overall";
+  when: string;
+  title: string;
+  focus: string;
+}
+
+/** Review points. None of these is a deadline for a physique. */
+export const REVIEW_WINDOWS: ReviewWindow[] = [
+  {
+    id: "consistency",
+    when: "1–2 weeks",
+    title: "Establish consistency",
+    focus: "Learn the exercises, build the routine, and record baseline measurements. Day-to-day weight swings are normal.",
+  },
+  {
+    id: "early",
+    when: "3–4 weeks",
+    title: "Evaluate early trends",
+    focus: "Check adherence, exercise performance, average weight, nutrition, and recovery. Visual changes may still be subtle.",
+  },
+  {
+    id: "measurable",
+    when: "8–12 weeks",
+    title: "Assess measurable changes",
+    focus: "Look at strength, waist, and photos together. How much changes differs from person to person.",
+  },
+  {
+    id: "overall",
+    when: "3–6 months",
+    title: "Evaluate the overall transformation",
+    focus: "Compare photos taken the same way, measurements, the weight trend, and training performance, then adjust the long-term plan.",
+  },
+];
+
+/** Which review the plan age falls in. The gap after week 4 waits for the 8-week check rather than promising a result. */
+export function reviewWindowFor(planAgeDays: number): { current: ReviewWindow; note: string } {
+  const note = "These are review points, not a promised date for visible abs, a fixed amount of muscle, or a body-fat percentage.";
+  if (planAgeDays < 15) return { current: REVIEW_WINDOWS[0], note };
+  if (planAgeDays < 29) return { current: REVIEW_WINDOWS[1], note };
+  if (planAgeDays < 56) return { current: REVIEW_WINDOWS[1], note: `${note} The next check is at 8–12 weeks.` };
+  if (planAgeDays < 85) return { current: REVIEW_WINDOWS[2], note };
+  return { current: REVIEW_WINDOWS[3], note };
+}
+
 /**
  * Estimated window to reach the target weight. Starts from the plan's expected rate,
  * then blends toward the observed weight trend as more real data accumulates.
@@ -243,7 +288,7 @@ export function calculateTransformationProjection(state: AppState, asOf: LocalDa
     method,
     methodLabel,
     confidence,
-    message: "An estimate, not a guarantee — it updates as your real data changes.",
+    message: "An estimate of the target weight under the plan rate and the weigh-ins logged so far. It updates when those inputs change. It is not a date for a physique or a body-fat percentage.",
   };
 }
 

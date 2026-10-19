@@ -1,6 +1,7 @@
 import { activePlanOn } from "@/calculations/calendar";
 import { currentAge } from "@/calculations/energy";
 import { calculateDailyNutrition, mealLabel } from "@/calculations/nutrition";
+import { NEXT_ACTION_VERSION, evaluateAdaptivePlan, evaluateMonthlyPlan } from "@/calculations/review";
 import { STRENGTH_LEVELS, strengthProfile } from "@/calculations/strength";
 import { EXPERIENCE_DETAILS, EXPERIENCE_LABELS, GOALS } from "@/data/goals";
 import { addDays, todayKey } from "./date";

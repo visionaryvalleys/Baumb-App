@@ -1,15 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { DailyActivity, Workout } from "@/lib/types";
 import {
+  ACTIVITY_FACTOR,
   bodyWeightOn,
   calculateBMR,
   calculateEnergyBalance,
   calculateEnergyExpenditure,
   calculateExerciseExpenditure,
   calculateStepExpenditure,
+  calibrateMaintenance,
   currentAge,
   estimatePlannedTDEE,
   netCostPerKgKm,
+  startingMaintenance,
 } from "./energy";
 
 const profile = { heightCm: 178, sex: "male" as const, lifestyle: "light" as const };
@@ -151,6 +154,20 @@ describe("bodyWeightOn", () => {
   });
   it("is null with no data", () => {
     expect(bodyWeightOn([], "2026-05-03")).toBeNull();
+  });
+});
+
+describe("starting and calibrated maintenance", () => {
+  it("starts from resting energy times an activity factor", () => {
+    const ree = calculateBMR({ weightKg: 80, heightCm: 180, age: 30, sex: "male" })!;
+    expect(ree).toBe(1780);
+    expect(startingMaintenance(ree, "light")).toBe(Math.round(1780 * ACTIVITY_FACTOR.light));
+  });
+
+  it("raises maintenance when logged intake is losing weight, and ignores unlogged days", () => {
+    expect(calibrateMaintenance({ avgIntakeKcal: null, loggedDays: 20, weeklyWeightChangeKg: -0.5 })).toBeNull();
+    expect(calibrateMaintenance({ avgIntakeKcal: 2500, loggedDays: 4, weeklyWeightChangeKg: -0.5 })).toBeNull();
+    expect(calibrateMaintenance({ avgIntakeKcal: 2500, loggedDays: 14, weeklyWeightChangeKg: -0.5 })).toBe(3050);
   });
 });
 

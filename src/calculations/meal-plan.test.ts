@@ -37,6 +37,9 @@ describe("buildMealPlan", () => {
   it("respects the diet", () => {
     const plan = buildMealPlan(target(2400, 140, 70), DEFAULT_MEAL_SLOTS, "athletic", { diet: "veg", choices: {} }, pool);
     const ids = plan.meals.flatMap((m) => m.items.map((i) => i.food.id));
+    const options = plan.meals.flatMap((m) => m.items.flatMap((i) => i.options.map((o) => o.id)));
+    expect(options).toEqual(expect.arrayContaining(["nin-dal", "lentils", "chickpeas"]));
+    expect(options.some((id) => id === "milk-semi" || id === "greek-yogurt" || id === "ifct-l003")).toBe(true);
     expect(ids).not.toContain("chicken-breast");
     expect(ids.some((id) => /egg/.test(id))).toBe(false);
     for (const m of plan.meals) for (const i of m.items) for (const o of i.options) expect(o.id).not.toMatch(/chicken|egg|fish|salmon|tuna|beef|prawn|indb-asc251/);

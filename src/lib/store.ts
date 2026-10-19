@@ -309,6 +309,9 @@ export const actions = {
   updateProfile(patch: Partial<Profile>) {
     setState((s) => ({ ...s, profile: { ...s.profile, ...patch } }));
   },
+  setDaySplits(daySplits: string[]) {
+    setState((s) => (s.goal ? { ...s, goal: { ...s.goal, daySplits } } : s));
+  },
   /** Goal changes always create a new plan version; history is preserved. */
   setGoalAndPlan(goal: Goal, plan: PlanVersion) {
     setState((s) => ({ ...s, goal, plans: [...s.plans, plan], activePlanId: plan.id, audit: appendAudit(s.audit, planAudit(plan)) }));
@@ -319,6 +322,12 @@ export const actions = {
 
   addWorkout(workout: Workout) {
     setState((s) => ({ ...s, workouts: [workout, ...s.workouts] }));
+  },
+  saveWorkout(workout: Workout) {
+    setState((s) => ({
+      ...s,
+      workouts: s.workouts.some((item) => item.id === workout.id) ? s.workouts.map((item) => (item.id === workout.id ? workout : item)) : [workout, ...s.workouts],
+    }));
   },
   deleteWorkout(id: string) {
     setState((s) => ({ ...s, workouts: s.workouts.filter((w) => w.id !== id) }));

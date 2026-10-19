@@ -54,6 +54,9 @@ const TEMPLATES = {
   back: { key: "back", name: "Back", focus: "Lats · Upper back", type: "strength", slots: ["vertical_pull", "horizontal_pull", "hinge", "horizontal_pull", "vertical_pull", "rear_delt"] },
   shoulders: { key: "shoulders", name: "Shoulders", focus: "Front · Side · Rear delts", type: "strength", slots: ["vertical_push", "vertical_push", "shoulder_iso", "rear_delt", "rear_delt", "core"] },
   arms: { key: "arms", name: "Arms", focus: "Biceps · Triceps", type: "strength", slots: ["biceps", "triceps", "biceps", "triceps", "triceps", "core"] },
+  chestBackTri: { key: "chestBackTri", name: "Back, chest and triceps", focus: "Back · Chest · Triceps", type: "strength", slots: ["horizontal_pull", "horizontal_push", "vertical_pull", "chest_iso", "triceps", "triceps"] },
+  shouldersForearms: { key: "shouldersForearms", name: "Shoulders and forearms", focus: "Delts · Forearms", type: "strength", slots: ["vertical_push", "shoulder_iso", "rear_delt", "biceps", "triceps", "core"] },
+  legsAbs: { key: "legsAbs", name: "Legs and abs", focus: "Legs · Abs", type: "strength", slots: ["squat", "hinge", "lunge", "quad_iso", "calves", "core"] },
 } satisfies Record<string, DayTemplate>;
 
 /** Preferred exercise order per pattern; the first one the user can do (equipment + level) wins. */
@@ -191,6 +194,27 @@ export function fitToDuration(input: ExercisePrescription[], minutes: number, ex
     }
   }
   return { exercises: list, fits: !over() };
+}
+
+/** One session for a chosen day split, trimmed to the minutes available and the injuries and conditions on the profile. */
+export function buildSplitSession(splitId: string, goal: Pick<Goal, "type" | "experience" | "strengthTests">, access: EquipmentAccess, minutes: number, body?: PlanBody): ExercisePrescription[] {
+  const template = TEMPLATES[splitId as keyof typeof TEMPLATES] ?? TEMPLATES.backBi;
+  const cfg = goalConfig(goal.type);
+  const strength = body ? strengthProfile(goal.strengthTests, body.sex, body.weightKg) : null;
+  const experience = trainingExperience(goal.experience, strength?.overall ?? null);
+  const health = healthConstraints(body?.injuries, body?.conditions);
+  const used = new Set<string>(health.avoidIds);
+  const picked: ExercisePrescription[] = [];
+  for (const pattern of template.slots) {
+    if (picked.length >= MAX_EXERCISES[experience]) break;
+    const safe = adjustPattern(pattern, body?.injuries);
+    const ex = pickExercise(safe, access, experience, used, 0) ?? pickExercise("core", access, experience, used, 0);
+    if (!ex) continue;
+    used.add(ex.id);
+    picked.push(prescribe(ex, cfg.repScheme, experience));
+  }
+  const capped = Math.min(MAX_SESSION_MINUTES, Math.max(MIN_SESSION_MINUTES, Math.round(minutes)));
+  return fitToDuration(picked, capped, experience).exercises;
 }
 
 type Chosen = { split: string; templates: DayTemplate[]; note?: string };
@@ -439,6 +463,8 @@ export interface ProgressionContext {
   lowFuel?: boolean;
   /** Days since this exercise was last trained (e.g. after a vacation). */
   daysSinceLast?: number | null;
+  /** Set when a saved injury, condition, or an injury day says not to progress this exercise. */
+  blocked?: string | null;
 }
 
 /** After this long away, the first session back starts lighter. */
@@ -514,6 +540,10 @@ function baseSuggestion(prescription: ExercisePrescription, lastSets: WorkoutSet
  */
 export function suggestNextLoad(prescription: ExercisePrescription, lastSets: WorkoutSet[] | null, ctx: ProgressionContext = {}): ProgressionSuggestion {
   const base: ProgressionSuggestion = { ...baseSuggestion(prescription, lastSets), setsDelta: 0 };
+  if (ctx.blocked) {
+    const top = lastSets?.length ? Math.max(...lastSets.filter((set) => !set.warmup).map((set) => set.weightKg)) : null;
+    return { ...base, action: "hold", weightKg: top && top > 0 ? top : base.weightKg, repsTarget: prescription.repsMin, setsDelta: 0, reason: ctx.blocked };
+  }
   const top = lastSets?.length ? Math.max(...lastSets.map((s) => s.weightKg)) : null;
   const progressing = base.action === "increase_load" || base.action === "increase_reps";
   const readiness = ctx.readiness?.status;

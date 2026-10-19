@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { findFood } from "@/data/foods";
 import type { MealItem } from "@/lib/types";
-import { calculateDailyNutrition, calculateItemNutrition, gramsForServing, intakeAbnormal, nutritionProgress, slotsForMealCount, sumNutrition } from "./nutrition";
+import { calculateDailyNutrition, calculateItemNutrition, gramsForServing, intakeAbnormal, nutritionProgress, proteinAdherencePct, slotsForMealCount, sumNutrition } from "./nutrition";
 
 const chicken = findFood("chicken-breast")!;
 const oats = findFood("oats")!;
@@ -64,6 +64,11 @@ describe("daily totals", () => {
   it("avoids floating point drift", () => {
     const t = sumNutrition([item({ nutrition: { calories: 0, proteinG: 0.1, carbsG: 0, fatG: 0, fiberG: 0 } }), item({ nutrition: { calories: 0, proteinG: 0.2, carbsG: 0, fatG: 0, fiberG: 0 } })]);
     expect(t.proteinG).toBe(0.3);
+  });
+
+  it("scores protein as actual divided by the target", () => {
+    expect(proteinAdherencePct(120, 130)).toBe(92);
+    expect(proteinAdherencePct(null, 130)).toBeNull();
   });
 
   it("reports progress and remaining against targets", () => {

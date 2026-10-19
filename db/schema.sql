@@ -154,3 +154,19 @@ CREATE TABLE IF NOT EXISTS music_playlist_tracks (
   position    INT NOT NULL DEFAULT 0,
   PRIMARY KEY (playlist_id, track_id)
 );
+
+-- One-time password reset. The code and the page link are stored only as hashes.
+CREATE TABLE IF NOT EXISTS password_resets (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  email       TEXT NOT NULL,
+  otp_hash    TEXT NOT NULL,
+  ticket_hash TEXT NOT NULL UNIQUE,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  arrived_at  TIMESTAMPTZ,
+  verified_at TIMESTAMPTZ,
+  used_at     TIMESTAMPTZ,
+  attempts    INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS password_resets_user ON password_resets (user_id);

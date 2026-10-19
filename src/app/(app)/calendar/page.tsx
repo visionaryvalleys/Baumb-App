@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { CalendarDays } from "lucide-react";
 import { CalendarView } from "@/components/calendar/calendar-view";
+import { ReviewView } from "@/components/review/review-view";
 import { PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Calendar" };
@@ -20,6 +22,9 @@ export default function CalendarPage() {
         }
       />
       <CalendarView />
+      <Suspense fallback={null}>
+        <ReviewView />
+      </Suspense>
     </>
   );
 }

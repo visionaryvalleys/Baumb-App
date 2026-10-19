@@ -1,8 +1,9 @@
 import { addDays, daysBetween, eachDay, startOfWeek } from "@/lib/date";
 import type { AppNotification, AppState, EnergyRecord, LocalDate, WeeklyReviewRecord } from "@/lib/types";
 import { activePlanOn, dayInfo } from "./calendar";
+import { eatingHabit } from "./eating-habit";
 import { calculateDaySummary, type DaySummary } from "./day";
-import { calculateWeeklyReview, evaluateAdaptivePlan, type WeeklyReview } from "./review";
+import { calculateWeeklyReview, evaluateMonthlyPlan, type WeeklyReview } from "./review";
 
 /** Past days are re-saved while late logs are still likely; after this they're frozen. */
 export const ENERGY_SETTLE_DAYS = 3;
@@ -98,7 +99,7 @@ export function deriveNotifications(state: AppState, today: LocalDate, nowMinute
   const info = dayInfo(state, today, today);
   const tomorrow = addDays(today, 1);
 
-  const evaluation = evaluateAdaptivePlan(state, today);
+  const evaluation = evaluateMonthlyPlan(state, today);
   const plan = activePlanOn(state.plans, today);
   const targetSuggestions = evaluation.suggestions.filter((s) => s.kind !== "recovery");
   if (plan && evaluation.status === "adjust" && targetSuggestions.length)
@@ -166,10 +167,21 @@ export function deriveNotifications(state: AppState, today: LocalDate, nowMinute
       });
 
     if (info.planned && info.workouts.length === 0 && nowMinutes >= 16 * 60)
-      push({ id: `workout:${today}`, kind: "workout", title: `${info.planned.name} is still planned`, body: "Log it when you're done, or mark today as rest on the calendar.", href: "/workout", priority: "normal" });
+      push({ id: `workout:${today}`, kind: "workout", title: `${info.planned.name} is still planned`, body: "Log it when you're done, or mark today as rest on the calendar.", href: "/workouts/new", priority: "normal" });
 
     if (nowMinutes >= 19 * 60 && !state.meals.some((m) => m.date === today))
       push({ id: `food_log:${today}`, kind: "food_log", title: "No food logged today", body: "Add today's meals so your calories and protein stay accurate.", href: "/nutrition", priority: "normal" });
+
+    const habit = eatingHabit(state.meals, state.plans, today);
+    if (habit.gap === "protein")
+      push({
+        id: `protein_habit:${startOfWeek(today)}`,
+        kind: "food_log",
+        title: "Protein is behind the plan",
+        body: habit.message,
+        href: "/nutrition",
+        priority: "high",
+      });
   }
 
   return out.sort((a, b) => (a.priority === b.priority ? 0 : a.priority === "high" ? -1 : 1));

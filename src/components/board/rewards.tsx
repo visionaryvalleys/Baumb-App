@@ -3,20 +3,19 @@
 import { useEffect, useState } from "react";
 import { Trophy } from "lucide-react";
 import { type BoardSnapshot, loadBoard, publishBoard } from "@/lib/board-client";
-import { addDays, formatDate, startOfWeek } from "@/lib/date";
-import { workoutsThisWeek } from "@/lib/game";
-import { G_PER_WORKOUT, REWARDS, WINNER_SPAN_DAYS, gBalance, isBoardEligible, workoutDayCount } from "@/lib/g-system";
+import { startOfWeek } from "@/lib/date";
+import { G_PER_WORKOUT, REWARDS, gBalance, isBoardEligible, workoutDayCount } from "@/lib/g-system";
 import { useToday } from "@/lib/hooks";
 import { actions, getState, useAppState } from "@/lib/store";
-import { Card, CardTitle, EmptyState } from "../ui";
+import { Card, CardTitle } from "../ui";
 
 export function SessionBoard() {
   const state = useAppState();
   const today = useToday();
   const week = startOfWeek(today);
-  const mine = workoutsThisWeek(state.workouts, today);
   const [board, setBoard] = useState<BoardSnapshot | null>(null);
   const [ready, setReady] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     let cancel = false;
@@ -34,32 +33,53 @@ export function SessionBoard() {
     };
   }, [state]);
 
+  useEffect(() => {
+    let cancel = false;
+    const id = window.setInterval(() => {
+      void loadBoard()
+        .then((next) => {
+          if (!cancel && next) setBoard(next);
+        })
+        .catch(() => undefined);
+    }, 8000);
+    return () => {
+      cancel = true;
+      window.clearInterval(id);
+    };
+  }, []);
+
   const rows = (board?.standings ?? [])
     .map((row) => ({ ...row, shown: row.weekStart === week ? row.weekCount : 0 }))
     .sort((a, b) => b.shown - a.shown || b.workoutCount - a.workoutCount || a.name.localeCompare(b.name))
     .slice(0, 10);
-  const awardEnd = board?.award ? formatDate(addDays(board.award.announcedAt.slice(0, 10), WINNER_SPAN_DAYS - 1)) : null;
+  const visible = showAll ? rows : rows.slice(0, 5);
 
   return (
     <Card>
-      <CardTitle action={<Trophy className="size-4 text-brand" aria-hidden />}>This week</CardTitle>
-      <p className="text-[22px] font-semibold tracking-[-0.03em] text-white">{mine} {mine === 1 ? "workout" : "workouts"} this week</p>
-      <p className="mt-1 text-sm text-white/55">Your sessions from Monday through Sunday. The ten names are ordered by workouts this week.</p>
-      {board?.award && (
-        <p className="mt-3 text-sm text-white/70">{board.award.name} holds the award through {awardEnd}, with {board.award.workoutCount} workouts on record.</p>
-      )}
+      <CardTitle action={<Trophy className="size-4 text-brand" aria-hidden />}>Leaderboard</CardTitle>
+      <p className="text-sm text-white/55">The ten names with the most workouts this week. A week runs Monday through Sunday.</p>
       {!ready ? null : rows.length > 0 ? (
-        <ol className="mt-4 grid gap-2">
-          {rows.map((row, index) => (
-            <li key={`${row.name}-${index}`} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-4 py-3">
-              <p className="min-w-0 truncate text-[16px] font-medium text-white">
-                {index + 1}. {row.name}
-                {row.leader && <span className="ml-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-brand">Leader</span>}
-              </p>
-              <p className="shrink-0 text-[15px] font-semibold tabular-nums text-white">{row.shown}</p>
-            </li>
-          ))}
-        </ol>
+        <>
+          <ol className="mt-4 grid gap-2">
+            {visible.map((row, index) => (
+              <li key={`${row.name}-${index}`} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-4 py-3">
+                <p className="min-w-0 truncate text-[16px] font-medium text-white">
+                  <span className="mr-2 tabular-nums text-brand">{index + 1}</span>
+                  {row.name}
+                </p>
+                <p className="shrink-0 text-right text-[15px] font-semibold tabular-nums text-white">
+                  {row.shown}
+                  <span className="ml-1 text-[11px] font-medium uppercase tracking-[0.12em] text-white/45">{row.shown === 1 ? "workout" : "workouts"}</span>
+                </p>
+              </li>
+            ))}
+          </ol>
+          {rows.length > 5 && (
+            <button type="button" className="btn-ghost mt-3 h-11 w-full" onClick={() => setShowAll((open) => !open)}>
+              {showAll ? "Show top 5" : "Show all"}
+            </button>
+          )}
+        </>
       ) : (
         <p className="mt-4 text-sm text-white/55">Complete two training days and your name appears here.</p>
       )}
@@ -67,9 +87,9 @@ export function SessionBoard() {
   );
 }
 
-export function RewardsBoard({ listOnly = false, shopOnly = false }: { listOnly?: boolean; shopOnly?: boolean }) {
+export function RewardsBoard() {
   const state = useAppState();
-  const [board, setBoard] = useState<BoardSnapshot | null>(null);
+  const [, setBoard] = useState<BoardSnapshot | null>(null);
   const balance = gBalance(state.workouts, state.redemptions);
   const days = workoutDayCount(state.workouts);
   const eligible = isBoardEligible(state.workouts);
@@ -87,54 +107,15 @@ export function RewardsBoard({ listOnly = false, shopOnly = false }: { listOnly?
     };
   }, [state]);
 
-  const awardEnd = board?.award ? formatDate(addDays(board.award.announcedAt.slice(0, 10), WINNER_SPAN_DAYS - 1)) : null;
-
   return (
-    <div className={listOnly || shopOnly ? "" : "grid gap-4 lg:grid-cols-[1.2fr_0.8fr]"}>
-      {!shopOnly && (
-      <Card>
-        <CardTitle action={<Trophy className="size-4 text-brand" aria-hidden />}>Leaderboard</CardTitle>
-        {board?.award ? (
-          <div className="mb-5 rounded-[1.4rem] bg-brand/10 px-4 py-4 ring-1 ring-inset ring-brand/30">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-brand">Awarded</p>
-            <p className="mt-1 text-[22px] font-semibold tracking-[-0.03em] text-white">{board.award.name}</p>
-            <p className="mt-1 text-sm leading-relaxed text-white/65">
-              Highest workout count after review: {board.award.workoutCount}. They train for five days, through {awardEnd}.
-            </p>
-          </div>
-        ) : (
-          <p className="mb-5 text-sm leading-relaxed text-white/60">Under review. The board is awarded to whoever has the most workouts once two training days are complete.</p>
-        )}
-        {board && board.standings.length > 0 ? (
-          <ol className="grid gap-2">
-            {board.standings.map((row, index) => (
-              <li key={`${row.name}-${index}`} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-4 py-3">
-                <div>
-                  <p className="text-[16px] font-medium text-white">
-                    {index + 1}. {row.name}
-                    {row.leader && <span className="ml-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-brand">Leader</span>}
-                  </p>
-                  <p className="text-[12px] text-white/45">{row.eligible ? `${row.workoutDays} training days` : "One more training day to qualify"}</p>
-                </div>
-                <p className="text-[15px] font-semibold tabular-nums text-white">{row.workoutCount}</p>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <EmptyState icon={Trophy} title="No scores yet" description="Complete two training days and your name appears here." />
-        )}
-      </Card>
-      )}
-
-      {!listOnly && (
-      <div className="grid gap-4">
+    <div className="grid gap-4">
         <Card>
           <CardTitle>G coins</CardTitle>
           <p className="text-[40px] font-semibold leading-none tracking-[-0.04em] text-white">{balance}</p>
           <p className="mt-3 text-sm leading-relaxed text-white/60">
             {eligible ? `Each workout you log from here adds ${G_PER_WORKOUT} G.` : `${Math.max(0, 2 - days)} training day${days === 1 ? "" : "s"} left before you can earn G and join the board.`}
           </p>
-          {shopOnly && <p className="mt-3 text-sm leading-relaxed text-white/60">This week’s top ten is on the workout session.</p>}
+          <p className="mt-3 text-sm leading-relaxed text-white/60">This week’s top ten is on the workout session.</p>
           {state.redemptions.length > 0 && (
             <ul className="mt-4 grid gap-1 text-sm text-white/55">
               {state.redemptions.map((item) => (
@@ -170,8 +151,6 @@ export function RewardsBoard({ listOnly = false, shopOnly = false }: { listOnly?
             })}
           </ul>
         </Card>
-      </div>
-      )}
     </div>
   );
 }

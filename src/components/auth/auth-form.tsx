@@ -127,6 +127,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
               {show ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
             </button>
           </div>
+          {mode === "signin" && (
+            <p className="mt-2 text-right text-sm">
+              <Link href="/forgot" className="font-semibold text-brand hover:underline">
+                Forgot password?
+              </Link>
+            </p>
+          )}
           {mode === "signup" && (
             <>
               <p id="password-hint" className="mt-1.5 text-xs text-white/55">

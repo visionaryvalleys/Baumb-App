@@ -141,7 +141,7 @@ export const GOALS: Record<GoalType, GoalConfig> = {
     lossRatePct: [0.1, 0.25],
     gainRatePct: [0, 0.1],
     defaultDirection: "maintain",
-    proteinGPerKg: 2.2,
+    proteinGPerKg: 2.0,
     fatPctOfCalories: 0.27,
     repScheme: { compound: [6, 10], isolation: [10, 15], compoundRestSec: 120, isolationRestSec: 60 },
     conditioning: false,

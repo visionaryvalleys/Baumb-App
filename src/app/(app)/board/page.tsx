@@ -19,7 +19,7 @@ export default function BoardPage() {
           </>
         }
       />
-      <RewardsBoard shopOnly />
+      <RewardsBoard />
     </>
   );
 }

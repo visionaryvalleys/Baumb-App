@@ -173,6 +173,12 @@ const MACRO_META: { key: keyof NutritionProfile; label: string; unit: string }[]
   { key: "fiberG", label: "Fiber", unit: "g" },
 ];
 
+/** Actual ÷ target, as a percent. Null when the day or week was not logged. */
+export function proteinAdherencePct(actualG: number | null, targetG: number): number | null {
+  if (actualG == null || !(targetG > 0)) return null;
+  return Math.round((actualG / targetG) * 100);
+}
+
 export function nutritionProgress(totals: NutritionProfile | null, target: NutritionTarget): MacroProgress[] {
   return MACRO_META.map(({ key, label, unit }) => {
     const value = totals ? totals[key] : 0;

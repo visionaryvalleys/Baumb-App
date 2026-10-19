@@ -234,7 +234,7 @@ export function todaysMission(state: Journal, today: LocalDate): Mission {
   if (info.override?.status === "rest" || !info.planned) return { title: "Rest day", detail: "No session is scheduled. The day still counts.", href: null };
   const stars = info.workouts[0] ? starsFor(info.workouts[0], info.planned) : 0;
   if (info.workouts.length) {
-    return { title: info.planned.name, detail: `Logged. ${stars} of 3 stars for following the plan.`, href: "/workout" };
+    return { title: info.planned.name, detail: `Logged. ${stars} of 3 stars for following the plan.`, href: "/workouts/new" };
   }
-  return { title: info.planned.name, detail: `${info.planned.focus}. About ${info.planned.estimatedMinutes} minutes, as written.`, href: "/workout" };
+  return { title: info.planned.name, detail: `${info.planned.focus}. About ${info.planned.estimatedMinutes} minutes, as written.`, href: "/workouts/new" };
 }

@@ -1,10 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { addDays } from "@/lib/date";
 import type { DailyActivity, VacationPeriod, Workout } from "@/lib/types";
-import { calculateTransformationProjection, explainProjectionChange, formatWindow, toProjectionSnapshot } from "./projection";
+import { calculateTransformationProjection, explainProjectionChange, formatWindow, reviewWindowFor, toProjectionSnapshot } from "./projection";
 import { linearWeights, testGoal, testPlan, testState } from "./test-helpers";
 
 const START = "2026-04-06";
+
+describe("review windows", () => {
+  it("moves through review points without promising a physique", () => {
+    expect(reviewWindowFor(3).current.when).toBe("1–2 weeks");
+    expect(reviewWindowFor(20).current.when).toBe("3–4 weeks");
+    expect(reviewWindowFor(40).note).toMatch(/8–12 weeks/);
+    expect(reviewWindowFor(70).current.when).toBe("8–12 weeks");
+    expect(reviewWindowFor(100).current.when).toBe("3–6 months");
+    expect(reviewWindowFor(10).note).toMatch(/not a promised date/);
+    expect(reviewWindowFor(10).note).not.toMatch(/abs by/);
+  });
+});
 
 describe("formatWindow", () => {
   it("uses weeks for short horizons and months for long ones", () => {

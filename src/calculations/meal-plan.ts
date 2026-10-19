@@ -1,4 +1,5 @@
 import type { DietPreference, Food, GoalType, MealPlanPrefs, MealRole, MealSlot, NutritionProfile, NutritionTarget } from "@/lib/types";
+import { rankFoodsForHabit, type EatingHabit } from "./eating-habit";
 import { activeMealSlots, calculateItemNutrition } from "./nutrition";
 
 export type MealKind = "breakfast" | "main" | "snack";
@@ -47,6 +48,7 @@ const CANDIDATES: Record<MealKind, Partial<Record<MealRole, Candidate[]>>> = {
       e("egg-white", { whole: true, styles: ["lean"] }),
       e("nin-omelette", { whole: true }),
       v("greek-yogurt"),
+      v("milk-semi"),
       v("indb-bfp047", { whole: true }),
       v("ifct-l003"),
       v("whey", { whole: true }),
@@ -72,6 +74,7 @@ const CANDIDATES: Record<MealKind, Partial<Record<MealRole, Candidate[]>>> = {
       v("nin-dal"),
       v("lentils"),
       v("chickpeas"),
+      v("milk-semi"),
       v("indb-asc164"),
       v("greek-yogurt"),
     ],
@@ -80,7 +83,7 @@ const CANDIDATES: Record<MealKind, Partial<Record<MealRole, Candidate[]>>> = {
     fat: [v("almonds"), v("olive-oil"), v("avocado"), v("peanut-butter")],
   },
   snack: {
-    protein: [v("greek-yogurt"), v("whey", { whole: true }), e("nin-boiled-egg", { whole: true }), v("cottage-cheese"), v("ifct-l002"), v("ifct-l003"), v("protein-bar", { whole: true }), v("tofu")],
+    protein: [v("greek-yogurt"), v("milk-semi"), v("chickpeas"), v("whey", { whole: true }), e("nin-boiled-egg", { whole: true }), v("cottage-cheese"), v("ifct-l002"), v("ifct-l003"), v("protein-bar", { whole: true }), v("tofu")],
     fruit: [v("banana", { whole: true }), v("apple", { whole: true }), v("orange", { whole: true }), v("blueberries")],
     fat: [v("almonds"), v("peanut-butter"), v("avocado")],
   },
@@ -202,7 +205,7 @@ function roundGrams(grams: number, unitGrams: number | null, role: MealRole): nu
   return Math.max(5, Math.round(grams / 5) * 5);
 }
 
-export function buildMealPlan(target: NutritionTarget, slots: MealSlot[], goal: GoalType, prefs: MealPlanPrefs, foods: Food[]): MealPlanResult {
+export function buildMealPlan(target: NutritionTarget, slots: MealSlot[], goal: GoalType, prefs: MealPlanPrefs, foods: Food[], habit?: EatingHabit | null): MealPlanResult {
   const style = goalStyle(goal);
   const pool = new Map(foods.map((f) => [f.id, f]));
   const active = activeMealSlots(slots);
@@ -221,7 +224,7 @@ export function buildMealPlan(target: NutritionTarget, slots: MealSlot[], goal: 
     };
     const chosen = prefs.choices[slot.id] ?? {};
     const drafts = ROLES[kind].flatMap((role) => {
-      const options = roleOptions(kind, role, prefs.diet, style, pool);
+      const options = rankFoodsForHabit(roleOptions(kind, role, prefs.diet, style, pool), habit, role);
       const pick = chosen[role];
       const food = (pick && (pool.get(pick.foodId) ?? null)) || options[0];
       if (!food) return [];

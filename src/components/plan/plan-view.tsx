@@ -3,22 +3,23 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Check, GitBranch, Moon, Pencil, Sparkles } from "lucide-react";
+import { proteinTarget } from "@/calculations/targets";
 import { goalConfig } from "@/data/goals";
-import { evaluateAdaptivePlan, type AdaptiveSuggestion } from "@/calculations/review";
+import { NEXT_ACTION_VERSION, evaluateAdaptivePlan, evaluateMonthlyPlan, type AdaptiveSuggestion } from "@/calculations/review";
 import { WEEKDAY_SHORT, formatDate } from "@/lib/date";
 import { useActivePlan, useToday } from "@/lib/hooks";
 import { actions, newId, useAppState } from "@/lib/store";
-import type { LocalDate, PlanVersion } from "@/lib/types";
+import type { LocalDate, PlanVersion, Profile } from "@/lib/types";
 import { applyAdaptiveSuggestion } from "@/services/plan";
 import { BigNumber, Card, CardTitle, EmptyState, FlagList, KindTag, SectionLabel, cn } from "../ui";
 
-function createAdjustedVersion(plan: PlanVersion, suggestion: AdaptiveSuggestion, plans: PlanVersion[], today: LocalDate) {
+function createAdjustedVersion(plan: PlanVersion, suggestion: AdaptiveSuggestion, plans: PlanVersion[], today: LocalDate, profile: Profile) {
   const next = applyAdaptiveSuggestion(plan, suggestion, {
     id: newId(),
     version: Math.max(...plans.map((p) => p.version)) + 1,
     effectiveFrom: today,
     now: Date.now(),
-  });
+  }, profile);
   actions.addPlanVersion(next);
   return next;
 }
@@ -28,12 +29,13 @@ export function PlanView() {
   const today = useToday();
   const plan = useActivePlan();
   const evaluation = useMemo(() => evaluateAdaptivePlan(state, today), [state, today]);
+  const monthPlan = useMemo(() => evaluateMonthlyPlan(state, today), [state, today]);
   const [applied, setApplied] = useState<string | null>(null);
 
   const apply = (id: string) => {
-    const s = evaluation.suggestions.find((x) => x.id === id);
+    const s = monthPlan.suggestions.find((x) => x.id === id);
     if (!s || !plan) return;
-    const next = createAdjustedVersion(plan, s, state.plans, today);
+    const next = createAdjustedVersion(plan, s, state.plans, today, state.profile);
     setApplied(`Plan V${next.version} created — ${s.title.toLowerCase()}.`);
   };
 
@@ -41,6 +43,7 @@ export function PlanView() {
 
   const cfg = goalConfig(plan.goal.type);
   const t = plan.targets;
+  const proteinRange = proteinTarget(plan.bodyWeightKg, state.profile.heightCm ?? 170, 1.6);
   const versions = [...state.plans].sort((a, b) => b.version - a.version);
 
   return (
@@ -116,6 +119,9 @@ export function PlanView() {
           </Card>
         ))}
       </div>
+      <p className="text-sm text-[#DFE5E8]">
+        At {plan.bodyWeightKg} kg, about {proteinRange.low}–{proteinRange.high} g of protein is the general range. This plan uses {t.nutrition.proteinG} g. The week uses the average of logged days. One low day does not fail it, and a day with no meals is missing, not zero.
+      </p>
 
       {plan.flags.length > 0 && (
         <Card>
@@ -161,8 +167,20 @@ export function PlanView() {
           <div className="text-xl font-semibold tracking-tight text-white">{evaluation.headline}</div>
           <p className="mt-1 text-sm text-white/60">{evaluation.detail}</p>
           {evaluation.suggestions.length > 0 && (
-            <ul className="mt-4 space-y-2">
+            <ul className="mt-3 space-y-2">
               {evaluation.suggestions.map((s) => (
+                <li key={s.id} className="panel p-3.5">
+                  <div className="text-sm font-semibold text-white">{s.title}</div>
+                  <div className="text-xs text-white/55">{s.detail}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-4 text-xl font-semibold tracking-tight text-white">{monthPlan.headline}</div>
+          <p className="mt-1 text-sm text-white/60">{monthPlan.detail}</p>
+          {monthPlan.suggestions.length > 0 && (
+            <ul className="mt-4 space-y-2">
+              {monthPlan.suggestions.map((s) => (
                 <li key={s.id} className="panel flex items-start justify-between gap-3 p-3.5">
                   <div>
                     <div className="text-sm font-semibold text-white">{s.title}</div>
@@ -182,7 +200,7 @@ export function PlanView() {
               <Check className="size-4" aria-hidden /> {applied}
             </p>
           )}
-          <p className="mt-4 text-xs text-white/40">Changes are modest (±150 kcal or +1,500 steps), never below safe minimums, and always create a new plan version.</p>
+          <p className="mt-4 text-xs text-white/40">Rules v{NEXT_ACTION_VERSION}. The week only notes the next session. A load goes up only when that exercise hits the top of its range. Calorie, step, and schedule changes wait for the month, and applying one always creates a new plan version.</p>
         </Card>
         <Card>
           <CardTitle action={<GitBranch className="size-4 text-white/50" aria-hidden />}>Plan versions</CardTitle>

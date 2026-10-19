@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, Dumbbell, RotateCcw, Utensils } from "lucide-react";
 import { DEFAULT_MEAL_PLAN, DIET_LABELS, ROLE_LABELS, buildMealPlan, type PlannedItem, type PlannedMeal } from "@/calculations/meal-plan";
+import { eatingHabit } from "@/calculations/eating-habit";
 import { quantityForGrams } from "@/calculations/nutrition";
 import { bmi } from "@/calculations/targets";
 import { sortedWeights } from "@/calculations/trend";
@@ -188,9 +189,10 @@ export function MealPlanCard({
   openSlot: string | null;
   onOpenChange: (slotId: string, open: boolean) => void;
 }) {
-  const { mealPlan, mealSlots, profile, meals, weights } = useAppState();
+  const { mealPlan, mealSlots, profile, meals, weights, plans } = useAppState();
   const prefs = mealPlan ?? DEFAULT_MEAL_PLAN;
-  const plan = useMemo(() => buildMealPlan(target, mealSlots, goal, prefs, foods), [target, mealSlots, goal, prefs, foods]);
+  const habit = useMemo(() => eatingHabit(meals, plans, today), [meals, plans, today]);
+  const plan = useMemo(() => buildMealPlan(target, mealSlots, goal, prefs, foods, habit), [target, mealSlots, goal, prefs, foods, habit]);
   const loggedSlots = new Set(meals.filter((item) => item.date === date).map((item) => item.meal));
   const cfg = goalConfig(goal);
   const weightKg = sortedWeights(weights).at(-1)?.weightKg ?? null;
@@ -238,6 +240,7 @@ export function MealPlanCard({
           Each meal below is one list. Swap a food or set the grams, then tap Add.
         </p>
         <p className="text-[13px] leading-relaxed text-white/60">{bmiNote} This is not medical advice.</p>
+        <p className="mt-2 text-[13px] leading-relaxed text-white/70">{habit.message}</p>
         {trainingDay && (
           <p className="mt-3 flex gap-2 rounded-lg bg-brand/10 px-3 py-2 text-[13px] text-white/75">
             <Dumbbell className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />

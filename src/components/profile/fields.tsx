@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 import { EQUIPMENT_LABELS, EXPERIENCE_DETAILS, EXPERIENCE_LABELS, GOAL_LIST, LIFESTYLE_LABELS, SPLIT_OPTIONS, goalConfig } from "@/data/goals";
 import { STRENGTH_LEVELS, strengthProfile, strengthTestLifts, type StrengthLevel } from "@/calculations/strength";
+import { bmi } from "@/calculations/targets";
 import { MAX_SESSION_MINUTES, MIN_SESSION_MINUTES, weekStructure } from "@/calculations/workout";
 import { WEEKDAY_SHORT, deviceTimezone } from "@/lib/date";
 import type { EquipmentAccess, Experience, Goal, GoalType, HealthCondition, InjuryArea, Lifestyle, Profile, Sex, SplitPreference, StrengthTest, UnitSystem } from "@/lib/types";
@@ -110,15 +111,29 @@ export function validateBody(d: ProfileDraft): Errors {
   return e;
 }
 
-export function validateTarget(g: GoalDraft, unit: UnitSystem): Errors {
+export function validateTarget(g: GoalDraft, unit: UnitSystem, body?: { weightKg: number | null; heightCm: number | null; sex: Sex | "" | null }): Errors {
   const e: Errors = {};
+  const height = body?.heightCm ?? null;
+  const current = body?.weightKg ?? null;
+  let targetKg: number | null = null;
   if (g.targetWeight.trim()) {
     const kg = fromDisplayWeight(Number(g.targetWeight), weightUnit(unit));
     if (!Number.isFinite(kg) || kg < 30 || kg > 300) e.targetWeight = "Enter a realistic target weight";
+    else targetKg = kg;
   }
+  if (!e.targetWeight && targetKg != null && height != null && height > 0) {
+    const index = bmi(targetKg, height);
+    if (index < 18.5) e.targetWeight = `That target is a BMI of ${index.toFixed(1)}, below 18.5. Choose a higher weight.`;
+    else if (current != null && bmi(current, height) >= 30 && targetKg > current)
+      e.targetWeight = `A heavier target at a BMI of ${bmi(current, height).toFixed(1)} is not used. Leave it blank so calories stay at maintenance.`;
+  }
+  if (!e.targetWeight && current != null && height != null && bmi(current, height) < 18.5 && g.type === "fat_loss")
+    e.targetWeight = "A fat-loss goal at this BMI would be abnormal. Choose another goal, or leave the target blank so calories stay at maintenance.";
   if (g.targetBodyFat.trim()) {
     const bf = Number(g.targetBodyFat);
+    const floor = body?.sex === "female" ? 15 : body?.sex === "male" ? 8 : 8;
     if (!Number.isFinite(bf) || bf < 3 || bf > 50) e.targetBodyFat = "Enter a body-fat % between 3 and 50";
+    else if (bf < floor) e.targetBodyFat = `A body-fat target under ${floor}% is not a healthy goal to set.`;
   }
   return e;
 }

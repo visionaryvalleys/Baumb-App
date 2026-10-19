@@ -2,31 +2,63 @@
 
 import Link from "next/link";
 import { ArrowRight, Check, CircleAlert, History, Minus, X } from "lucide-react";
-import { formatDate } from "@/lib/date";
-import { useUnit } from "@/lib/hooks";
+import { formatDate, daysBetween } from "@/lib/date";
+import { REVIEW_WINDOWS, reviewWindowFor } from "@/calculations/projection";
+import { useActivePlan, useToday, useUnit } from "@/lib/hooks";
 import { useAppState } from "@/lib/store";
 import { toDisplayWeight } from "@/lib/units";
 import { useProjection } from "@/lib/use-projection";
+import { OpeningEstimate } from "../progress/opening-estimate";
 import { ProgressRing } from "../charts";
 import { BigNumber, Card, CardTitle, KindTag, SectionLabel, cn } from "../ui";
 
 export function TransformationView() {
   const { projections } = useAppState();
+  const today = useToday();
+  const plan = useActivePlan();
   const unit = useUnit();
   const { result: p, change } = useProjection();
   const w = (kg: number | null) => (kg == null ? "—" : toDisplayWeight(kg, unit));
   const history = [...projections].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
+  const stage = plan ? reviewWindowFor(Math.max(0, daysBetween(plan.effectiveFrom, today))) : null;
 
   return (
     <div className="space-y-4">
+      <OpeningEstimate />
+      {stage && (
+        <Card>
+          <CardTitle>Review windows</CardTitle>
+          <p className="mb-4 text-sm text-[#DFE5E8]">{stage.note}</p>
+          <ol className="space-y-3">
+            {REVIEW_WINDOWS.map((window) => {
+              const current = window.id === stage.current.id;
+              return (
+                <li key={window.id} className={cn("rounded-xl px-3 py-3", current ? "bg-white/[0.06]" : "opacity-70")}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm font-semibold text-[#F8F9FA]">{window.title}</span>
+                    <span className="text-xs tabular-nums text-[#DFE5E8]">{window.when}{current ? " · now" : ""}</span>
+                  </div>
+                  <p className="mt-1 text-sm text-[#DFE5E8]">{window.focus}</p>
+                </li>
+              );
+            })}
+          </ol>
+        </Card>
+      )}
       <Card className="relative overflow-hidden p-6 sm:p-8">
         <div className="grid items-center gap-8 lg:grid-cols-[auto_1fr]">
-          <ProgressRing value={(p.progressPct ?? 0) * 100} max={100} size={190} stroke={12}>
-            <div>
-              <div className="text-[46px] font-semibold leading-none tracking-[-0.04em] tabular-nums text-white">{p.progressPct != null ? `${Math.round(p.progressPct * 100)}%` : "—"}</div>
-              <div className="text-xs text-white/50">of the way</div>
-            </div>
-          </ProgressRing>
+          <div className="flex justify-center">
+            <ProgressRing value={(p.progressPct ?? 0) * 100} max={100} size={190} stroke={12}>
+              <div className="flex flex-col items-center text-center">
+                {p.progressPct != null ? (
+                  <div className="text-[46px] font-semibold leading-none tracking-[-0.04em] tabular-nums text-white">{Math.round(p.progressPct * 100)}%</div>
+                ) : (
+                  <div className="flex h-5 items-center justify-center text-[46px] font-semibold leading-none tracking-[-0.04em] text-white">—</div>
+                )}
+                <div className="mt-1.5 text-xs leading-none text-white/50">of the way</div>
+              </div>
+            </ProgressRing>
+          </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
               <div>
@@ -88,7 +120,7 @@ export function TransformationView() {
                       </Link>
                     )}
                     {p.status === "off_track" && (
-                      <Link href="/review" className="btn-primary mt-4">
+                      <Link href="/calendar?line=1" className="btn-primary mt-4">
                         Open weekly review <ArrowRight className="size-4" aria-hidden />
                       </Link>
                     )}
