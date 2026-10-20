@@ -210,6 +210,9 @@ export function SplitWorkout({
   const [notice, setNotice] = useState("");
   const [restUntil, setRestUntil] = useState<number | null>(null);
   const [restOn, setRestOn] = useState<number | null>(null);
+  /** A full-card rest covers the set just finished. A handoff rest sits on the next exercise. */
+  const [restCovers, setRestCovers] = useState(true);
+  const [advanceTo, setAdvanceTo] = useState<number | null>(null);
   const startedAt = useRef(Date.now());
   const [now, setNow] = useState(startedAt.current);
 
@@ -226,6 +229,16 @@ export function SplitWorkout({
       setRestOn(null);
     }
   }, [now, restUntil]);
+
+  useEffect(() => {
+    if (advanceTo == null) return;
+    const node = document.getElementById(`exercise-card-${advanceTo}`);
+    if (!node) return;
+    node.scrollIntoView({ behavior: "smooth", block: "start" });
+    const rest = node.querySelector<HTMLElement>("[data-rest-skip]");
+    const start = node.querySelector<HTMLElement>("[data-set-start]");
+    (rest ?? start)?.focus();
+  }, [advanceTo]);
 
   function replaceExercise(index: number, exerciseId: string) {
     const current = items[index];
@@ -293,10 +306,16 @@ export function SplitWorkout({
     const saved = packed(next);
     if (saved.exercises.length) onSet(saved.exercises, saved.status);
     const moreHere = next[exerciseIndex]?.some((step) => !step.done);
-    const moreLater = next.some((list, index) => index !== exerciseIndex && !skipped[index] && list.some((step) => !step.done));
-    if (moreHere || moreLater) {
+    const nextIndex = next.findIndex((list, index) => index > exerciseIndex && !skipped[index] && list.some((step) => !step.done));
+    if (moreHere) {
       setRestOn(exerciseIndex);
+      setRestCovers(true);
       setRestUntil(Date.now() + (items[exerciseIndex]?.restSec || 90) * 1000);
+    } else if (nextIndex >= 0) {
+      setRestOn(nextIndex);
+      setRestCovers(false);
+      setRestUntil(Date.now() + (items[exerciseIndex]?.restSec || 90) * 1000);
+      setAdvanceTo(nextIndex);
     }
   }
 
@@ -422,6 +441,7 @@ export function SplitWorkout({
                       tone === "orange" && "bg-[#C47A3A]",
                       tone === "plain" && "bg-brand",
                     )}
+                    data-set-start=""
                     disabled={step.ready}
                     onClick={() => {
                       if (!step.opened) {
@@ -487,9 +507,17 @@ export function SplitWorkout({
         const warmIndex = steps.findIndex((step) => step.warmup && !step.done);
         const warmStep = warmIndex >= 0 ? steps[warmIndex] : null;
         return (
-          <section key={`${item.exerciseId}-${index}`} className={cn("relative rounded-card bg-white/[0.04] p-4", !passed && toneGlow(glowTone))}>
+          <section id={`exercise-card-${index}`} key={`${item.exerciseId}-${index}`} className={cn("relative scroll-mt-24 rounded-card bg-white/[0.04] p-4", !passed && !complete && toneGlow(glowTone))}>
             <h3 className={cn("font-semibold text-[#F8F9FA]", (passed || complete) && "line-through decoration-2")}>{info?.name ?? item.exerciseId}</h3>
-            <div className="mt-3 space-y-2">
+            {restLeft > 0 && restOn === index && !restCovers && (
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <p className="text-sm text-[#DFE5E8]">Rest <span className="font-semibold tabular-nums text-brand">{clock(restLeft)}</span></p>
+                <button type="button" data-rest-skip="" className="btn-ghost h-9 px-3" onClick={() => { setRestUntil(null); setRestOn(null); }}>
+                  Skip rest
+                </button>
+              </div>
+            )}
+            {!complete && <div className="mt-3 space-y-2">
               {warmStep && !passed && stage(warmStep, warmIndex, `Warm-up ${warmSteps.filter((step) => step.done).length + 1}/${warmSteps.length}`)}
               {visibleWork.map(({ step, stepIndex }) =>
                 step.done ? (
@@ -500,8 +528,8 @@ export function SplitWorkout({
                   stage(step, stepIndex, step.label)
                 ),
               )}
-            </div>
-            {!passed && (
+            </div>}
+            {!passed && !complete && (
               <div className="mt-4 border-t border-white/20 pt-3">
                 <div className="flex items-stretch">
                   <button type="button" className="flex-1 py-3 text-sm font-semibold text-[#F8F9FA]" onClick={() => { setSwitching(index); setMuscle(info?.muscle ?? null); }}>
@@ -518,12 +546,12 @@ export function SplitWorkout({
                 </div>
               </div>
             )}
-            {restLeft > 0 && restOn === index && (
+            {restLeft > 0 && restOn === index && restCovers && (
               <div className="absolute inset-0 grid place-items-center rounded-card bg-[#0B1220]/80">
                 <div className="text-center">
                   <p className="text-[12px] uppercase tracking-[0.18em] text-[#DFE5E8]">Rest</p>
                   <p className="text-[4.5rem] font-semibold leading-none text-brand">{clock(restLeft)}</p>
-                  <button type="button" className="btn-ghost mt-3 h-11 px-4" onClick={() => { setRestUntil(null); setRestOn(null); }}>
+                  <button type="button" data-rest-skip="" className="btn-ghost mt-3 h-11 px-4" onClick={() => { setRestUntil(null); setRestOn(null); }}>
                     Skip rest
                   </button>
                 </div>
