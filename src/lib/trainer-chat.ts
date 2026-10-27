@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { localTrainerAnswer } from "./local-trainer";
 
 export interface ChatTurn {
   id: string;
@@ -58,6 +59,16 @@ export function useTrainerChat(userId: string | null): ChatState {
 
 const id = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+let serverAi: Promise<boolean> | null = null;
+
+function serverHasModel(): Promise<boolean> {
+  serverAi ??= fetch("/api/ai/chat")
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data: { enabled?: boolean } | null) => data?.enabled === true)
+    .catch(() => false);
+  return serverAi;
+}
+
 function patchLast(patch: Partial<ChatTurn>, streaming = state.streaming) {
   const turns = state.turns.slice();
   turns[turns.length - 1] = { ...turns[turns.length - 1], ...patch };
@@ -72,6 +83,11 @@ export async function askTrainer(question: string, context: string) {
 
   controller = new AbortController();
   try {
+    if (!(await serverHasModel())) {
+      patchLast({ content: "Loading the trainer onto this phone. The first answer is downloaded once and then stays on this device." });
+      const answer = await localTrainerAnswer(text, context, controller.signal);
+      return patchLast(answer ? { content: answer } : { content: "No answer came back. Please try again.", failed: true }, false);
+    }
     const res = await fetch("/api/ai/chat", {
       method: "POST",
       credentials: "same-origin",

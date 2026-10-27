@@ -22,12 +22,12 @@ export function estimateCalories(w: Workout, bodyKg = FALLBACK_BODY_KG): number 
 
 /** Sets from the most recent session (before `beforeDate`, if given) that included the exercise. */
 export function lastPerformance(workouts: Workout[], exerciseId: string, beforeDate?: string) {
-  let best: { date: string; sets: Workout["exercises"][number]["sets"] } | null = null;
+  let best: { date: string; sets: Workout["exercises"][number]["sets"]; technique: Workout["exercises"][number]["technique"] } | null = null;
   for (const w of workouts) {
     if (beforeDate && w.date >= beforeDate) continue;
     const ex = w.exercises.find((e) => e.exerciseId === exerciseId);
     const working = ex?.sets.filter((set) => !set.warmup && set.reps > 0) ?? [];
-    if (working.length && (!best || w.date > best.date)) best = { date: w.date, sets: working };
+    if (working.length && (!best || w.date > best.date)) best = { date: w.date, sets: working, technique: ex?.technique ?? null };
   }
   return best;
 }

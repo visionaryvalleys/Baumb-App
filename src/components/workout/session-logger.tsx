@@ -277,6 +277,7 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
       day.exercises.map((p) => {
         const muscle = getExercise(p.exerciseId)?.muscle;
         const last = lastPerformance(workouts, p.exerciseId, date);
+        const prior = last ? lastPerformance(workouts, p.exerciseId, last.date) : null;
         const blocked = injuryDay ? "This day is marked as an injury day. Rest it, and do not add load." : avoidReason(p.exerciseId, profile.injuries, profile.conditions);
         return suggestNextLoad(p, last?.sets ?? null, {
           readiness,
@@ -285,6 +286,8 @@ function SessionForm({ plan, day, unit, date }: { plan: PlanVersion; day: Workou
           lowFuel: intake.lowFuel,
           daysSinceLast: last ? daysBetween(last.date, date) : null,
           blocked,
+          priorSets: prior?.sets ?? null,
+          technique: last?.technique ?? null,
         });
       }),
     [day, workouts, date, readiness, plan, intake.lowFuel, injuryDay, profile.injuries, profile.conditions],

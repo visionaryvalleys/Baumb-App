@@ -12,105 +12,88 @@ export function BodyFigure({
   shift: number;
   label: string;
 }) {
-  const svg = useRef<SVGSVGElement>(null);
+  const root = useRef<HTMLDivElement>(null);
   const level = new Map(highlights.map((item) => [item.region, LEVEL_OPACITY[item.level]]));
   const signature = highlights.map((item) => `${item.region}:${item.level}`).join("|");
 
   useEffect(() => {
-    const root = svg.current;
-    if (!root) return;
-    const nodes = root.querySelectorAll<SVGPathElement>(".is-on");
-    nodes.forEach((node) => {
-      node.classList.remove("is-on");
-      node.getBoundingClientRect();
-      node.classList.add("is-on");
+    const node = root.current;
+    if (!node) return;
+    node.querySelectorAll<SVGPathElement>(".is-on").forEach((path) => {
+      path.classList.remove("is-on");
+      path.getBoundingClientRect();
+      path.classList.add("is-on");
     });
   }, [signature, shift]);
 
   return (
-    <figure className="mx-auto w-full">
-      <svg ref={svg} viewBox="0 0 300 460" className="pointer-events-none h-auto w-full" aria-hidden style={{ ["--from" as string]: `${shift}px` }}>
-        <defs>
-          <linearGradient id="body-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#3a342c" />
-            <stop offset="1" stopColor="#1a1714" />
-          </linearGradient>
-          <filter id="muscle-glow" x="-40%" y="-40%" width="180%" height="180%">
-            <feGaussianBlur stdDeviation="4.5" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-        <Figure origin="70px 220px" regions={FRONT} level={level} />
-        <Figure origin="230px 220px" regions={BACK} level={level} shift={160} />
-        <text x="70" y="436" textAnchor="middle" fill="currentColor" fontSize="11" opacity="0.45">
-          Front
-        </text>
-        <text x="230" y="436" textAnchor="middle" fill="currentColor" fontSize="11" opacity="0.45">
-          Back
-        </text>
-      </svg>
+    <figure ref={root} className="mx-auto w-full">
+      <div className="grid grid-cols-2 gap-2">
+        <Panel src="/body/front.jpg" caption="Front" regions={FRONT} level={level} />
+        <Panel src="/body/back.jpg" caption="Back" regions={BACK} level={level} />
+      </div>
       <figcaption className="mt-2 text-center text-[13px] leading-snug text-white/70">{label}</figcaption>
     </figure>
   );
 }
 
 const FRONT: BodyRegion[] = ["upperPecs", "pecs", "delts", "biceps", "triceps", "forearms", "abs", "obliques", "quads"];
-const BACK: BodyRegion[] = ["calves", "traps", "rearDelts", "lats", "lowerBack", "glutes", "hamstrings"];
+const BACK: BodyRegion[] = ["traps", "rearDelts", "lats", "triceps", "forearms", "lowerBack", "glutes", "hamstrings", "calves"];
 
-function Figure({ origin, regions, level, shift = 0 }: { origin: string; regions: BodyRegion[]; level: Map<BodyRegion, number>; shift?: number }) {
+function Panel({ src, caption, regions, level }: { src: string; caption: string; regions: BodyRegion[]; level: Map<BodyRegion, number> }) {
   return (
-    <g className="body-live" style={{ transformOrigin: origin }}>
-      <g transform={shift ? `translate(${shift} 0)` : undefined}>
-        <Silhouette />
-      </g>
-      {regions.map((region) => {
-        const opacity = level.get(region) ?? 0;
-        return (
-          <path
-            key={region}
-            id={`muscle-${region}`}
-            d={SHAPES[region]}
-            className={opacity > 0 ? "muscle-shape is-on" : "muscle-shape"}
-            style={{ opacity }}
-          />
-        );
-      })}
-    </g>
+    <div className="relative overflow-hidden rounded-card bg-[#0c1210]">
+      <img src={src} alt="" className="block h-auto w-full" />
+      <svg viewBox="0 0 300 400" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
+        <defs>
+          <filter id={`glow-${caption}`} x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="1.1" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        {regions.map((region) => {
+          const opacity = level.get(region) ?? 0;
+          return (
+            <path
+              key={region}
+              d={SHAPES[region]}
+              filter={`url(#glow-${caption})`}
+              className={opacity > 0 ? "muscle-shape is-on" : "muscle-shape"}
+              style={{ opacity }}
+            />
+          );
+        })}
+      </svg>
+      <span className="pointer-events-none absolute inset-x-0 bottom-2 text-center text-[11px] tracking-[0.14em] text-white/80">{caption}</span>
+    </div>
   );
 }
 
-function Silhouette() {
-  return (
-    <g fill="url(#body-fill)">
-      <ellipse cx="70" cy="26" rx="16" ry="18" />
-      <path d="M64 42h12c2 8 1 14-1 16H65c-2-2-2-8-1-16z" />
-      <path d="M36 72c0-10 68-10 68 0l-6 28c-2 28-4 48-2 70l-4 8H48l-4-8c2-22 0-42-2-70z" />
-      <path d="M36 74C22 80 16 108 18 140c2 28 4 52 10 64l12-4c-4-16-6-40-8-64 0-22 2-40 6-58z" />
-      <path d="M104 74c14 6 20 34 18 66-2 28-4 52-10 64l-12-4c4-16 6-40 8-64 0-22-2-40-6-58z" />
-      <path d="M46 176c-8 36-10 90-6 150 2 28 4 58 8 78h20c2-22 0-52-2-80 2-48 6-100 2-148z" />
-      <path d="M94 176c8 36 10 90 6 150-2 28-4 58-8 78H72c-2-22 0-52 2-80-2-48-6-100-2-148z" />
-    </g>
-  );
-}
-
+/** Muscle bellies traced on the studio photographs, in a 300×400 frame. */
 const SHAPES: Record<BodyRegion, string> = {
-  upperPecs: "M48 78c8-8 20-8 22 2 0 6-8 10-14 8-8-1-12-4-8-10zm22 2c2-10 16-10 22-2 4 6 0 10-8 10-6 2-14-2-14-8z",
-  pecs: "M44 90c8-10 24-10 26 2 2 14-4 26-16 28-14 0-20-14-16-26 2-2 4-4 6-4zm26 4c4-12 22-12 26 0 6 12-2 26-16 28-12 2-18-12-14-24 2-2 3-3 4-4z",
-  delts: "M30 68c-12 2-16 18-8 28 8 6 18 2 20-8 1-10-2-20-12-20zm80 0c12 2 16 18 8 28-8 6-18 2-20-8-1-10 2-20 12-20z",
-  biceps: "M24 102c-8 12-6 36 2 48 6 4 12-2 12-10 0-16 2-28-2-36-3-4-9-6-12-2zm92 0c8 12 6 36-2 48-6 4-12-2-12-10 0-16-2-28 2-36 3-4 9-6 12-2z",
-  triceps: "M16 108c-6 16-4 40 4 52 5 4 10-2 8-10-2-16 0-30-2-40-2-4-8-6-10-2zm108 0c6 16 4 40-4 52-5 4-10-2-8-10 2-16 0-30 2-40 2-4 8-6 10-2z",
-  forearms: "M22 164c-6 16-4 32 4 40 6 4 12-2 10-10-2-12 0-22-2-30-2-3-10-4-12 0zm96 0c6 16 4 32-4 40-6 4-12-2-10-10 2-12 0-22 2-30 2-3 10-4 12 0z",
-  abs: "M60 116h9v11h-9zm12 0h9v11h-9zM60 131h9v11h-9zm12 0h9v11h-9zM62 146h7v10h-7zm12 0h7v10h-7z",
-  obliques: "M46 120c-6 12-6 32 2 42 5 4 10-2 8-8-2-12 0-24-2-32-2-3-6-4-8-2zm48 0c6 12 6 32-2 42-5 4-10-2-8-8 2-12 0-24 2-32 2-3 6-4 8-2z",
-  quads: "M42 188c-8 28-8 78 0 118 4 10 14 8 16-2 6-32 8-78 0-112-4-12-12-16-16-4zm56 0c8 28 8 78 0 118-4 10-14 8-16-2-6-32-8-78 0-112 4-12 12-16 16-4z",
-  calves: "M204 346c-8 18-6 46 2 66 5 8 12 4 12-6 2-20 2-42-2-58-3-8-10-10-12-2zm52 0c8 18 6 46-2 66-5 8-12 4-12-6-2-20-2-42 2-58 3-8 10-10 12-2z",
-  traps: "M198 66c14-12 50-12 64 0 2 12-8 20-20 22h-24c-12-2-22-10-20-22z",
-  rearDelts: "M186 70c-12 4-16 20-6 28 10 6 20 0 20-12 0-10-6-18-14-16zm88 0c12 4 16 20 6 28-10 6-20 0-20-12 0-10 6-18 14-16z",
-  lats: "M196 102c-16 16-18 46-4 66 8 8 16 2 16-8 2-22 4-40-2-54-3-6-7-8-10-4zm68 0c16 16 18 46 4 66-8 8-16 2-16-8-2-22-4-40 2-54 3-6 7-8 10-4z",
-  lowerBack: "M214 148c-2 16 2 32 16 38 14-6 18-22 16-38-6-4-26-4-32 0z",
-  glutes: "M198 178c-8 16-2 38 18 42 16 2 28-14 26-32-2-14-16-22-28-18-8 2-14 6-16 8zm64 0c8 16 2 38-18 42-16 2-28-14-26-32 2-14 16-22 28-18 8 2 14 6 16 8z",
-  hamstrings: "M200 224c-8 30-6 72 2 108 5 8 14 4 14-6 2-32 4-70-2-100-4-12-12-14-14-2zm60 0c8 30 6 72-2 108-5 8-14 4-14-6-2-32-4-70 2-100 4-12 12-14 14-2z",
+  upperPecs:
+    "M128 106c-4 8-2 16 12 20 10-2 24-8 16-20-6-6-22-6-28 0zm20 0c8 12 6 20 16 20 14-4 16-12 12-20-6-6-22-6-28 0z",
+  pecs:
+    "M126 118c-4 12 2 24 16 26 12 0 30-8 24-24-4-10-16-16-24-14-8 2-14 4-16 12zm28 2c6-10 20-12 28-2 6 16-12 26-24 24-14-2-20-14-16-26 2-4 8-6 12 4z",
+  delts: "M109 94 L128 96 L124 116 L110 118 L106 104 Z M176 96 L196 94 L198 116 L180 118 L174 104 Z",
+  biceps: "M108 118 L117 116 L116 148 L108 166 L102 164 L104 140 Z M186 116 L198 118 L200 148 L196 166 L188 164 L184 140 Z",
+  triceps: "M102 118 L110 116 L108 150 L100 166 L98 148 Z M192 116 L202 118 L204 150 L198 166 L194 148 Z",
+  forearms: "M100 172 L110 170 L108 198 L100 208 L97 188 Z M192 172 L203 174 L202 200 L194 208 L190 188 Z",
+  abs: "M144 144h7c1 4 1 8 0 11h-7c-1-3-1-7 0-11zm9 0h7c1 4 1 8 0 11h-7c-1-3-1-7 0-11zM145 157h6c1 3 1 7 0 10h-6c-1-3-1-7 0-10zm8 0h6c1 3 1 7 0 10h-6c-1-3-1-7 0-10z",
+  obliques:
+    "M126 146c-4 8-2 18 10 22 6-2 12-10 8-20-2-4-12-6-18-2zm52 0c4 8 2 18-10 22-6-2-12-10-8-20 2-4 12-6 18-2z",
+  quads: "M126 244 L140 242 L136 268 L128 294 L118 292 L116 264 Z M165 242 L183 244 L184 268 L176 294 L168 292 L166 264 Z",
+  traps: "M152 90c-16 4-24 16-18 28 8-4 14-4 18-2 4-2 10-2 18 2 6-12-2-24-18-28z",
+  rearDelts:
+    "M112 98c-8 10-4 24 10 26 8-8 14-16 6-26-4-4-12-4-16 0zm76 0c8 10 4 24-10 26-8-8-14-16-6-26 4-4 12-4 16 0z",
+  lats:
+    "M140 118c-12 12-10 32-4 44 6 4 14-2 12-14 0-14 2-24-2-32-2-4-4-4-6 2zm24 0c12 12 10 32 4 44-6 4-14-2-12-14 0-14-2-24 2-32 2-4 4-4 6 2z",
+  lowerBack: "M140 148c-4 8-2 18 12 22 14-4 16-14 12-22-6-4-18-4-24 0z",
+  glutes:
+    "M128 186c-8 14-4 36 14 42 12 2 26-10 24-28-2-14-16-22-26-18-6 2-10 2-12 4zm48 0c8 14 4 36-14 42-12 2-26-10-24-28 2-14 16-22 26-18 6 2 10 2 12 4z",
+  hamstrings: "M126 244 L138 242 L132 268 L122 294 L112 292 L114 264 Z M168 242 L182 244 L186 268 L180 294 L170 292 L170 264 Z",
+  calves: "M118 330 L131 328 L130 350 L118 348 Z M170 328 L183 330 L182 350 L170 348 Z",
 };

@@ -465,6 +465,10 @@ export interface ProgressionContext {
   daysSinceLast?: number | null;
   /** Set when a saved injury, condition, or an injury day says not to progress this exercise. */
   blocked?: string | null;
+  /** Working sets from the previous comparable session of this same exercise. */
+  priorSets?: WorkoutSet[] | null;
+  /** Technique marked on the latest session. Broken technique does not earn a load increase. */
+  technique?: "clean" | "broken" | null;
 }
 
 /** After this long away, the first session back starts lighter. */
@@ -519,7 +523,7 @@ function baseSuggestion(prescription: ExercisePrescription, lastSets: WorkoutSet
 
   const missed = atTop.filter((s) => s.reps < prescription.repsMin).length;
   if (tracksWeight && top > 0 && missed >= Math.ceil(atTop.length / 2) && (avgRpe == null || avgRpe >= 9.5))
-    return { action: "deload", weightKg: roundTo(top * 0.9, 0.5), repsTarget: prescription.repsMin, reason: "Reps fell short at near-max effort — reduce about 10% and rebuild." };
+    return { action: "hold", weightKg: top, repsTarget: prescription.repsMin, reason: "Reps fell short. Repeat this load rather than adding weight." };
 
   if (avgRpe != null && avgRpe > prescription.rpeTarget + 1)
     return { action: "hold", weightKg: tracksWeight ? top : null, repsTarget: Math.max(prescription.repsMin, minReps), reason: "Effort ran higher than planned — repeat this load before progressing." };
@@ -538,13 +542,48 @@ function baseSuggestion(prescription: ExercisePrescription, lastSets: WorkoutSet
  * and in a deficit load jumps are capped so the goal stays strength retention.
  * A long gap (e.g. a vacation) eases the first session back, and low logged intake holds loads.
  */
+function workingLoad(sets: WorkoutSet[] | null | undefined): WorkoutSet[] {
+  return (sets ?? []).filter((set) => !set.warmup && set.reps > 0 && set.weightKg > 0);
+}
+
+/** True when an earlier session of this exercise already topped the same load. A different load is not the same exposure. */
+function repeatedTop(prescription: ExercisePrescription, lastSets: WorkoutSet[] | null, priorSets: WorkoutSet[] | null | undefined): boolean {
+  const latest = workingLoad(lastSets);
+  if (!latest.length) return false;
+  const load = Math.max(...latest.map((set) => set.weightKg));
+  const prior = workingLoad(priorSets).filter((set) => Math.abs(set.weightKg - load) <= 0.25);
+  if (prior.length < prescription.sets || !prior.every((set) => set.reps >= prescription.repsMax)) return false;
+  const rpes = prior.map((set) => set.rpe).filter((rpe): rpe is number => rpe != null);
+  const avg = rpes.length ? rpes.reduce((sum, rpe) => sum + rpe, 0) / rpes.length : null;
+  return avg == null || avg <= prescription.rpeTarget + 0.5;
+}
+
 export function suggestNextLoad(prescription: ExercisePrescription, lastSets: WorkoutSet[] | null, ctx: ProgressionContext = {}): ProgressionSuggestion {
-  const base: ProgressionSuggestion = { ...baseSuggestion(prescription, lastSets), setsDelta: 0 };
+  let base: ProgressionSuggestion = { ...baseSuggestion(prescription, lastSets), setsDelta: 0 };
+  const top = lastSets?.length ? Math.max(...lastSets.filter((set) => !set.warmup).map((set) => set.weightKg)) : null;
   if (ctx.blocked) {
-    const top = lastSets?.length ? Math.max(...lastSets.filter((set) => !set.warmup).map((set) => set.weightKg)) : null;
     return { ...base, action: "hold", weightKg: top && top > 0 ? top : base.weightKg, repsTarget: prescription.repsMin, setsDelta: 0, reason: ctx.blocked };
   }
-  const top = lastSets?.length ? Math.max(...lastSets.map((s) => s.weightKg)) : null;
+  if (ctx.technique === "broken") {
+    return {
+      ...base,
+      action: "hold",
+      weightKg: top && top > 0 ? top : base.weightKg,
+      repsTarget: prescription.repsMin,
+      setsDelta: 0,
+      reason: "Technique was marked off. Repeat the same load and keep the reps strict.",
+    };
+  }
+  if (base.action === "increase_load" && !repeatedTop(prescription, lastSets, ctx.priorSets)) {
+    base = {
+      ...base,
+      action: "hold",
+      weightKg: top && top > 0 ? top : base.weightKg,
+      repsTarget: prescription.repsMax,
+      setsDelta: 0,
+      reason: "One session reached the top of the range. Repeat that load before adding weight.",
+    };
+  }
   const progressing = base.action === "increase_load" || base.action === "increase_reps";
   const readiness = ctx.readiness?.status;
   const away = ctx.daysSinceLast ?? 0;

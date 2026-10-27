@@ -177,21 +177,50 @@ describe("suggestNextLoad (progressive overload)", () => {
     expect(s.reason).toContain("shoulder");
   });
 
-  it("adds load when every set hits the top of the range at target effort", () => {
-    const s = suggestNextLoad(p, [10, 10, 10].map((reps) => ({ reps, weightKg: 80, rpe: 8 })));
+  it("holds after one session at the top of the range", () => {
+    const once = [10, 10, 10].map((reps) => ({ reps, weightKg: 80, rpe: 8 }));
+    const s = suggestNextLoad(p, once);
+    expect(s.action).toBe("hold");
+    expect(s.weightKg).toBe(80);
+    expect(s.reason).toMatch(/Repeat that load/);
+  });
+
+  it("adds the smallest load only after a second comparable session also tops out", () => {
+    const topped = [10, 10, 10].map((reps) => ({ reps, weightKg: 80, rpe: 8 }));
+    const s = suggestNextLoad(p, topped, { priorSets: topped });
     expect(s.action).toBe("increase_load");
     expect(s.weightKg).toBe(82.5);
     expect(s.repsTarget).toBe(6);
+  });
+
+  it("does not treat a different load as the same exercise exposure", () => {
+    const latest = [10, 10, 10].map((reps) => ({ reps, weightKg: 80, rpe: 8 }));
+    const other = [10, 10, 10].map((reps) => ({ reps, weightKg: 100, rpe: 8 }));
+    expect(suggestNextLoad(p, latest, { priorSets: other }).action).toBe("hold");
+  });
+
+  it("does not add load when technique was marked off", () => {
+    const topped = [10, 10, 10].map((reps) => ({ reps, weightKg: 80, rpe: 8 }));
+    const s = suggestNextLoad(p, topped, { priorSets: topped, technique: "broken" });
+    expect(s.action).toBe("hold");
+    expect(s.weightKg).toBe(80);
+    expect(s.reason).toMatch(/Technique/);
+  });
+
+  it("uses a 1 kg step on an isolation once two sessions have topped out", () => {
+    const raise = { ...p, exerciseId: "lateral-raise" };
+    const topped = [12, 12, 12].map((reps) => ({ reps, weightKg: 10, rpe: 8 }));
+    expect(suggestNextLoad(raise, topped, { priorSets: topped }).weightKg).toBe(11);
   });
 
   it("holds when effort was far above target", () => {
     expect(suggestNextLoad(p, [8, 8, 7].map((reps) => ({ reps, weightKg: 80, rpe: 9.5 }))).action).toBe("hold");
   });
 
-  it("deloads after missing reps at max effort", () => {
+  it("repeats the load after one session that falls short", () => {
     const s = suggestNextLoad(p, [5, 4, 4].map((reps) => ({ reps, weightKg: 80, rpe: 10 })));
-    expect(s.action).toBe("deload");
-    expect(s.weightKg).toBe(72);
+    expect(s.action).toBe("hold");
+    expect(s.weightKg).toBe(80);
   });
 
   it("adds reps within the range otherwise", () => {
@@ -202,7 +231,8 @@ describe("suggestNextLoad (progressive overload)", () => {
 
   it("uses bigger jumps for lower-body compounds", () => {
     const squat = { ...p, exerciseId: "back-squat" };
-    expect(suggestNextLoad(squat, [10, 10, 10].map((reps) => ({ reps, weightKg: 100, rpe: 7.5 }))).weightKg).toBe(105);
+    const topped = [10, 10, 10].map((reps) => ({ reps, weightKg: 100, rpe: 7.5 }));
+    expect(suggestNextLoad(squat, topped, { priorSets: topped }).weightKg).toBe(105);
   });
 });
 
@@ -212,8 +242,9 @@ describe("suggestNextLoad with recovery, volume and goal context", () => {
   const readiness = (status: ReadinessResult["status"]): ReadinessResult => ({ status, date: "2026-06-15", factors: [], summary: `Recovery ${status}.` });
 
   it("progresses normally when recovery is good or unknown", () => {
-    expect(suggestNextLoad(p, topSets, { readiness: readiness("good") }).action).toBe("increase_load");
-    expect(suggestNextLoad(p, topSets, { readiness: readiness("unknown") }).action).toBe("increase_load");
+    const confirmed = { priorSets: topSets };
+    expect(suggestNextLoad(p, topSets, { ...confirmed, readiness: readiness("good") }).action).toBe("increase_load");
+    expect(suggestNextLoad(p, topSets, { ...confirmed, readiness: readiness("unknown") }).action).toBe("increase_load");
   });
 
   it("holds the load instead of adding weight when recovery is reduced", () => {
@@ -231,7 +262,7 @@ describe("suggestNextLoad with recovery, volume and goal context", () => {
   });
 
   it("holds when weekly volume has spiked", () => {
-    const s = suggestNextLoad(p, topSets, { volumeRatio: 1.5 });
+    const s = suggestNextLoad(p, topSets, { priorSets: topSets, volumeRatio: 1.5 });
     expect(s.action).toBe("hold");
     expect(s.reason).toMatch(/50% above/);
   });
@@ -239,8 +270,8 @@ describe("suggestNextLoad with recovery, volume and goal context", () => {
   it("caps load jumps in a calorie deficit", () => {
     const squat: ExercisePrescription = { ...p, exerciseId: "back-squat" };
     const sets = [10, 10, 10].map((reps) => ({ reps, weightKg: 100, rpe: 7.5 }));
-    expect(suggestNextLoad(squat, sets).weightKg).toBe(105);
-    expect(suggestNextLoad(squat, sets, { inDeficit: true }).weightKg).toBe(102.5);
+    expect(suggestNextLoad(squat, sets, { priorSets: sets }).weightKg).toBe(105);
+    expect(suggestNextLoad(squat, sets, { priorSets: sets, inDeficit: true }).weightKg).toBe(102.5);
   });
 
   it("holds the load when recent intake is well under target", () => {
@@ -261,6 +292,6 @@ describe("suggestNextLoad with recovery, volume and goal context", () => {
     const s = suggestNextLoad(p, topSets, { daysSinceLast: 10 });
     expect(s.action).toBe("hold");
     expect(s.weightKg).toBe(80);
-    expect(suggestNextLoad(p, topSets, { daysSinceLast: 5 }).action).toBe("increase_load");
+    expect(suggestNextLoad(p, topSets, { priorSets: topSets, daysSinceLast: 5 }).action).toBe("increase_load");
   });
 });

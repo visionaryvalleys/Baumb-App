@@ -22,22 +22,11 @@ const BULLET = /^\s*(?:[-*•]|\d+[.)])\s+/;
 
 const ask = (question: string) => void askTrainer(question, buildHealthContext(getState()));
 
-/** True only when the server has a model key. Hidden until that check returns. */
+/** The trainer is available with Gemini when a key is set, and with the on-device model otherwise. */
 export function useTrainerEnabled() {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   useEffect(() => {
-    let cancel = false;
-    void fetch("/api/ai/chat")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { enabled?: boolean } | null) => {
-        if (!cancel) setEnabled(data?.enabled === true);
-      })
-      .catch(() => {
-        if (!cancel) setEnabled(false);
-      });
-    return () => {
-      cancel = true;
-    };
+    setEnabled(true);
   }, []);
   return enabled;
 }

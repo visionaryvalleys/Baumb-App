@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Lock } from "lucide-react";
-import { healthConstraints } from "@/calculations/health";
+import { avoidReason, healthConstraints } from "@/calculations/health";
+import { suggestNextLoad } from "@/calculations/workout";
+import { muscleNames } from "@/lib/anatomy";
 import { EXERCISES, MUSCLE_GROUPS, getExercise } from "@/lib/exercises";
 import type { Equipment, ExercisePrescription, HealthCondition, InjuryArea, MuscleGroup, Unit, Workout, WorkoutExercise, WorkoutSet } from "@/lib/types";
 import { fromDisplayWeight, toDisplayWeight } from "@/lib/units";
@@ -39,6 +41,8 @@ interface Advice {
   blueReps: number;
   lastReps: number | null;
   lastKg: number | null;
+  /** One next action for a working set. Warm-ups keep their own line. */
+  line: string;
 }
 
 function ordered(workouts: Workout[]) {
@@ -46,12 +50,19 @@ function ordered(workouts: Workout[]) {
 }
 
 function lastWorking(workouts: Workout[], exerciseId: string): WorkoutSet[] | null {
+  return recentWorking(workouts, exerciseId)[0]?.sets ?? null;
+}
+
+function recentWorking(workouts: Workout[], exerciseId: string) {
+  const found: { sets: WorkoutSet[]; technique: WorkoutExercise["technique"] }[] = [];
   for (const workout of ordered(workouts)) {
-    const found = workout.exercises.find((exercise) => exercise.exerciseId === exerciseId);
-    const sets = found?.sets.filter((set) => !set.warmup && set.reps > 0) ?? [];
-    if (sets.length) return sets;
+    const exercise = workout.exercises.find((item) => item.exerciseId === exerciseId);
+    const sets = exercise?.sets.filter((set) => !set.warmup && set.reps > 0) ?? [];
+    if (!sets.length) continue;
+    found.push({ sets, technique: exercise?.technique ?? null });
+    if (found.length === 2) break;
   }
-  return null;
+  return found;
 }
 
 /** Working sets stay at three, or fewer when the exercise or a saved condition calls for less. */
@@ -70,34 +81,48 @@ function suggestedReserve(exerciseId: string, rpeTarget: number, injuries: Injur
   return Math.min(5, reserve);
 }
 
-function adviceFor(workouts: Workout[], item: ExercisePrescription, unit: Unit, warmupIndex: number | null): Advice {
-  const previous = lastWorking(workouts, item.exerciseId);
-  const historyKg = previous ? Math.max(...previous.map((set) => set.weightKg)) : null;
-  const historyReps = previous ? Math.min(...previous.map((set) => set.reps)) : null;
-  const workingReps = historyReps == null ? item.repsMin : Math.min(item.repsMax, Math.max(item.repsMin, historyReps));
+function adviceFor(
+  workouts: Workout[],
+  item: ExercisePrescription,
+  unit: Unit,
+  warmupIndex: number | null,
+  injuries: InjuryArea[],
+  conditions: HealthCondition[],
+): Advice {
+  const [latest, prior] = recentWorking(workouts, item.exerciseId);
+  const historyKg = latest ? Math.max(...latest.sets.map((set) => set.weightKg)) : null;
+  const historyReps = latest ? Math.min(...latest.sets.map((set) => set.reps)) : null;
   const tracks = getExercise(item.exerciseId)?.tracksWeight ?? true;
-  const basicKg = historyKg ?? (item.startKg && item.startKg > 0 ? item.startKg : null);
+  const suggestion = suggestNextLoad(item, latest?.sets ?? null, {
+    priorSets: prior?.sets ?? null,
+    technique: latest?.technique ?? null,
+    blocked: avoidReason(item.exerciseId, injuries, conditions),
+  });
+  const suggestedKg = suggestion.weightKg != null && suggestion.weightKg > 0 ? suggestion.weightKg : historyKg;
   if (warmupIndex == null) {
     return {
-      weight: tracks && basicKg ? String(toDisplayWeight(basicKg, unit)) : "",
-      reps: workingReps,
+      weight: tracks && suggestedKg ? String(toDisplayWeight(suggestedKg, unit)) : "",
+      reps: suggestion.repsTarget,
       blueReps: item.repsMax,
       lastReps: historyReps,
       lastKg: tracks ? historyKg : null,
+      line: suggestion.reason,
     };
   }
   const share = warmupIndex === 0 ? 0.5 : 0.75;
-  const warmKg = basicKg ? Math.max(0, Math.round(basicKg * share * 2) / 2) : null;
+  const warmKg = suggestedKg ? Math.max(0, Math.round(suggestedKg * share * 2) / 2) : null;
   return {
     weight: tracks && warmKg ? String(toDisplayWeight(warmKg, unit)) : "",
     reps: WARMUP_REPS,
     blueReps: item.repsMax,
     lastReps: historyReps,
     lastKg: tracks ? historyKg : null,
+    line: "",
   };
 }
 
 function adviceLine(advice: Advice, warmup: boolean, unit: Unit) {
+  if (!warmup && advice.line) return advice.line;
   const reps = warmup ? `${WARMUP_REPS} reps` : `${advice.reps} reps · Blue set: ${advice.blueReps} reps`;
   if (advice.weight) return `${advice.weight} ${unit} · ${reps}`;
   if (advice.lastKg == null) return warmup ? `${WARMUP_REPS} reps. Use a light load.` : `Start with ${advice.reps} reps. Use a load you can finish.`;
@@ -260,7 +285,7 @@ export function SplitWorkout({
 
   function openStep(exerciseIndex: number, stepIndex: number, item: ExercisePrescription, step: Step) {
     const warmupsBefore = cards[exerciseIndex].slice(0, stepIndex).filter((entry) => entry.warmup).length;
-    const advice = adviceFor(workouts, item, unit, step.warmup ? warmupsBefore : null);
+    const advice = adviceFor(workouts, item, unit, step.warmup ? warmupsBefore : null, injuries, conditions);
     patch(exerciseIndex, stepIndex, {
       opened: true,
       reps: step.reps || String(step.warmup ? WARMUP_REPS : advice.reps),
@@ -331,6 +356,7 @@ export function SplitWorkout({
 
   if (detailIndex != null) {
     const chosen = getExercise(items[detailIndex]?.exerciseId ?? "");
+    const named = muscleNames(items[detailIndex]?.exerciseId ?? "");
     return (
       <div className="space-y-4">
         <button type="button" className="text-sm font-semibold text-[#F8F9FA]" onClick={() => setDetailIndex(null)}>
@@ -338,7 +364,9 @@ export function SplitWorkout({
         </button>
         <h2 className="text-xl font-semibold text-[#F8F9FA]">{chosen?.name ?? "Exercise"}</h2>
         <p className="text-sm text-[#DFE5E8]">Equipment · {chosen ? EQUIPMENT_LABEL[chosen.equipment] : "—"}</p>
-        <p className="text-sm capitalize text-[#DFE5E8]">Targets {chosen?.muscle ?? "—"}</p>
+        <p className="text-sm text-[#DFE5E8]">Works {named.primary || chosen?.muscle || "—"}</p>
+        {named.secondary && <p className="text-sm text-[#DFE5E8]">Also {named.secondary}</p>}
+        <p className="text-xs leading-relaxed text-[#DFE5E8]">A training map of the muscles this exercise is meant to work. It is not a measurement of growth.</p>
         <p className="text-sm leading-relaxed text-[#F8F9FA]">{chosen?.cue}</p>
       </div>
     );
@@ -407,7 +435,7 @@ export function SplitWorkout({
         const warmFinished = warmSteps.length === 0 || warmSteps.every((step) => step.done);
         const history = lastWorking(workouts, item.exerciseId);
         const glowStep = [...steps].reverse().find((step) => !step.warmup && (step.opened || step.done) && Math.round(Number(step.reps) || 0) > 0);
-        const glowAdvice = glowStep ? adviceFor(workouts, item, unit, null) : null;
+        const glowAdvice = glowStep ? adviceFor(workouts, item, unit, null, injuries, conditions) : null;
         const glowTone = history && glowStep && glowAdvice ? toneFor(glowStep, glowAdvice, unit) : "plain";
         const workSteps = steps.map((step, stepIndex) => ({ step, stepIndex })).filter((entry) => !entry.step.warmup);
         const openWork = workSteps.find((entry) => !entry.step.done);
@@ -415,7 +443,7 @@ export function SplitWorkout({
 
         function stage(step: Step, stepIndex: number, title: string) {
           const warmupsBefore = steps.slice(0, stepIndex).filter((entry) => entry.warmup).length;
-          const advice = adviceFor(workouts, item, unit, step.warmup ? warmupsBefore : null);
+          const advice = adviceFor(workouts, item, unit, step.warmup ? warmupsBefore : null, injuries, conditions);
           const tone = !step.warmup && history ? toneFor(step, advice, unit) : "plain";
           const active = !passed && !step.done;
           return (
