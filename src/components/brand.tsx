@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, UserRound } from "lucide-react";
+import { ArrowRight, ChevronDown, UserRound } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect } from "react";
+import { useAppState } from "@/lib/store";
 import { cn } from "./ui";
 
 export function OstinMark({ className }: { className?: string }) {
@@ -23,15 +24,30 @@ export function BaumbLogo({ className, href = "/" }: { className?: string; href?
   );
 }
 
-export function ProfileButton({ href = "/profile" }: { href?: string }) {
+export function ProfileButton({ href = "/profile", tone = "glass" }: { href?: string; tone?: "glass" | "hero" }) {
+  const avatar = useAppState().profile.avatar;
+  if (tone === "hero") {
+    return (
+      <Link href={href} aria-label="Profile" className="grid size-10 place-items-center overflow-hidden rounded-full border border-white/25 bg-white/10 shadow-[0_0_16px_rgba(255,106,26,0.35)]">
+        {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : <UserRound className="size-5 text-white/85" aria-hidden />}
+      </Link>
+    );
+  }
   return (
-    <Link href={href} className="glass-button grid size-11 place-items-center text-fg/80 transition hover:bg-white/[0.04] hover:text-fg" aria-label="Profile">
-      <UserRound className="size-[18px]" strokeWidth={2} aria-hidden />
+    <Link href={href} className="glass-button grid size-11 place-items-center overflow-hidden text-fg/80 transition hover:bg-white/[0.04] hover:text-fg" aria-label="Profile">
+      {avatar ? <img src={avatar} alt="" className="size-7 rounded-full object-cover" /> : <UserRound className="size-[18px]" strokeWidth={2} aria-hidden />}
     </Link>
   );
 }
 
-export function MenuButton({ onClick, expanded }: { onClick: () => void; expanded: boolean }) {
+export function MenuButton({ onClick, expanded, tone = "glass" }: { onClick: () => void; expanded: boolean; tone?: "glass" | "hero" }) {
+  if (tone === "hero") {
+    return (
+      <button type="button" onClick={onClick} aria-label="Open menu" aria-expanded={expanded} className="grid size-6 place-items-center text-white/70">
+        <ChevronDown className="size-4" aria-hidden />
+      </button>
+    );
+  }
   return (
     <button
       type="button"

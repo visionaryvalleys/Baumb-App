@@ -12,7 +12,7 @@ export function Card({ className, children }: { className?: string; children: Re
 export function CardTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className="mb-5 flex min-h-6 items-center justify-between gap-3">
-      <h2 className="text-[13px] font-medium text-white/70">{children}</h2>
+      <h2 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70">{children}</h2>
       {action}
     </div>
   );
@@ -30,15 +30,15 @@ export function PageHeader({
   icon?: LucideIcon;
 }) {
   return (
-    <header className="mb-8 flex flex-wrap items-end justify-between gap-6 sm:mb-10">
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
         {subtitle && (
-          <div className="mb-3 flex items-center gap-2">
-            {Icon && <Icon className="size-4 text-brand" aria-hidden />}
-            <span className="text-[13px] text-muted">{subtitle}</span>
+          <div className="mb-2 flex items-center gap-2">
+            {Icon && <Icon className="size-3.5 text-[#3EF0E0]" aria-hidden />}
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">{subtitle}</span>
           </div>
         )}
-        <h1 className="font-display text-[1.85rem] font-normal leading-[1.08] tracking-[-0.02em] text-fg">{title}</h1>
+        <h1 className="text-[34px] font-semibold leading-[1.05] tracking-[-0.03em] text-fg [&_span]:text-[#3EF0E0]">{title}</h1>
       </div>
       {action}
     </header>

@@ -1,17 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { ArrowRight, BarChart3, ChevronDown, Dumbbell, Flame, Home, MessageCircle, Plus, Timer, UserRound, UtensilsCrossed } from "lucide-react";
+import { ArrowRight, ChevronDown, Flame, Plus, Timer, UserRound, UtensilsCrossed } from "lucide-react";
 import { programmeDay, groupsInSplit, MUSCLE_PICKS, splitLabel, splitsForWeek } from "@/calculations/day-split";
 import { calculateDailyNutrition } from "@/calculations/nutrition";
 import { addDays, localMinutes, startOfWeek, todayKey } from "@/lib/date";
 import { openAppMenu } from "@/lib/menu-bus";
+import { openAppTrainer } from "./app-tab-bar";
 import { currentStreak } from "@/lib/stats";
 import { useAppState } from "@/lib/store";
 import { BaumbLogo } from "./brand";
 import { NotificationBell } from "./notifications";
-import { TrainerSheet } from "./trainer";
 import { cn } from "./ui";
 
 const WEEK = ["M", "T", "W", "T", "F", "S", "S"] as const;
@@ -62,8 +61,6 @@ function Ring({ pct, color, value, detail, compact = false }: { pct: number; col
 export function HomeDashboard() {
   const state = useAppState();
   const { profile, goal, plans, activePlanId, workouts, meals } = state;
-  const [trainer, setTrainer] = useState(false);
-  const [closing, setClosing] = useState(false);
   const today = todayKey(profile.timezone);
   const plan = plans.find((item) => item.id === activePlanId) ?? plans[plans.length - 1] ?? null;
   const days = goal?.daysPerWeek ?? plan?.goal.daysPerWeek ?? 4;
@@ -94,14 +91,6 @@ export function HomeDashboard() {
     insight = `You're ${count(calorieGap)} kcal short of today's target.`;
     if (proteinGap != null && proteinGap > 0) insight += ` Protein is ${count(proteinGap)} g under today's target.`;
   } else if (nutrition) insight = "Today's calorie target is already met.";
-
-  function closeTrainer() {
-    setClosing(true);
-    window.setTimeout(() => {
-      setTrainer(false);
-      setClosing(false);
-    }, 280);
-  }
 
   return (
     <div className="relative min-h-dvh bg-[#0C0A09] text-[#F8F9FA]">
@@ -221,7 +210,7 @@ export function HomeDashboard() {
           <div className="relative max-w-[68%]">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#3EF0E0]">AI insight</p>
             <p className="mt-2 text-[13px] leading-snug text-white/90">{insight}</p>
-            <button type="button" onClick={() => { setClosing(false); setTrainer(true); }} className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-[#3EF0E0]">
+            <button type="button" onClick={() => openAppTrainer()} className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-[#3EF0E0]">
               View Recommendations <ArrowRight className="size-3.5" aria-hidden />
             </button>
           </div>
@@ -239,58 +228,6 @@ export function HomeDashboard() {
           ))}
         </div>
       </div>
-
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#3EF0E0]/15 bg-[#07090b]/95 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur-md" aria-label="Home">
-        <div className="mx-auto grid h-16 w-full max-w-[480px] grid-cols-5">
-          <Link href="/dashboard" aria-current="page" className="grid place-items-center text-white/55">
-            <span className="grid justify-items-center gap-1 text-[10px] font-medium">
-              <Home className="size-5" aria-hidden />
-              Home
-            </span>
-          </Link>
-          <Link href="/workouts/new" className="grid place-items-center text-white/55">
-            <span className="grid justify-items-center gap-1 text-[10px] font-medium">
-              <Dumbbell className="size-5" aria-hidden />
-              Session
-            </span>
-          </Link>
-          <button type="button" aria-label="Ask" aria-expanded={trainer && !closing} onClick={() => { setClosing(false); setTrainer(true); }} className="grid place-items-center text-[#3EF0E0]">
-            <span className="grid justify-items-center gap-1 text-[10px] font-semibold drop-shadow-[0_0_8px_#3EF0E0]">
-              <MessageCircle className="size-5 drop-shadow-[0_0_10px_#3EF0E0]" aria-hidden />
-              Ask
-              <span className="h-0.5 w-6 rounded-full bg-[#3EF0E0] shadow-[0_0_8px_#3EF0E0]" />
-            </span>
-          </button>
-          <Link href="/nutrition" className="grid place-items-center text-white/55">
-            <span className="grid justify-items-center gap-1 text-[10px] font-medium">
-              <UtensilsCrossed className="size-5" aria-hidden />
-              Meals
-            </span>
-          </Link>
-          <Link href="/progress" className="grid place-items-center text-white/55">
-            <span className="grid justify-items-center gap-1 text-[10px] font-medium">
-              <BarChart3 className="size-5" aria-hidden />
-              Progress
-            </span>
-          </Link>
-        </div>
-      </nav>
-
-      {trainer && (
-        <div className={cn("fixed inset-0 z-50 bg-black/40", closing && "opacity-0")} onClick={closeTrainer}>
-          <div
-            role="dialog"
-            aria-label="Ostin Trainer"
-            className="glass absolute inset-x-0 bottom-0 mx-auto max-h-[78dvh] w-full max-w-[480px] overflow-y-auto rounded-t-[1.75rem] px-5 pb-8 pt-3"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button type="button" aria-label="Close" className="mx-auto mb-4 block h-6 w-full" onClick={closeTrainer}>
-              <span className="mx-auto block h-1 w-10 rounded-full bg-white/25" />
-            </button>
-            <TrainerSheet />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

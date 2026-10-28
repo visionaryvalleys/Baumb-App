@@ -14,7 +14,7 @@ import { NotificationBell } from "./notifications";
 import { JournalLock } from "./journal-lock";
 import { EmptyState, PageSkeleton } from "./ui";
 import { registerAppMenu } from "@/lib/menu-bus";
-import { AppDock } from "./app-dock";
+import { AppTabBar } from "./app-tab-bar";
 import { MusicPlayer } from "./music-player";
 
 const MENU = [
@@ -86,25 +86,26 @@ export function AppShell({ children }: { children: ReactNode }) {
   const home = pathname === "/dashboard";
   const showHome = home && ready && onboarded && !session.locked && session.auth !== "error";
   const showBack = !home && pathname !== "/onboarding";
+  const showBar = ready && onboarded && !session.locked && session.auth !== "error";
 
   return (
     <div className={home ? "relative h-dvh overflow-hidden" : "relative min-h-dvh"}>
       <Backdrop />
 
-      <header className={showHome ? "hidden" : "sticky top-0 z-40 border-b border-white/10 bg-[var(--color-ground)]"}>
-        <div className="mx-auto flex h-14 w-full max-w-[480px] items-center justify-between px-3">
+      <header className={showHome ? "hidden" : "sticky top-0 z-40 bg-[#0C0A09]/95 backdrop-blur-md"}>
+        <div className="mx-auto flex h-14 w-full max-w-[480px] items-center justify-between px-4">
           <div className="flex min-w-0 items-center">
             {showBack && (
-              <Link href="/dashboard" aria-label="Back to home" className="-ml-1 grid size-11 shrink-0 place-items-center text-[#F8F9FA]">
+              <Link href="/dashboard" aria-label="Back to home" className="-ml-1 grid size-10 shrink-0 place-items-center text-white/80">
                 <ArrowLeft className="size-5" aria-hidden />
               </Link>
             )}
-            <BaumbLogo />
+            <BaumbLogo href="/dashboard" />
           </div>
-          <div className="flex items-center">
-            {ready && onboarded && <NotificationBell />}
-            <ProfileButton />
-            <MenuButton expanded={menuOpen} onClick={() => setMenuOpen(true)} />
+          <div className="flex items-center gap-2">
+            {ready && onboarded && <NotificationBell tone="hero" />}
+            <ProfileButton tone="hero" />
+            <MenuButton tone="hero" expanded={menuOpen} onClick={() => setMenuOpen(true)} />
           </div>
         </div>
       </header>
@@ -113,8 +114,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         {session.auth === "error" ? <SessionProblem message={session.message} /> : !ready ? <PageSkeleton /> : session.locked ? <JournalLock /> : gated ? <OnboardingGate /> : children}
       </main>
 
-      {ready && onboarded && !session.locked && pathname !== "/music" && !showHome && <AppDock />}
-      {pathname === "/music" && ready && onboarded && !session.locked && session.auth !== "error" && <MusicPlayer />}
+      {showBar && <AppTabBar />}
+      {pathname === "/music" && showBar && <MusicPlayer />}
 
       <MenuOverlay
         fixed

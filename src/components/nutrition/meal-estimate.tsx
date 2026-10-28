@@ -2,12 +2,11 @@
 
 import { type FormEvent, useState } from "react";
 import { Camera, Plus } from "lucide-react";
-import { mealSlotForTime } from "@/calculations/nutrition";
+import { parseKnownMacros } from "@/calculations/meal-text";
 import { localMinutes, zonedInstant } from "@/lib/date";
 import { useToday } from "@/lib/hooks";
 import { actions, newId, useAppState } from "@/lib/store";
-import type { NutritionProfile } from "@/lib/types";
-import { Card, CardTitle } from "../ui";
+import type { LocalDate, NutritionProfile } from "@/lib/types";
 
 interface DraftItem extends NutritionProfile {
   name: string;
@@ -15,6 +14,8 @@ interface DraftItem extends NutritionProfile {
 }
 
 const MAX_SIDE = 768;
+const EXAMPLE_MACROS = "650 kcal, 28 g protein, 80 g carbs, 15 g fat";
+const EXAMPLE_MEAL = "2 roti, dal, and a small bowl of rice";
 
 async function compress(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file);
@@ -29,122 +30,113 @@ async function compress(file: File): Promise<string> {
   return canvas.toDataURL("image/jpeg", 0.72);
 }
 
-export function MealEstimate() {
+function line(item: { name: string; calories: number; proteinG: number; carbsG: number; fatG: number }) {
+  return `${item.name}: ${Math.round(item.calories)} kcal · ${Math.round(item.proteinG)} g protein · ${Math.round(item.carbsG)} g carbs · ${Math.round(item.fatG)} g fat`;
+}
+
+/** One field for a meal description or for macros the person already knows. Saving updates the day's totals. */
+export function MealEstimate({ date }: { date: LocalDate }) {
   const today = useToday();
-  const { mealSlots, profile } = useAppState();
+  const { profile } = useAppState();
   const [text, setText] = useState("");
   const [image, setImage] = useState<string | null>(null);
-  const [items, setItems] = useState<DraftItem[] | null>(null);
-  const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [counted, setCounted] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function estimate(e: FormEvent) {
-    e.preventDefault();
+  function save(items: DraftItem[], note: string) {
+    const minutes = date === today ? localMinutes(Date.now(), profile.timezone) : 12 * 60;
+    const stamp = zonedInstant(date, minutes, profile.timezone);
+    actions.addMealItems(
+      items.map((item, index) => ({
+        id: newId(),
+        foodId: item.grams > 0 ? "ai-meal" : "typed-macros",
+        foodName: item.name,
+        servingId: null,
+        servingLabel: item.grams > 0 ? "g" : "logged",
+        quantity: item.grams > 0 ? item.grams : 1,
+        grams: item.grams > 0 ? item.grams : 1,
+        meal: "other",
+        timestamp: stamp + index,
+        timezone: profile.timezone,
+        date,
+        nutrition: { calories: item.calories, proteinG: item.proteinG, carbsG: item.carbsG, fatG: item.fatG, fiberG: item.fiberG },
+      })),
+    );
+    const summary = items.map((item) => line(item)).join(" · ");
+    setCounted(note ? `${summary}. ${note}` : summary);
+    setText("");
+    setImage(null);
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    const typed = text.trim();
+    if (!typed && !image) return;
     setBusy(true);
     setError(null);
-    setItems(null);
+    setCounted(null);
     try {
+      const known = !image ? parseKnownMacros(typed) : null;
+      if (known) {
+        save([{ ...known.nutrition, name: known.name, grams: 0 }], "");
+        return;
+      }
       const res = await fetch("/api/nutrition/estimate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text, image }),
+        body: JSON.stringify({ text: typed, image }),
       });
       const body = (await res.json()) as { items?: DraftItem[]; note?: string; error?: string };
-      if (!res.ok || !body.items) {
-        setError(body.error ?? "The estimate didn't come back.");
+      if (!res.ok || !body.items?.length) {
+        setError(body.error ?? "The estimate didn't come back. If you know the macros, type them, for example: " + EXAMPLE_MACROS + ".");
         return;
       }
-      setItems(body.items);
-      setNote(body.note ?? "");
+      save(body.items, body.note ?? "");
     } catch {
-      setError("Can't reach Ostin. Check your connection.");
+      setError("Can't reach Ostin. Check your connection, or type the macros, for example: " + EXAMPLE_MACROS + ".");
     } finally {
       setBusy(false);
     }
   }
 
-  function add() {
-    if (!items?.length) return;
-    const minutes = localMinutes(Date.now(), profile.timezone);
-    const slot = mealSlotForTime(mealSlots, minutes)?.id ?? "snack";
-    actions.addMealItems(
-      items.map((item, i) => ({
-        id: newId(),
-        foodId: "ai-meal",
-        foodName: item.name,
-        servingId: null,
-        servingLabel: "g",
-        quantity: item.grams,
-        grams: item.grams,
-        meal: slot,
-        timestamp: zonedInstant(today, minutes, profile.timezone) + i,
-        timezone: profile.timezone,
-        date: today,
-        nutrition: { calories: item.calories, proteinG: item.proteinG, carbsG: item.carbsG, fatG: item.fatG, fiberG: item.fiberG },
-      })),
-    );
-    setItems(null);
-    setNote("");
-    setText("");
-    setImage(null);
-  }
-
   return (
-    <Card>
-      <CardTitle>Describe the meal</CardTitle>
-      <p className="mb-3 text-sm leading-relaxed text-white/60">
-        Type what you ate, or photograph the plate. The estimate is not saved until you tap Add. A photo is used for the estimate and is not kept.
-      </p>
-      <form onSubmit={estimate} className="grid gap-3">
-        <label className="sr-only" htmlFor="meal-description">What you ate</label>
-        <textarea
-          id="meal-description"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={3}
-          maxLength={1000}
-          placeholder="2 roti, dal, and a small bowl of rice"
-          className="field min-h-24 resize-none text-base"
-        />
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="btn-ghost h-11 cursor-pointer px-3 text-sm">
-            <Camera className="size-4" aria-hidden /> {image ? "Photo ready" : "Photograph the plate"}
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="sr-only"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (!file) return;
-                void compress(file).then(setImage).catch(() => setError("That photo couldn't be read."));
-              }}
-            />
-          </label>
-          <button type="submit" className="btn-primary h-11 px-4" disabled={busy || (!text.trim() && !image)}>
-            {busy ? "Estimating…" : "Estimate"}
-          </button>
-        </div>
-      </form>
-      {error && <p className="mt-3 text-sm text-red-200" role="alert">{error}</p>}
-      {items && (
-        <div className="mt-4 border-t border-line pt-4">
-          <ul className="grid gap-2">
-            {items.map((item) => (
-              <li key={`${item.name}-${item.grams}`} className="flex items-baseline justify-between gap-3 text-sm">
-                <span className="text-white">{item.name}</span>
-                <span className="shrink-0 tabular-nums text-white/60">{item.grams} g · {item.calories} kcal</span>
-              </li>
-            ))}
-          </ul>
-          {note && <p className="mt-3 text-sm leading-relaxed text-white/55">{note}</p>}
-          <button type="button" className="btn-primary mt-4 h-14 w-full" onClick={add}>
-            <Plus className="size-4" aria-hidden /> Add
-          </button>
-        </div>
-      )}
-    </Card>
+    <form onSubmit={submit} className="grid gap-3">
+      <label htmlFor="meal-line" className="text-[13px] leading-snug text-white/70">
+        Know the macros? Type them, for example: <span className="text-white">{EXAMPLE_MACROS}</span>.
+        <span className="mt-1 block">Don't know them? Describe the meal, for example: <span className="text-white">{EXAMPLE_MEAL}</span>.</span>
+      </label>
+      <textarea
+        id="meal-line"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        rows={2}
+        maxLength={1000}
+        placeholder={EXAMPLE_MEAL}
+        className="field min-h-[4.5rem] resize-none text-base"
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-full border border-[#3EF0E0]/35 px-3 text-sm font-semibold text-white/80">
+          <Camera className="size-4 text-[#3EF0E0]" aria-hidden /> {image ? "Photo ready" : "Photo"}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="sr-only"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (!file) return;
+              void compress(file).then(setImage).catch(() => setError("That photo couldn't be read."));
+            }}
+          />
+        </label>
+        <button type="submit" className="btn-primary ml-auto h-11 rounded-full px-4" disabled={busy || (!text.trim() && !image)}>
+          <Plus className="size-4" aria-hidden /> {busy ? "Counting…" : "Log meal"}
+        </button>
+      </div>
+      {error && <p className="text-sm text-red-200" role="alert">{error}</p>}
+      {counted && <p className="text-sm leading-snug text-[#3EF0E0]">{counted}</p>}
+    </form>
   );
 }
