@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
-import { CloudCheck, CloudOff, Database, LoaderCircle, LogOut, TriangleAlert } from "lucide-react";
+import { CloudCheck, CloudOff, Database, LoaderCircle, LogOut, TriangleAlert, UserRound } from "lucide-react";
 import { PASSWORD_MIN } from "@/lib/auth-validation";
 import { saveNow, savePassword, signOut, useSession, type SyncStatus } from "@/lib/session";
+import { useAppState } from "@/lib/store";
 import { Card, CardTitle } from "../ui";
 
 const STATUS: Record<SyncStatus, { icon: typeof Database; label: string; cls: string }> = {
@@ -18,6 +19,7 @@ const STATUS: Record<SyncStatus, { icon: typeof Database; label: string; cls: st
 export function AccountCard() {
   const router = useRouter();
   const session = useSession();
+  const { profile } = useAppState();
   const [busy, setBusy] = useState(false);
   if (!session.user) return null;
   const s = STATUS[session.sync];
@@ -27,8 +29,8 @@ export function AccountCard() {
       <CardTitle action={<Database className="size-4 text-white/50" aria-hidden />}>Account</CardTitle>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-start gap-4">
-          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand/15 text-lg font-semibold text-brand ring-1 ring-inset ring-brand/30" aria-hidden>
-            {session.user.name.charAt(0).toUpperCase()}
+          <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-full bg-white/10 ring-1 ring-inset ring-white/15" aria-hidden>
+            {profile.avatar ? <img src={profile.avatar} alt="" className="size-full object-cover" /> : <UserRound className="size-5 text-white/80" />}
           </span>
           <div>
           <div className="text-lg font-semibold tracking-tight text-white">{session.user.name}</div>

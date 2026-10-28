@@ -1,6 +1,5 @@
 "use client";
 
-import { SessionBoard } from "@/components/board/rewards";
 import { WorkoutForm } from "@/components/workout-form";
 import { useToday } from "@/lib/hooks";
 import { useAppState } from "@/lib/store";
@@ -37,7 +36,6 @@ export function WorkoutDesk() {
           </p>
         </Card>
       )}
-      <SessionBoard />
       <WorkoutForm />
     </div>
   );

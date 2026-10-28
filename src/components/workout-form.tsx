@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { plannedWorkoutOn } from "@/calculations/calendar";
 import { buildSplitSession } from "@/calculations/workout";
-import { programmeDay, splitChoice, splitsForWeek, type SplitId, SPLIT_CHOICES } from "@/calculations/day-split";
+import { currentAge } from "@/calculations/energy";
+import { groupsInSplit, initialSplits, joinGroups, MUSCLE_PICKS, programmeDay, splitLabel, splitsForWeek, type MusclePick } from "@/calculations/day-split";
 import { startOfWeek, todayKey } from "@/lib/date";
 import type { WorkoutExercise } from "@/lib/types";
 import { actions, newId, useAppState } from "@/lib/store";
 import { weightUnit } from "@/lib/units";
+import { SessionBoard } from "./board/rewards";
 import { Card, cn } from "./ui";
 import { SplitWorkout } from "./workout/split-workout";
 
@@ -108,7 +110,7 @@ function DurationBar({ value, onChange }: { value: number; onChange: (minutes: n
 
 export function WorkoutForm() {
   const router = useRouter();
-  const { goal, plans, profile, workouts, activePlanId } = useAppState();
+  const { goal, plans, profile, workouts, weights, recovery, activePlanId } = useAppState();
   const today = todayKey(profile.timezone);
   const unit = weightUnit(profile.unitSystem);
   const days = goal?.daysPerWeek ?? plans.find((plan) => plan.id === activePlanId)?.goal.daysPerWeek ?? 4;
@@ -116,7 +118,10 @@ export function WorkoutForm() {
   const splits = splitsForWeek(days, saved);
   const worked = new Set(workouts.filter((workout) => workout.date >= startOfWeek(today) && workout.date < today).map((workout) => workout.date)).size;
   const day = programmeDay(worked, days);
-  const todaySplit = splitChoice(splits[day - 1] ?? splits[0]);
+  const todaySplitId = splits[day - 1] ?? splits[0];
+  const todaySplitLabel = splitLabel(todaySplitId);
+  const place = goal?.trainingPlace ?? null;
+  const latestKg = [...weights].sort((a, b) => b.date.localeCompare(a.date))[0]?.weightKg ?? null;
   const [duration, setDuration] = useState(45);
   const [editing, setEditing] = useState<number | null>(null);
   const [live, setLive] = useState<ReturnType<typeof buildSplitSession> | null>(null);
@@ -124,11 +129,23 @@ export function WorkoutForm() {
   const sessionId = useRef(newId());
   const sessionAt = useRef(Date.now());
 
-  function choose(index: number, id: SplitId) {
+  function choose(index: number, id: string) {
     const next = splits.slice();
     next[index] = id;
     actions.setDaySplits(next);
-    setEditing(null);
+  }
+
+  function choosePlace(next: "gym" | "home") {
+    if (!goal) return;
+    if (goal.trainingPlace === next) return;
+    actions.setTrainingPlace(next, initialSplits(days, next));
+  }
+
+  function toggleGroup(index: number, group: MusclePick) {
+    const current = groupsInSplit(splits[index]);
+    const next = current.includes(group) ? current.filter((item) => item !== group) : [...current, group];
+    if (next.length === 0) return;
+    choose(index, joinGroups(next));
   }
 
   function record(exercises: WorkoutExercise[], status: "completed" | "partial") {
@@ -136,7 +153,7 @@ export function WorkoutForm() {
     const planned = plannedWorkoutOn(plan, today);
     actions.saveWorkout({
       id: sessionId.current,
-      name: todaySplit.label,
+      name: todaySplitLabel,
       type: "strength",
       date: today,
       durationMin: duration,
@@ -156,13 +173,17 @@ export function WorkoutForm() {
       setError("Finish signup so Ostin knows the days in your programme.");
       return;
     }
-    const bodyWeight = plans.find((plan) => plan.id === activePlanId)?.bodyWeightKg ?? 75;
+    const bodyWeight = plans.find((plan) => plan.id === activePlanId)?.bodyWeightKg ?? latestKg ?? 75;
+    const access = place === "home" ? "bodyweight" : place === "gym" ? "full_gym" : profile.equipment;
     setLive(
-      buildSplitSession(todaySplit.id, goal, profile.equipment, duration, {
+      buildSplitSession(todaySplitId, goal, access, duration, {
         sex: profile.sex,
         weightKg: bodyWeight,
         injuries: profile.injuries,
         conditions: profile.conditions,
+        workouts,
+        recovery,
+        today,
       }),
     );
   }
@@ -170,7 +191,7 @@ export function WorkoutForm() {
   if (live) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-[#DFE5E8]">Day {day} · {todaySplit.label} · {duration} minutes</p>
+        <p className="text-sm text-[#DFE5E8]">Day {day} · {todaySplitLabel} · {duration} minutes</p>
         <SplitWorkout
           prescriptions={live}
           workouts={workouts}
@@ -178,6 +199,9 @@ export function WorkoutForm() {
           injuries={profile.injuries}
           conditions={profile.conditions}
           durationMin={duration}
+          age={currentAge(profile, today)}
+          heightCm={profile.heightCm}
+          weightKg={latestKg ?? plans.find((plan) => plan.id === activePlanId)?.bodyWeightKg ?? null}
           onSet={(exercises, status) => record(exercises, status)}
           onDone={(exercises, status) => {
             record(exercises, status);
@@ -190,10 +214,31 @@ export function WorkoutForm() {
 
   return (
     <div className="space-y-4">
+      <div className={cn("grid grid-cols-2", place ? "overflow-hidden rounded-card border border-brand" : "gap-3")}>
+        {(["gym", "home"] as const).map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={place === option}
+            onClick={() => choosePlace(option)}
+            className={cn(
+              "min-h-28 text-lg font-semibold tracking-[0.18em]",
+              place
+                ? place === option
+                  ? "bg-brand text-[#F8F9FA]"
+                  : "bg-transparent text-[#F8F9FA]"
+                : "rounded-card border-2 border-dashed border-white/35 text-[#F8F9FA]",
+            )}
+          >
+            {option === "gym" ? "GYM" : "HOME"}
+          </button>
+        ))}
+      </div>
+      <SessionBoard />
       <Card>
         <DurationBar value={duration} onChange={(minutes) => setDuration(sessionMinutes(minutes))} />
       </Card>
-      <p className="text-sm text-[#DFE5E8]">Let’s start Day {day} – {todaySplit.short}.</p>
+      <p className="text-sm text-[#DFE5E8]">Let’s start Day {day} – {todaySplitLabel}.</p>
       {error && <p role="alert" className="text-sm text-[#E0B07A]">{error}</p>}
       <button type="button" className="btn-primary h-12 w-full" onClick={start}>
         Start Day {day}
@@ -202,14 +247,14 @@ export function WorkoutForm() {
         <h2 className="mb-4 text-[13px] font-medium text-white/70">Split</h2>
         <ul className="space-y-2">
           {splits.map((id, index) => {
-            const choice = splitChoice(id);
             const open = editing === index;
+            const selected = groupsInSplit(id);
             return (
               <li key={`${id}-${index}`} className={cn("rounded-card px-3 py-3", index + 1 === day && "bg-white/[0.05]")}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-xs uppercase tracking-[0.14em] text-[#DFE5E8]">Day {index + 1}</div>
-                    <div className="text-sm font-semibold text-[#F8F9FA]">{choice.label}</div>
+                    <div className="text-sm font-semibold text-[#F8F9FA]">{splitLabel(id)}</div>
                   </div>
                   <button
                     type="button"
@@ -222,15 +267,16 @@ export function WorkoutForm() {
                 </div>
                 {open && (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {SPLIT_CHOICES.map((option) => (
+                    {MUSCLE_PICKS.map((option) => (
                       <button
                         key={option.id}
                         type="button"
+                        aria-pressed={selected.includes(option.id)}
                         className={cn(
                           "rounded-full border px-3 py-1.5 text-xs",
-                          option.id === id ? "border-brand bg-brand/20 text-[#F8F9FA]" : "border-white/15 text-[#DFE5E8]",
+                          selected.includes(option.id) ? "border-brand bg-brand/20 text-[#F8F9FA]" : "border-white/15 text-[#DFE5E8]",
                         )}
-                        onClick={() => choose(index, option.id)}
+                        onClick={() => toggleGroup(index, option.id)}
                       >
                         {option.label}
                       </button>

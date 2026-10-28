@@ -13,18 +13,16 @@ import { BaumbLogo, MenuButton, MenuOverlay, ProfileButton } from "./brand";
 import { NotificationBell } from "./notifications";
 import { JournalLock } from "./journal-lock";
 import { EmptyState, PageSkeleton } from "./ui";
-import { VoiceLog } from "./voice-log";
+import { registerAppMenu } from "@/lib/menu-bus";
+import { AppDock } from "./app-dock";
 import { MusicPlayer } from "./music-player";
 
 const MENU = [
   { href: "/dashboard", label: "Home" },
-  { href: "/gallery", label: "Gallery" },
   { href: "/transformation", label: "Transformation" },
   { href: "/music", label: "Music" },
   { href: "/nutrition", label: "Nutrition" },
   { href: "/workouts/new", label: "Workout" },
-  { href: "/game", label: "Game" },
-  { href: "/activity", label: "Activity & Recovery" },
   { href: "/progress", label: "Progress" },
   { href: "/calendar", label: "Calendar" },
   { href: "/calendar?line=1", label: "Weekly Review" },
@@ -78,6 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     void ensureSession();
   }, []);
+  useEffect(() => registerAppMenu(() => setMenuOpen(true)), []);
   useEffect(() => {
     if (session.auth === "unauthenticated") router.replace(`/signin?next=${encodeURIComponent(pathname)}`);
   }, [session.auth, pathname, router]);
@@ -85,13 +84,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const ready = hydrated && session.ready;
   const gated = ready && !onboarded && !UNGATED.some((p) => pathname.startsWith(p));
   const home = pathname === "/dashboard";
+  const showHome = home && ready && onboarded && !session.locked && session.auth !== "error";
   const showBack = !home && pathname !== "/onboarding";
 
   return (
     <div className={home ? "relative h-dvh overflow-hidden" : "relative min-h-dvh"}>
       <Backdrop />
 
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[var(--color-ground)]">
+      <header className={showHome ? "hidden" : "sticky top-0 z-40 border-b border-white/10 bg-[var(--color-ground)]"}>
         <div className="mx-auto flex h-14 w-full max-w-[480px] items-center justify-between px-3">
           <div className="flex min-w-0 items-center">
             {showBack && (
@@ -109,11 +109,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main key={pathname} className={home ? "relative h-0" : "relative z-10 mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-[480px] px-4 pb-28 pt-6 animate-fade-slide-up"}>
+      <main key={pathname} className={showHome ? "relative z-10 h-dvh overflow-y-auto" : home ? "relative h-0" : "relative z-10 mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-[480px] px-4 pb-28 pt-6 animate-fade-slide-up"}>
         {session.auth === "error" ? <SessionProblem message={session.message} /> : !ready ? <PageSkeleton /> : session.locked ? <JournalLock /> : gated ? <OnboardingGate /> : children}
       </main>
 
-      {ready && onboarded && !session.locked && pathname !== "/music" && <VoiceLog />}
+      {ready && onboarded && !session.locked && pathname !== "/music" && !showHome && <AppDock />}
       {pathname === "/music" && ready && onboarded && !session.locked && session.auth !== "error" && <MusicPlayer />}
 
       <MenuOverlay

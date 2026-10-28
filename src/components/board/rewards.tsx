@@ -50,14 +50,15 @@ export function SessionBoard() {
 
   const rows = (board?.standings ?? [])
     .map((row) => ({ ...row, shown: row.weekStart === week ? row.weekCount : 0 }))
-    .sort((a, b) => b.shown - a.shown || b.workoutCount - a.workoutCount || a.name.localeCompare(b.name))
+    .filter((row) => row.shown > 0)
+    .sort((a, b) => b.shown - a.shown || a.name.localeCompare(b.name))
     .slice(0, 10);
   const visible = showAll ? rows : rows.slice(0, 5);
 
   return (
     <Card>
       <CardTitle action={<Trophy className="size-4 text-brand" aria-hidden />}>Leaderboard</CardTitle>
-      <p className="text-sm text-white/55">The ten names with the most workouts this week. A week runs Monday through Sunday.</p>
+      <p className="text-sm text-white/55">Names appear after a workout this week, ordered by how many. A week runs Monday through Sunday.</p>
       {!ready ? null : rows.length > 0 ? (
         <>
           <ol className="mt-4 grid gap-2">
@@ -81,7 +82,7 @@ export function SessionBoard() {
           )}
         </>
       ) : (
-        <p className="mt-4 text-sm text-white/55">Complete two training days and your name appears here.</p>
+        <p className="mt-4 text-sm text-white/55">Log a workout this week and your name appears here.</p>
       )}
     </Card>
   );

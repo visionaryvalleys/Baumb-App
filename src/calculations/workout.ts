@@ -1,5 +1,7 @@
 import { goalConfig, type RepScheme } from "@/data/goals";
+import { groupsInSplit } from "@/calculations/day-split";
 import { adjustPattern, healthConstraints } from "@/calculations/health";
+import { addDays, startOfWeek } from "@/lib/date";
 import { getExercise } from "@/lib/exercises";
 import type { ReadinessResult } from "./recovery";
 import { STRENGTH_LEVELS, bodyweightPullUps, startingLoad, strengthProfile, trainingExperience } from "./strength";
@@ -15,6 +17,8 @@ import type {
   SafetyFlag,
   Sex,
   SplitPreference,
+  RecoveryEntry,
+  Workout,
   WorkoutDay,
   WorkoutPlan,
   WorkoutSet,
@@ -108,10 +112,13 @@ export function pickExercise(
   experience: Experience,
   used: Set<string>,
   variant = 0,
+  recent: string[] = [],
 ): Exercise | undefined {
+  const rank = new Map(recent.map((id, index) => [id, index]));
   const candidates = PREFERENCE[pattern]
     .map((id) => getExercise(id))
-    .filter((e): e is Exercise => !!e && e.access.includes(access) && e.level <= MAX_LEVEL[experience] && !used.has(e.id));
+    .filter((e): e is Exercise => !!e && e.access.includes(access) && e.level <= MAX_LEVEL[experience] && !used.has(e.id))
+    .sort((a, b) => (rank.get(a.id) ?? 100) - (rank.get(b.id) ?? 100));
   return candidates.length ? candidates[variant % candidates.length] : undefined;
 }
 
@@ -196,25 +203,78 @@ export function fitToDuration(input: ExercisePrescription[], minutes: number, ex
   return { exercises: list, fits: !over() };
 }
 
+const GROUP_SLOTS: Record<string, MovementPattern[]> = {
+  chest: ["horizontal_push", "chest_iso"],
+  back: ["vertical_pull", "horizontal_pull"],
+  shoulders: ["vertical_push", "shoulder_iso"],
+  biceps: ["biceps"],
+  triceps: ["triceps"],
+  forearms: ["biceps"],
+  legs: ["squat", "hinge"],
+  abs: ["core"],
+};
+
+function workingSets(workout: Workout) {
+  return workout.exercises.flatMap((exercise) => exercise.sets.filter((set) => !set.warmup && set.reps > 0));
+}
+
+/** +1 set in a week that absorbed more work, −1 when sleep, stress, or the last session says ease off. */
+export function setBias(workouts: Workout[], recovery: RecoveryEntry[], today: string): -1 | 0 | 1 {
+  const from = addDays(today, -6);
+  const sore = recovery.some((entry) => entry.date >= from && entry.date <= today && ((entry.stress != null && entry.stress >= 4) || (entry.sleepHours != null && entry.sleepHours < 6)));
+  const last = [...workouts].filter((workout) => workout.date <= today).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt)[0];
+  const lastSets = last ? workingSets(last) : [];
+  const lastRpe = lastSets.map((set) => set.rpe).filter((value): value is number => value != null);
+  const hard = lastRpe.length > 0 && lastRpe.reduce((sum, value) => sum + value, 0) / lastRpe.length >= 9.5;
+  if (sore || hard) return -1;
+
+  const week = startOfWeek(today);
+  const count = (start: string, end: string) =>
+    workouts.filter((workout) => workout.date >= start && workout.date <= end).reduce((sum, workout) => sum + workingSets(workout).length, 0);
+  const current = count(week, today);
+  const previous = count(addDays(week, -7), addDays(week, -1));
+  const weekSets = workouts.filter((workout) => workout.date >= week && workout.date <= today).flatMap(workingSets);
+  const weekRpe = weekSets.map((set) => set.rpe).filter((value): value is number => value != null);
+  const average = weekRpe.length ? weekRpe.reduce((sum, value) => sum + value, 0) / weekRpe.length : null;
+  if (current >= 8 && current > previous && (average == null || average <= 8.5)) return 1;
+  return 0;
+}
+
 /** One session for a chosen day split, trimmed to the minutes available and the injuries and conditions on the profile. */
-export function buildSplitSession(splitId: string, goal: Pick<Goal, "type" | "experience" | "strengthTests">, access: EquipmentAccess, minutes: number, body?: PlanBody): ExercisePrescription[] {
-  const template = TEMPLATES[splitId as keyof typeof TEMPLATES] ?? TEMPLATES.backBi;
+export function buildSplitSession(splitId: string, goal: Pick<Goal, "type" | "experience" | "strengthTests">, access: EquipmentAccess, minutes: number, body?: PlanBody & { workouts?: Workout[]; recovery?: RecoveryEntry[]; today?: string }): ExercisePrescription[] {
+  const groups = groupsInSplit(splitId);
+  const slots = groups.flatMap((group) => (GROUP_SLOTS[group] ?? []).map((pattern) => ({ group, pattern })));
+  const templateSlots = slots.length > 0 ? slots : (TEMPLATES[splitId as keyof typeof TEMPLATES] ?? TEMPLATES.backBi).slots.map((pattern) => ({ group: "", pattern }));
   const cfg = goalConfig(goal.type);
   const strength = body ? strengthProfile(goal.strengthTests, body.sex, body.weightKg) : null;
   const experience = trainingExperience(goal.experience, strength?.overall ?? null);
   const health = healthConstraints(body?.injuries, body?.conditions);
   const used = new Set<string>(health.avoidIds);
+  const recent = (body?.workouts ?? []).flatMap((workout) => workout.exercises.map((exercise) => exercise.exerciseId));
+  const bias = body?.today ? setBias(body.workouts ?? [], body.recovery ?? [], body.today) : 0;
   const picked: ExercisePrescription[] = [];
-  for (const pattern of template.slots) {
+  for (const slot of templateSlots) {
     if (picked.length >= MAX_EXERCISES[experience]) break;
-    const safe = adjustPattern(pattern, body?.injuries);
-    const ex = pickExercise(safe, access, experience, used, 0) ?? pickExercise("core", access, experience, used, 0);
+    const safe = adjustPattern(slot.pattern, body?.injuries);
+    const forearm = slot.group === "forearms" ? getExercise("hammer-curl") : undefined;
+    const home = access === "bodyweight";
+    const allowed = (exercise: Exercise | undefined) =>
+      !!exercise && !used.has(exercise.id) && (exercise.access.includes(access) || (home && exercise.access.includes("dumbbells")));
+    const ex =
+      (allowed(forearm) ? forearm : undefined) ??
+      pickExercise(safe, access, experience, used, 0, recent) ??
+      (home ? pickExercise(safe, "dumbbells", experience, used, 0, recent) : undefined) ??
+      pickExercise("core", access, experience, used, 0, recent);
     if (!ex) continue;
     used.add(ex.id);
-    picked.push(prescribe(ex, cfg.repScheme, experience));
+    const prescribed = prescribe(ex, cfg.repScheme, experience);
+    if (bias !== 0 && prescribed.restSec > 0) prescribed.sets = Math.min(5, Math.max(2, prescribed.sets + bias));
+    picked.push(prescribed);
   }
   const capped = Math.min(MAX_SESSION_MINUTES, Math.max(MIN_SESSION_MINUTES, Math.round(minutes)));
-  return fitToDuration(picked, capped, experience).exercises;
+  const fitted = fitToDuration(picked, capped, experience).exercises;
+  const floor = Math.min(picked.length, Math.max(1, groups.length));
+  return fitted.length >= floor ? fitted : picked.slice(0, floor);
 }
 
 type Chosen = { split: string; templates: DayTemplate[]; note?: string };

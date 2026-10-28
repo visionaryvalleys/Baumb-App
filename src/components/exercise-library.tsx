@@ -11,6 +11,7 @@ import { useAppState, useHydrated } from "@/lib/store";
 import type { MuscleGroup } from "@/lib/types";
 import { formatWeight } from "@/lib/units";
 import { BodyFigure } from "./body-figure";
+import { ExercisePosture } from "./exercise-posture";
 import { Badge, cn } from "./ui";
 
 export function ExerciseLibrary() {
@@ -158,10 +159,11 @@ export function ExerciseLibrary() {
                 aria-pressed={selectedExercise === e.id}
                 onClick={() => setSelectedExercise((current) => (current === e.id ? null : e.id))}
                 className={cn(
-                  "glass flex w-full flex-col rounded-card p-5 text-left transition duration-200",
+                  "glass flex w-full flex-col overflow-hidden rounded-card p-5 text-left transition duration-200",
                   selectedExercise === e.id && "border-brand/60",
                 )}
               >
+                <ExercisePosture id={e.id} />
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="font-semibold text-white">{e.name}</h3>
                   {count > 0 && <span className="shrink-0 text-xs text-white/50">{count}× logged</span>}

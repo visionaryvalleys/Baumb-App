@@ -78,7 +78,7 @@
   height: 100%;
   overflow: hidden;
   border-radius: 3px;
-  background: #1E2A27;
+  background: #120e0c;
 }
 .baumb-archive .card img,
 .baumb-archive .grid img,
@@ -139,7 +139,7 @@
   pointer-events: none;
   opacity: 0;
   padding: 12px var(--pad) calc(var(--pad) * 5);
-  background: #1E2A27;
+  background: #120e0c;
 }
 .baumb-archive.is-grid .grid { opacity: 1; pointer-events: auto; }
 .baumb-archive .rows {
@@ -232,7 +232,7 @@
   z-index: 40;
   overflow-y: auto;
   padding: calc(64px + env(safe-area-inset-top, 0px)) var(--pad) calc(var(--pad) + env(safe-area-inset-bottom, 0px));
-  background: #1E2A27;
+  background: #120e0c;
   pointer-events: auto;
 }
 .baumb-archive .plate {
@@ -244,7 +244,7 @@
   aspect-ratio: 3 / 2;
   overflow: hidden;
   border-radius: 2px;
-  background: #1E2A27;
+  background: #120e0c;
 }
 .baumb-archive .close {
   position: fixed;

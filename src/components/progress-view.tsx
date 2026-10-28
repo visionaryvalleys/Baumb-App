@@ -12,6 +12,7 @@ import { actions, newId, useAppState } from "@/lib/store";
 import { formatVolume, formatWeight, fromDisplayWeight, toDisplayWeight } from "@/lib/units";
 import { BarChart, TrendChart } from "./charts";
 import { MeasurementForm, MeasurementTable } from "./progress/measurements";
+import { OpeningEstimate } from "./progress/opening-estimate";
 import { ProgressPhotos } from "./progress/photos";
 import { BigNumber, Card, CardTitle, KindTag, Meter, SectionLabel } from "./ui";
 
@@ -79,6 +80,7 @@ export function ProgressView() {
 
   return (
     <div className="space-y-4">
+      <OpeningEstimate />
       <div className="grid gap-4 sm:grid-cols-3">
         {trends.map((t) => (
           <Card key={t.windowDays}>

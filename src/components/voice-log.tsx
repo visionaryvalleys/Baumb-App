@@ -332,13 +332,13 @@ export function VoiceLog() {
           onClick={talk}
           className={cn(
             "relative grid h-11 w-12 place-items-center rounded-2xl shadow-[inset_0_1px_0_0_rgb(255_255_255/0.35)] backdrop-blur-xl",
-            listening || reading ? "bg-[#F8F9FA] text-[#56746D]" : "bg-brand text-[#F8F9FA]",
+            listening || reading ? "bg-[#F8F9FA] text-[#1A120E]" : "bg-brand text-[#F8F9FA]",
           )}
           aria-label={listening ? "Listening" : "Microphone"}
           aria-pressed={listening}
         >
           <Mic className="size-5" aria-hidden />
-          {listening && <span className="absolute inset-x-2 bottom-1.5 h-0.5 overflow-hidden rounded-full bg-[#56746D]/25"><span className="block h-full bg-[#56746D]" style={{ width: `${Math.round(level * 100)}%` }} /></span>}
+          {listening && <span className="absolute inset-x-2 bottom-1.5 h-0.5 overflow-hidden rounded-full bg-brand/25"><span className="block h-full bg-brand" style={{ width: `${Math.round(level * 100)}%` }} /></span>}
         </button>
       </div>
     </>

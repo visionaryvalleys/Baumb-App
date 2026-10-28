@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, RefreshCw } from "lucide-react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { Check, RefreshCw, UserRound } from "lucide-react";
 import { sortedWeights } from "@/calculations/trend";
 import { buildPlanVersion } from "@/services/plan";
 import { actions, getState, newId, useAppState } from "@/lib/store";
@@ -31,6 +31,66 @@ import {
 import { Card, CardTitle, FlagList } from "./ui";
 
 type Notice = { message: string; flags: PlanVersion["flags"] };
+
+async function squareJpeg(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const side = Math.min(bitmap.width, bitmap.height);
+  const sx = Math.round((bitmap.width - side) / 2);
+  const sy = Math.round((bitmap.height - side) / 2);
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("canvas");
+  ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, 256, 256);
+  bitmap.close();
+  return canvas.toDataURL("image/jpeg", 0.72);
+}
+
+function ProfilePicture() {
+  const { profile } = useAppState();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Choose an image file.");
+      return;
+    }
+    try {
+      actions.updateProfile({ avatar: await squareJpeg(file) });
+      setError(null);
+    } catch {
+      setError("That image couldn't be read. Try a JPEG or PNG.");
+    }
+  }
+
+  return (
+    <div className="mb-5 flex items-center gap-3">
+      <span className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-full bg-white/10 ring-1 ring-inset ring-white/15">
+        {profile.avatar ? <img src={profile.avatar} alt="" className="size-full object-cover" /> : <UserRound className="size-6 text-white/80" aria-hidden />}
+      </span>
+      <div className="min-w-0">
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-ghost h-10 px-3 text-sm" onClick={() => fileRef.current?.click()}>
+            {profile.avatar ? "Change photo" : "Add photo"}
+          </button>
+          {profile.avatar && (
+            <button type="button" className="btn-ghost h-10 px-3 text-sm" onClick={() => actions.updateProfile({ avatar: null })}>
+              Remove
+            </button>
+          )}
+        </div>
+        <p className="mt-1.5 text-xs leading-relaxed text-white/45">This is the picture on the home screen. Until you add one, a person icon is shown.</p>
+        {error && <p role="alert" className="mt-1 text-xs text-red-300">{error}</p>}
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(event) => void onFile(event)} />
+    </div>
+  );
+}
 
 function Editor({ notice, onSaved, onDismiss }: { notice: Notice | null; onSaved: (n: Notice) => void; onDismiss: () => void }) {
   const state = useAppState();
@@ -93,6 +153,7 @@ function Editor({ notice, onSaved, onDismiss }: { notice: Notice | null; onSaved
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardTitle>About you</CardTitle>
+          <ProfilePicture />
           <AboutFields d={d} set={setProfile} errors={errors} />
         </Card>
         <Card>
@@ -115,7 +176,7 @@ function Editor({ notice, onSaved, onDismiss }: { notice: Notice | null; onSaved
         <CardTitle>Training setup</CardTitle>
         <TrainingFields g={g} set={setGoal} d={d} setProfile={setProfile} />
       </Card>
-      <div className="glass sticky bottom-24 z-30 grid gap-3 rounded-card p-4 shadow-lift">
+      <div className="glass grid gap-3 rounded-card p-4">
         <p className="flex items-start justify-between gap-3 text-sm text-white/70" role="status">
           <span>{notice?.message ?? "Goal, schedule or body changes take effect when you regenerate your plan."}</span>
           {notice && (

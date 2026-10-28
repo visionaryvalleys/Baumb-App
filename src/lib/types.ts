@@ -51,6 +51,8 @@ export interface Profile {
   mealsPerDay: number | null;
   injuries: InjuryArea[];
   conditions: HealthCondition[];
+  /** Square JPEG chosen as the profile picture. Absent until one is uploaded. */
+  avatar?: string | null;
 }
 
 /* ───────────── Module 02 — Goal ───────────── */
@@ -89,6 +91,8 @@ export interface Goal {
   split?: SplitPreference;
   /** Split chosen for each training day, in day order. Absent until the person edits one. */
   daySplits?: string[];
+  /** Where this week’s sessions are trained. Gym and home load different movements. */
+  trainingPlace?: "gym" | "home";
   strengthTests?: StrengthTest[];
 }
 

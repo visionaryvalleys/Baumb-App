@@ -36,9 +36,9 @@ const MAX_PROJECTIONS = 60;
 const MAX_AUDIT = 300;
 const MAX_ENERGY_RECORDS = 400;
 
-export const DEFAULT_ACCENT = "#56746D";
-/** Earlier default accents, including brass and orange. Those accounts follow Pine. */
-const LEGACY_DEFAULT_ACCENTS = new Set(["#edb40b", "#4d8dff", "#d4b483", "#ff6a1a", "#9dbe8a", "#c4b0dc"]);
+export const DEFAULT_ACCENT = "#FF6A1A";
+/** Earlier default accents. Those accounts follow the current Ember field. */
+const LEGACY_DEFAULT_ACCENTS = new Set(["#edb40b", "#4d8dff", "#d4b483", "#9dbe8a", "#c4b0dc", "#56746d"]);
 const GLACIAL_THEMES = new Set(["pine", "ridge", "mist", "snow"]);
 
 export function resolveAccent(accent: string | undefined): string {
@@ -46,7 +46,7 @@ export function resolveAccent(accent: string | undefined): string {
   return !value || LEGACY_DEFAULT_ACCENTS.has(value) ? DEFAULT_ACCENT : value;
 }
 
-/** Previous palettes (ink, ember, grove, dusk) move onto Pine. */
+/** Previous palettes, including the pine default, move onto the Ember field. */
 function normalizeSettings(saved: Settings | undefined): Settings {
   const accent = (saved?.accent ?? "").toLowerCase();
   const theme = saved?.theme ?? "";
@@ -311,6 +311,9 @@ export const actions = {
   },
   setDaySplits(daySplits: string[]) {
     setState((s) => (s.goal ? { ...s, goal: { ...s.goal, daySplits } } : s));
+  },
+  setTrainingPlace(trainingPlace: "gym" | "home", daySplits: string[]) {
+    setState((s) => (s.goal ? { ...s, goal: { ...s.goal, trainingPlace, daySplits } } : s));
   },
   /** Goal changes always create a new plan version; history is preserved. */
   setGoalAndPlan(goal: Goal, plan: PlanVersion) {

@@ -1,3 +1,3 @@
 "use client";
 
-export { HomeArchive as Dashboard } from "./home-archive";
+export { HomeDashboard as Dashboard } from "./home-dashboard";

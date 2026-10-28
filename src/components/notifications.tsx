@@ -7,7 +7,7 @@ import { actions, useAppState } from "@/lib/store";
 import { useNotifications } from "@/lib/use-records";
 import { cn } from "./ui";
 
-export function NotificationBell() {
+export function NotificationBell({ tone = "glass" }: { tone?: "glass" | "hero" }) {
   const { settings } = useAppState();
   const items = useNotifications();
   const [open, setOpen] = useState(false);
@@ -45,7 +45,7 @@ export function NotificationBell() {
   const urgent = items.some((n) => n.priority === "high");
 
   return (
-    <div ref={ref} className="relative mr-2">
+    <div ref={ref} className={tone === "hero" ? "relative" : "relative mr-2"}>
       <button
         type="button"
         onClick={() => {
@@ -59,7 +59,9 @@ export function NotificationBell() {
         aria-label={count ? `Notifications, ${count} new` : "Notifications"}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="glass-button relative grid size-11 place-items-center transition hover:bg-white/[0.04]"
+        className={tone === "hero"
+          ? "relative grid size-10 place-items-center rounded-full border border-white/20 bg-black/35 text-white shadow-[0_0_16px_rgba(62,240,224,0.25)]"
+          : "glass-button relative grid size-11 place-items-center transition hover:bg-white/[0.04]"}
       >
         <Bell className="size-[18px] text-white/85" aria-hidden />
         {count > 0 && (

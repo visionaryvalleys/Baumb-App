@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatDate } from "@/lib/date";
@@ -24,15 +23,11 @@ const SECTIONS: Frame[] = [
   { id: "workout", word: "Session", title: "Today's session", place: "Workout", href: "/workouts/new", src: "/archive/archive-workout.jpg", note: "The same session as Let’s workout: the day’s plan, the timer, and the sets." },
   { id: "meals", word: "Meals", title: "Meals", place: "Nutrition", href: "/nutrition", src: "/archive/archive-meals.jpg", note: "What you have eaten today, against the calories on your plan." },
   { id: "music", word: "Music", title: "Music", place: "Music", href: "/music", src: "/archive/archive-music.jpg", note: "Your playlists, saved songs, and recent hits." },
-  { id: "gallery", word: "Gallery", title: "Gallery", place: "Gallery", href: "/gallery", src: "/archive/archive-gallery.jpg", note: "Daily posts, one photo each quarter, and reels of 30–90 seconds. Only people who follow you can see them." },
   { id: "transform", word: "Progress", title: "Transformation", place: "Progress", href: "/transformation", src: "/archive/archive-transform.jpg", note: "Where your weight trend sits against the target on your goal." },
   { id: "calendar", word: "Calendar", title: "Calendar", place: "Calendar", href: "/calendar", src: "/archive/archive-calendar.jpg", note: "Each day keeps the meals, workouts and weight you logged." },
   { id: "review", word: "Review", title: "Weekly review", place: "Review", href: "/calendar?line=1", src: "/archive/archive-review.jpg", note: "The week's check against the plan. Nothing here changes a target on its own." },
-  { id: "activity", word: "Recovery", title: "Activity and recovery", place: "Recovery", href: "/activity", src: "/archive/archive-activity.jpg", note: "Steps, expenditure and how the day was recovered." },
   { id: "exercises", word: "Exercises", title: "Exercise library", place: "Exercises", href: "/exercises", src: "/archive/archive-exercises.jpg", note: "The movements in your library. Choosing one still only highlights the muscles it trains." },
   { id: "vacation", word: "Rest", title: "Vacation", place: "Time away", href: "/vacation", src: "/archive/archive-holiday.jpg", note: "Dates away from training. Missed sessions stay off the record when workouts are paused." },
-  { id: "trainer", word: "Coach", title: "Trainer", place: "Coaching", href: "/trainer", src: "/archive/archive-trainer.jpg", note: "Questions about your plan, food and the last week of training." },
-  { id: "game", word: "Game", title: "Journey", place: "Game", href: "/game", src: "/archive/archive-game.jpg", note: "Levels, today's mission, and a consistency score from the sessions you actually log." },
 ];
 
 function photoSrc(photo: ProgressPhoto) {
@@ -261,10 +256,6 @@ export function HomeArchive() {
         {SECTIONS.length} sections · {frames.length - SECTIONS.length} photos · {name}
       </p>
 
-      <div className="actions">
-        <Link href="/workouts/new">Let&apos;s workout</Link>
-        <Link href="/nutrition">Log meals</Link>
-      </div>
     </div>
   );
 }

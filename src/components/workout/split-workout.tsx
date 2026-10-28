@@ -6,8 +6,10 @@ import { avoidReason, healthConstraints } from "@/calculations/health";
 import { suggestNextLoad } from "@/calculations/workout";
 import { muscleNames } from "@/lib/anatomy";
 import { EXERCISES, MUSCLE_GROUPS, getExercise } from "@/lib/exercises";
+import { highlightsFor } from "@/lib/muscle-map";
 import type { Equipment, ExercisePrescription, HealthCondition, InjuryArea, MuscleGroup, Unit, Workout, WorkoutExercise, WorkoutSet } from "@/lib/types";
 import { fromDisplayWeight, toDisplayWeight } from "@/lib/units";
+import { BodyFigure } from "../body-figure";
 import { cn } from "../ui";
 
 const RESERVE = [0, 1, 2, 3, 4, 5] as const;
@@ -204,6 +206,9 @@ export function SplitWorkout({
   injuries,
   conditions,
   durationMin,
+  age,
+  heightCm,
+  weightKg,
   onSet,
   onDone,
 }: {
@@ -213,6 +218,9 @@ export function SplitWorkout({
   injuries: InjuryArea[];
   conditions: HealthCondition[];
   durationMin: number;
+  age: number | null;
+  heightCm: number | null;
+  weightKg: number | null;
   onSet: (exercises: WorkoutExercise[], status: "completed" | "partial") => void;
   onDone: (exercises: WorkoutExercise[], status: "completed" | "partial") => void;
 }) {
@@ -231,6 +239,9 @@ export function SplitWorkout({
   const [skipped, setSkipped] = useState<boolean[]>(() => prescriptions.map(() => false));
   const [switching, setSwitching] = useState<number | null>(null);
   const [muscle, setMuscle] = useState<MuscleGroup | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [addMuscle, setAddMuscle] = useState<MuscleGroup | null>(null);
+  const [focus, setFocus] = useState(0);
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const [restUntil, setRestUntil] = useState<number | null>(null);
@@ -275,6 +286,29 @@ export function SplitWorkout({
     setSkipped((list) => list.map((value, i) => (i === index ? false : value)));
     setSwitching(null);
     setMuscle(null);
+  }
+
+  function addExercise(exerciseId: string) {
+    const sample = items[0];
+    const prescription: ExercisePrescription = {
+      exerciseId,
+      sets: sample?.sets ?? 3,
+      repsMin: sample?.repsMin ?? 8,
+      repsMax: sample?.repsMax ?? 12,
+      restSec: sample?.restSec ?? 90,
+      rpeTarget: sample?.rpeTarget ?? 8,
+      startKg: null,
+    };
+    const index = items.length;
+    setItems((list) => [...list, prescription]);
+    setCards((list) => [
+      ...list,
+      buildSteps(index, workSetCount(prescription, gentle), suggestedReserve(exerciseId, prescription.rpeTarget, injuries, conditions)),
+    ]);
+    setSkipped((list) => [...list, false]);
+    setFocus(index);
+    setAdding(false);
+    setAddMuscle(null);
   }
 
   function patch(exerciseIndex: number, stepIndex: number, next: Partial<Step>) {
@@ -412,6 +446,14 @@ export function SplitWorkout({
 
   const budget = Math.max(1, durationMin * 60);
   const pct = Math.min(100, Math.round((elapsedSec / budget) * 100));
+  const currentIndex = items.findIndex((_, index) => {
+    const steps = cards[index] ?? [];
+    return !skipped[index] && !(steps.length > 0 && steps.every((step) => step.done));
+  });
+  const shown = items[focus] ? focus : Math.max(0, currentIndex);
+  const currentId = items[shown]?.exerciseId ?? items[0]?.exerciseId;
+  const currentNames = muscleNames(currentId ?? "");
+  const highlights = highlightsFor(getExercise(currentId ?? "")?.muscle ?? "all", currentId ?? null);
 
   return (
     <div className="space-y-4">
@@ -426,6 +468,29 @@ export function SplitWorkout({
           <div className="h-full bg-brand" style={{ width: `${pct}%` }} />
         </div>
       </div>
+      {currentId && (
+        <div className="space-y-4">
+          <BodyFigure highlights={highlights} shift={0} label={currentNames.primary ? `Works ${currentNames.primary}` : "No muscle highlighted"} />
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {[
+              ["Age", age != null ? String(age) : "—"],
+              ["Height (cm)", heightCm != null ? String(heightCm) : "—"],
+              ["Weight (kg)", weightKg != null ? String(weightKg) : "—"],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">{label}</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-[#F8F9FA]">{value}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-sm leading-relaxed text-white/70">
+            You are prepared for training. Let&apos;s strengthen your {currentNames.primary || "session"}.
+          </p>
+          <p className="text-center text-[12px] text-white/45">
+            Exercise {shown + 1} of {items.length}
+          </p>
+        </div>
+      )}
       {items.map((item, index) => {
         const info = getExercise(item.exerciseId);
         const steps = cards[index] ?? [];
@@ -458,6 +523,11 @@ export function SplitWorkout({
                 <div className="min-w-0">
                   <div className={cn("text-sm font-semibold", step.warmup ? "text-[#F3D98A]" : "text-[#F8F9FA]", step.done && "line-through decoration-2")}>{title}</div>
                   <p className="text-xs text-[#DFE5E8]">{adviceLine(advice, step.warmup, unit)}</p>
+                  {!step.warmup && (advice.weight || advice.reps) && (
+                    <p className="text-xs font-semibold tabular-nums text-[#F8F9FA]">
+                      {advice.weight ? `${advice.weight} ${unit}` : "Bodyweight"} · {advice.reps} reps
+                    </p>
+                  )}
                 </div>
                 {active && (
                   <button
@@ -535,8 +605,11 @@ export function SplitWorkout({
         const warmIndex = steps.findIndex((step) => step.warmup && !step.done);
         const warmStep = warmIndex >= 0 ? steps[warmIndex] : null;
         return (
-          <section id={`exercise-card-${index}`} key={`${item.exerciseId}-${index}`} className={cn("relative scroll-mt-24 rounded-card bg-white/[0.04] p-4", !passed && !complete && toneGlow(glowTone))}>
-            <h3 className={cn("font-semibold text-[#F8F9FA]", (passed || complete) && "line-through decoration-2")}>{info?.name ?? item.exerciseId}</h3>
+          <section id={`exercise-card-${index}`} key={`${item.exerciseId}-${index}`} className={cn("relative scroll-mt-24 rounded-card bg-white/[0.04] p-4", !passed && !complete && toneGlow(glowTone))} onClick={() => setFocus(index)}>
+            <h3 className={cn("text-2xl font-semibold text-[#F8F9FA]", (passed || complete) && "line-through decoration-2")}>{info?.name ?? item.exerciseId}</h3>
+            <p className="mt-1 text-sm leading-relaxed text-white/60">{info?.cue}</p>
+            <p className="mt-2 text-xs uppercase tracking-[0.14em] text-white/45">Target muscles</p>
+            <p className="text-sm text-[#F8F9FA]">{muscleNames(item.exerciseId).primary || info?.muscle}</p>
             {restLeft > 0 && restOn === index && !restCovers && (
               <div className="mt-3 flex items-center justify-between gap-3">
                 <p className="text-sm text-[#DFE5E8]">Rest <span className="font-semibold tabular-nums text-brand">{clock(restLeft)}</span></p>
@@ -588,6 +661,49 @@ export function SplitWorkout({
           </section>
         );
       })}
+      <button
+        type="button"
+        className="h-12 w-full rounded-card border border-dashed border-white/35 text-sm font-semibold text-[#F8F9FA]"
+        aria-expanded={adding}
+        onClick={() => {
+          setAdding((open) => !open);
+          setAddMuscle(null);
+        }}
+      >
+        Add Exercise
+      </button>
+      {adding && (
+        <div className="space-y-3">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {MUSCLE_GROUPS.map((group) => (
+              <button
+                key={group}
+                type="button"
+                aria-pressed={addMuscle === group}
+                className={cn(
+                  "shrink-0 rounded-full border px-3 py-1.5 text-xs capitalize",
+                  addMuscle === group ? "border-brand bg-brand/20 text-[#F8F9FA]" : "border-white/20 text-[#DFE5E8]",
+                )}
+                onClick={() => setAddMuscle(group)}
+              >
+                {group}
+              </button>
+            ))}
+          </div>
+          {addMuscle && (
+            <ul className="space-y-2">
+              {EXERCISES.filter((exercise) => exercise.muscle === addMuscle && !healthConstraints(injuries, conditions).avoidIds.has(exercise.id)).map((exercise) => (
+                <li key={exercise.id}>
+                  <button type="button" className="w-full rounded-card bg-white/[0.04] px-3 py-3 text-left" onClick={() => addExercise(exercise.id)}>
+                    <span className="block text-sm font-semibold text-[#F8F9FA]">{exercise.name}</span>
+                    <span className="text-xs text-[#DFE5E8]">{EQUIPMENT_LABEL[exercise.equipment]}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       {notice && <p role="alert" className="text-sm text-[#E0B07A]">{notice}</p>}
       <button type="button" className="btn-ghost h-12 w-full" onClick={finish}>
         Done

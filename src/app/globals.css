@@ -8,11 +8,11 @@
 }
 
 @theme {
-  /* Pine field. Themes override these from the saved palette. */
-  --color-base: #24312E;
-  --color-base-2: #2C3B37;
-  --color-card: #2C3B37;
-  --color-elevated: #384842;
+  /* Ember field. Themes override these from the saved palette. */
+  --color-base: #14110F;
+  --color-base-2: #1C1613;
+  --color-card: #1C1613;
+  --color-elevated: #2A211C;
   --color-line: rgb(255 255 255 / 0.1);
   --color-line-strong: rgb(255 255 255 / 0.16);
 
@@ -21,8 +21,8 @@
   --color-muted: #DFE5E8;
   --color-subtle: #DFE5E8;
 
-  /* Deodar pine. `brand` follows the user's accent setting. */
-  --color-brand: #56746D;
+  /* Warm orange. `brand` follows the user's accent setting. */
+  --color-brand: #FF6A1A;
   --color-brand-strong: color-mix(in oklab, var(--color-brand) 88%, white);
   --color-cyan: #38d6ee;
   --color-violet: #8b7cf6;
@@ -34,11 +34,11 @@
   --color-iris: #c4b0dc;
 
   /* Legacy names kept so existing classes resolve to the new palette */
-  --color-bm-night: #1E2A27;
-  --color-bm-dark: #24312E;
+  --color-bm-night: #0C0A09;
+  --color-bm-dark: #14110F;
   --color-bm-yellow: var(--color-brand);
   --color-bm-red: var(--color-danger);
-  --color-surface: #2C3B37;
+  --color-surface: #1C1613;
   --color-surface-raised: rgb(236 235 230 / 0.05);
 
   --breakpoint-sm: 240rem;
@@ -47,7 +47,7 @@
   --breakpoint-xl: 240rem;
   --breakpoint-2xl: 240rem;
 
-  --radius-card: 6px;
+  --radius-card: 22px;
   --radius-control: 18px;
 
   --shadow-card: none;
@@ -223,9 +223,9 @@
 
 :root {
   color-scheme: dark;
-  --color-ground: #1E2A27;
-  /* Soft falloff at the edges. Themes replace this with their own field. */
-  --page-ground: radial-gradient(ellipse 90% 80% at 50% 42%, #31443E 0%, #1E2A27 70%);
+  --color-ground: #0C0A09;
+  /* Warm light high in the frame, falling to black. Themes replace this. */
+  --page-ground: radial-gradient(ellipse 80% 55% at 50% 12%, #3A2418 0%, #120E0C 48%, #090807 100%);
 }
 
 body {
@@ -372,8 +372,8 @@ input[type="number"] {
 }
 
 .muscle-shape {
-  fill: #e15a42;
-  mix-blend-mode: soft-light;
+  fill: #ff6a1a;
+  mix-blend-mode: screen;
   transition: opacity 480ms ease;
 }
 

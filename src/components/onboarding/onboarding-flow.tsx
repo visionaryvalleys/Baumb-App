@@ -141,7 +141,7 @@ export function OnboardingFlow() {
                 i === step ? "bg-white/[0.08] font-semibold text-white ring-1 ring-inset ring-white/10" : i < step ? "text-white/70 hover:bg-white/[0.04]" : "text-white/30",
               )}
             >
-              <span className={cn("grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold", i < step ? "bg-brand text-[#F8F9FA]" : i === step ? "bg-[#F8F9FA] text-[#56746D]" : "bg-white/10")}>
+              <span className={cn("grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold", i < step ? "bg-brand text-[#F8F9FA]" : i === step ? "bg-[#F8F9FA] text-[#1A120E]" : "bg-white/10")}>
                 {i < step ? <Check className="size-3.5" aria-hidden /> : i + 1}
               </span>
               <span className="truncate">{label}</span>

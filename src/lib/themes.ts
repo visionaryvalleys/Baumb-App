@@ -15,23 +15,22 @@ export interface OstinTheme {
 }
 
 /**
- * Glacial slate and deodar pine.
- * Text is Eternal Snow and Karakoram Mist. Grounds are deep pine, never black.
- * Pine #56746D, Ridge #626D74, Mist #DFE5E8, Snow #F8F9FA.
+ * Near-black field with a warm orange light, the default Ostin surface.
+ * Ridge, Mist and Snow stay as alternates. Text stays Eternal Snow.
  */
 export const THEMES: OstinTheme[] = [
   {
     id: "pine",
-    label: "Pine",
-    brand: "#56746D",
-    ground: "#1E2A27",
-    lift: "#31443E",
-    base: "#24312E",
-    card: "#2C3B37",
-    elevated: "#384842",
+    label: "Ember",
+    brand: "#FF6A1A",
+    ground: "#0C0A09",
+    lift: "#3A2418",
+    base: "#14110F",
+    card: "#1C1613",
+    elevated: "#2A211C",
     fg: "#F8F9FA",
-    muted: "#DFE5E8",
-    subtle: "#DFE5E8",
+    muted: "#E7D7CC",
+    subtle: "#E7D7CC",
   },
   {
     id: "ridge",

@@ -39,7 +39,7 @@ function weekKey(value: Date | string | null): string {
 }
 
 async function standingsFor(userId: string) {
-  const scores = await query<ScoreRow>("SELECT user_id, display_name, workout_count, workout_days, eligible, g_balance, week_count, week_start FROM board_scores WHERE workout_count >= 1 AND workout_days >= 2 ORDER BY workout_count DESC, display_name ASC");
+  const scores = await query<ScoreRow>("SELECT user_id, display_name, workout_count, workout_days, eligible, g_balance, week_count, week_start FROM board_scores WHERE workout_count >= 1 AND week_count >= 1 ORDER BY week_count DESC, display_name ASC");
   const award = (await query<AwardRow>("SELECT winner_user_id, winner_name, workout_count, announced_at FROM board_award WHERE id = 1"))[0];
   return {
     standings: scores.map((row) => ({
@@ -95,14 +95,14 @@ export async function POST(req: NextRequest) {
     const displayName = (typeof body.displayName === "string" ? body.displayName : user.name).trim().slice(0, 80) || user.name;
     const workoutCount = clamp(body.workoutCount, 100_000);
     const workoutDays = clamp(body.workoutDays, 100_000);
-    if (workoutCount < 1 || workoutDays < 2) {
+    const weekCount = clamp(body.weekCount, 21);
+    if (workoutCount < 1) {
       await query("DELETE FROM board_scores WHERE user_id = $1", [user.id]);
       await awardLeader();
       return Response.json(await standingsFor(user.id));
     }
     const eligible = workoutDays >= 2;
     const balance = eligible ? clamp(body.gBalance, 1_000_000) : 0;
-    const weekCount = clamp(body.weekCount, 21);
     const weekStart = typeof body.weekStart === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.weekStart) ? body.weekStart : null;
     await query(
       `INSERT INTO board_scores (user_id, display_name, workout_count, workout_days, eligible, g_balance, week_count, week_start, updated_at)
