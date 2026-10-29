@@ -240,7 +240,14 @@ export function setBias(workouts: Workout[], recovery: RecoveryEntry[], today: s
   return 0;
 }
 
-/** One session for a chosen day split, trimmed to the minutes available and the injuries and conditions on the profile. */
+/** How many exercises a new day holds. Longer sessions get more movements. Rest is not part of this count. */
+export function exercisesForSession(minutes: number, experience: Experience, groupCount: number): number {
+  const capped = Math.min(MAX_SESSION_MINUTES, Math.max(MIN_SESSION_MINUTES, Math.round(minutes)));
+  const byTime = capped >= 75 ? 7 : capped >= 60 ? 6 : capped >= 45 ? 5 : 4;
+  return Math.max(1, groupCount, Math.min(MAX_EXERCISES[experience], byTime));
+}
+
+/** One session for a chosen day. Three working sets, or four when this week already absorbed more work. Rest does not remove exercises. */
 export function buildSplitSession(splitId: string, goal: Pick<Goal, "type" | "experience" | "strengthTests">, access: EquipmentAccess, minutes: number, body?: PlanBody & { workouts?: Workout[]; recovery?: RecoveryEntry[]; today?: string }): ExercisePrescription[] {
   const groups = groupsInSplit(splitId);
   const slots = groups.flatMap((group) => (GROUP_SLOTS[group] ?? []).map((pattern) => ({ group, pattern })));
@@ -252,29 +259,34 @@ export function buildSplitSession(splitId: string, goal: Pick<Goal, "type" | "ex
   const used = new Set<string>(health.avoidIds);
   const recent = (body?.workouts ?? []).flatMap((workout) => workout.exercises.map((exercise) => exercise.exerciseId));
   const bias = body?.today ? setBias(body.workouts ?? [], body.recovery ?? [], body.today) : 0;
-  const picked: ExercisePrescription[] = [];
-  for (const slot of templateSlots) {
-    if (picked.length >= MAX_EXERCISES[experience]) break;
-    const safe = adjustPattern(slot.pattern, body?.injuries);
-    const forearm = slot.group === "forearms" ? getExercise("hammer-curl") : undefined;
-    const home = access === "bodyweight";
-    const allowed = (exercise: Exercise | undefined) =>
-      !!exercise && !used.has(exercise.id) && (exercise.access.includes(access) || (home && exercise.access.includes("dumbbells")));
-    const ex =
-      (allowed(forearm) ? forearm : undefined) ??
-      pickExercise(safe, access, experience, used, 0, recent) ??
-      (home ? pickExercise(safe, "dumbbells", experience, used, 0, recent) : undefined) ??
-      pickExercise("core", access, experience, used, 0, recent);
-    if (!ex) continue;
-    used.add(ex.id);
-    const prescribed = prescribe(ex, cfg.repScheme, experience);
-    if (bias !== 0 && prescribed.restSec > 0) prescribed.sets = Math.min(5, Math.max(2, prescribed.sets + bias));
-    picked.push(prescribed);
-  }
   const capped = Math.min(MAX_SESSION_MINUTES, Math.max(MIN_SESSION_MINUTES, Math.round(minutes)));
-  const fitted = fitToDuration(picked, capped, experience).exercises;
-  const floor = Math.min(picked.length, Math.max(1, groups.length));
-  return fitted.length >= floor ? fitted : picked.slice(0, floor);
+  const target = exercisesForSession(capped, experience, Math.max(1, groups.length || templateSlots.length));
+  const picked: ExercisePrescription[] = [];
+  const home = access === "bodyweight";
+  const allowed = (exercise: Exercise | undefined) =>
+    !!exercise && !used.has(exercise.id) && (exercise.access.includes(access) || (home && exercise.access.includes("dumbbells")));
+
+  for (let pass = 0; picked.length < target && pass < 6; pass++) {
+    let added = false;
+    for (const slot of templateSlots) {
+      if (picked.length >= target) break;
+      const safe = adjustPattern(slot.pattern, body?.injuries);
+      const forearm = pass === 0 && slot.group === "forearms" ? getExercise("hammer-curl") : undefined;
+      const ex =
+        (allowed(forearm) ? forearm : undefined) ??
+        pickExercise(safe, access, experience, used, pass, recent) ??
+        (home ? pickExercise(safe, "dumbbells", experience, used, pass, recent) : undefined) ??
+        (pass === 0 ? pickExercise("core", access, experience, used, 0, recent) : undefined);
+      if (!ex) continue;
+      used.add(ex.id);
+      const prescribed = prescribe(ex, cfg.repScheme, experience);
+      if (prescribed.restSec > 0 && prescribed.sets > 1) prescribed.sets = bias > 0 ? 4 : 3;
+      picked.push(prescribed);
+      added = true;
+    }
+    if (!added) break;
+  }
+  return picked;
 }
 
 type Chosen = { split: string; templates: DayTemplate[]; note?: string };

@@ -24,6 +24,25 @@ describe("programme day", () => {
     expect(short.length).toBeGreaterThan(0);
     const shoulder = buildSplitSession("shoulders", goal, "full_gym", 60, { sex: "male", weightKg: 75, injuries: ["shoulder"] });
     expect(shoulder.map((item) => item.exerciseId)).not.toContain("overhead-press");
+    expect(short.length).toBeGreaterThan(3);
+    expect(long.length).toBeGreaterThan(short.length);
+    expect(long.every((item) => item.sets === 3)).toBe(true);
+  });
+
+  it("uses four working sets only when the week already absorbed more work", () => {
+    const goal = { type: "athletic" as const, experience: "intermediate" as const, strengthTests: [] };
+    const sets = Array.from({ length: 4 }, () => ({ reps: 8, weightKg: 60, rpe: 8, warmup: false }));
+    const earlier = { date: "2026-06-02", createdAt: 1, exercises: [{ sets }] } as Workout;
+    const recent = { date: "2026-06-09", createdAt: 2, exercises: [{ sets }, { sets }] } as Workout;
+    const peak = buildSplitSession("back+biceps", goal, "full_gym", 60, {
+      sex: "male",
+      weightKg: 75,
+      today: "2026-06-10",
+      workouts: [earlier, recent],
+      recovery: [],
+    });
+    expect(peak.length).toBeGreaterThan(3);
+    expect(peak.every((item) => item.sets === 4)).toBe(true);
   });
 
   it("loads a movement for every muscle group the day names", () => {

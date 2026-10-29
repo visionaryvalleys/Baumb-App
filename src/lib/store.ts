@@ -14,6 +14,7 @@ import type {
   DayOverride,
   EnergyRecord,
   Food,
+  DayRoutine,
   Goal,
   MealItem,
   MealPlanPrefs,
@@ -311,6 +312,14 @@ export const actions = {
   },
   setDaySplits(daySplits: string[]) {
     setState((s) => (s.goal ? { ...s, goal: { ...s.goal, daySplits } } : s));
+  },
+  setDayRoutine(dayIndex: number, routine: DayRoutine) {
+    setState((s) => {
+      if (!s.goal || dayIndex < 0) return s;
+      const dayRoutines = [...(s.goal.dayRoutines ?? [])];
+      dayRoutines[dayIndex] = routine;
+      return { ...s, goal: { ...s.goal, dayRoutines } };
+    });
   },
   setTrainingPlace(trainingPlace: "gym" | "home", daySplits: string[]) {
     setState((s) => (s.goal ? { ...s, goal: { ...s.goal, trainingPlace, daySplits } } : s));

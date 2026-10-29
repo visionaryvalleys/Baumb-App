@@ -5,10 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { goalConfig } from "@/data/goals";
 import { todayKey } from "@/lib/date";
-import { buildPlanVersion } from "@/services/plan";
+import { programme } from "@/agent/programme";
 import { actions, newId, useAppState } from "@/lib/store";
 import { sortedWeights } from "@/calculations/trend";
-import type { GoalType } from "@/lib/types";
+import type { GoalType, PlanVersion } from "@/lib/types";
 import {
   AboutFields,
   BodyFields,
@@ -78,7 +78,7 @@ export function OnboardingFlow() {
     if (step < PLAN_STEP) return null;
     const weightKg = draftWeightKg(d);
     if (weightKg == null) return null;
-    return buildPlanVersion({
+    return programme({
       id: "preview",
       version: (state.plans.at(-1)?.version ?? 0) + 1,
       profile: draftToProfile(d, today),
@@ -87,7 +87,7 @@ export function OnboardingFlow() {
       effectiveFrom: today,
       reason: state.plans.length ? "Re-onboarding" : "Initial plan from onboarding",
       now: 0,
-    });
+    })?.plan ?? null;
   }, [step, d, g, today, state.plans]);
 
   function problemsFor(index: number): Errors {
@@ -230,7 +230,7 @@ export function OnboardingFlow() {
   );
 }
 
-function PlanPreview({ plan }: { plan: ReturnType<typeof buildPlanVersion> }) {
+function PlanPreview({ plan }: { plan: PlanVersion | null }) {
   if (!plan) return <p className="text-white/60">Some details are missing. Go back and complete your profile.</p>;
   const t = plan.targets;
   const cfg = goalConfig(plan.goal.type);

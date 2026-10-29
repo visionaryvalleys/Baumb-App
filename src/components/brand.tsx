@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ChevronDown, UserRound } from "lucide-react";
+import { ArrowRight, Menu, UserRound } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect } from "react";
 import { useAppState } from "@/lib/store";
 import { cn } from "./ui";
@@ -28,8 +28,8 @@ export function ProfileButton({ href = "/profile", tone = "glass" }: { href?: st
   const avatar = useAppState().profile.avatar;
   if (tone === "hero") {
     return (
-      <Link href={href} aria-label="Profile" className="grid size-10 place-items-center overflow-hidden rounded-full border border-white/25 bg-white/10 shadow-[0_0_16px_rgba(255,106,26,0.35)]">
-        {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : <UserRound className="size-5 text-white/85" aria-hidden />}
+      <Link href={href} aria-label="Profile" className="grid size-9 place-items-center overflow-hidden rounded-full border border-white/15 bg-white/5">
+        {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : <UserRound className="size-4 text-white/80" aria-hidden />}
       </Link>
     );
   }
@@ -43,8 +43,8 @@ export function ProfileButton({ href = "/profile", tone = "glass" }: { href?: st
 export function MenuButton({ onClick, expanded, tone = "glass" }: { onClick: () => void; expanded: boolean; tone?: "glass" | "hero" }) {
   if (tone === "hero") {
     return (
-      <button type="button" onClick={onClick} aria-label="Open menu" aria-expanded={expanded} className="grid size-6 place-items-center text-white/70">
-        <ChevronDown className="size-4" aria-hidden />
+      <button type="button" onClick={onClick} aria-label="Open menu" aria-expanded={expanded} className="grid size-9 place-items-center text-white/80">
+        <Menu className="size-5" aria-hidden />
       </button>
     );
   }
@@ -81,7 +81,7 @@ export function MenuOverlay({
   open: boolean;
   onClose: () => void;
   links: MenuLink[];
-  cta: MenuLink;
+  cta?: MenuLink;
   fixed?: boolean;
   activeHref?: string;
   footer?: ReactNode;
@@ -152,9 +152,11 @@ export function MenuOverlay({
       </nav>
 
       <div className="relative mx-auto w-full max-w-[480px] px-1">
-        <Link href={cta.href} onClick={onClose} className="btn-primary h-14 w-full">
-          {cta.label} <ArrowRight className="size-4" aria-hidden />
-        </Link>
+        {cta && (
+          <Link href={cta.href} onClick={onClose} className="btn-primary h-14 w-full">
+            {cta.label} <ArrowRight className="size-4" aria-hidden />
+          </Link>
+        )}
         {footer}
       </div>
     </div>

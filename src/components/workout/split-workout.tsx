@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Lock } from "lucide-react";
 import { avoidReason, healthConstraints } from "@/calculations/health";
+import { dayListKey, loadHint, shortenLeft } from "@/calculations/session-day";
+import { firstWarmupKg, warmupFromWorking, warmupSetCount, type WarmupBody } from "@/calculations/warmup";
 import { suggestNextLoad } from "@/calculations/workout";
 import { muscleNames } from "@/lib/anatomy";
 import { EXERCISES, MUSCLE_GROUPS, getExercise } from "@/lib/exercises";
-import { highlightsFor } from "@/lib/muscle-map";
-import type { Equipment, ExercisePrescription, HealthCondition, InjuryArea, MuscleGroup, Unit, Workout, WorkoutExercise, WorkoutSet } from "@/lib/types";
+import type { Equipment, ExercisePrescription, Experience, HealthCondition, InjuryArea, MuscleGroup, Sex, Unit, Workout, WorkoutExercise, WorkoutSet } from "@/lib/types";
 import { fromDisplayWeight, toDisplayWeight } from "@/lib/units";
-import { BodyFigure } from "../body-figure";
 import { cn } from "../ui";
 
 const RESERVE = [0, 1, 2, 3, 4, 5] as const;
@@ -67,11 +67,11 @@ function recentWorking(workouts: Workout[], exerciseId: string) {
   return found;
 }
 
-/** Working sets stay at three, or fewer when the exercise or a saved condition calls for less. */
+/** Working sets stay at three, four on a peak week, or fewer when a saved condition calls for less. */
 function workSetCount(prescription: ExercisePrescription, gentle: boolean) {
   if (prescription.sets <= 1) return 1;
   if (gentle || prescription.sets === 2) return 2;
-  return 3;
+  return Math.min(4, prescription.sets);
 }
 
 function suggestedReserve(exerciseId: string, rpeTarget: number, injuries: InjuryArea[], conditions: HealthCondition[]) {
@@ -90,6 +90,7 @@ function adviceFor(
   warmupIndex: number | null,
   injuries: InjuryArea[],
   conditions: HealthCondition[],
+  body: WarmupBody,
 ): Advice {
   const [latest, prior] = recentWorking(workouts, item.exerciseId);
   const historyKg = latest ? Math.max(...latest.sets.map((set) => set.weightKg)) : null;
@@ -111,8 +112,8 @@ function adviceFor(
       line: suggestion.reason,
     };
   }
-  const share = warmupIndex === 0 ? 0.5 : 0.75;
-  const warmKg = suggestedKg ? Math.max(0, Math.round(suggestedKg * share * 2) / 2) : null;
+  const equipment = getExercise(item.exerciseId)?.equipment ?? "barbell";
+  const warmKg = (suggestedKg != null && suggestedKg > 0 ? warmupFromWorking(suggestedKg, equipment, warmupIndex) : null) ?? firstWarmupKg(item.exerciseId, body, warmupIndex);
   return {
     weight: tracks && warmKg ? String(toDisplayWeight(warmKg, unit)) : "",
     reps: WARMUP_REPS,
@@ -157,9 +158,9 @@ function toneButton(tone: "blue" | "green" | "orange" | "plain") {
 }
 
 function toneGlow(tone: "blue" | "green" | "orange" | "plain") {
-  if (tone === "blue") return "shadow-[0_0_0_1.5px_#1B3A6B,0_0_22px_rgba(27,58,107,0.9)]";
-  if (tone === "green") return "shadow-[0_0_0_1.5px_#3E8F6A,0_0_22px_rgba(62,143,106,0.7)]";
-  if (tone === "orange") return "shadow-[0_0_0_1.5px_#C47A3A,0_0_22px_rgba(196,122,58,0.75)]";
+  if (tone === "blue") return "shadow-[0_0_0_1px_#1B3A6B,0_0_10px_rgba(27,58,107,0.45)]";
+  if (tone === "green") return "shadow-[0_0_0_1px_#3E8F6A,0_0_10px_rgba(62,143,106,0.38)]";
+  if (tone === "orange") return "shadow-[0_0_0_1px_#C47A3A,0_0_10px_rgba(196,122,58,0.4)]";
   return "";
 }
 
@@ -191,8 +192,7 @@ function BigStep({ label, value, onChange, locked = false, decimal = false }: { 
   );
 }
 
-function buildSteps(exerciseIndex: number, sets: number, reserve: number): Step[] {
-  const warmups = exerciseIndex < 2 ? 2 : 0;
+function buildSteps(warmups: number, sets: number, reserve: number): Step[] {
   const steps: Step[] = [];
   for (let i = 0; i < warmups; i++) steps.push({ warmup: true, label: `Warm-up ${i + 1}/${warmups}`, reps: "", weight: "", reserve, opened: false, ready: false, done: false });
   for (let i = 0; i < sets; i++) steps.push({ warmup: false, label: `Set ${i + 1}`, reps: "", weight: "", reserve, opened: false, ready: false, done: false });
@@ -206,9 +206,12 @@ export function SplitWorkout({
   injuries,
   conditions,
   durationMin,
+  dayNumber,
   age,
   heightCm,
   weightKg,
+  sex,
+  experience,
   onSet,
   onDone,
 }: {
@@ -218,13 +221,18 @@ export function SplitWorkout({
   injuries: InjuryArea[];
   conditions: HealthCondition[];
   durationMin: number;
+  dayNumber: number;
   age: number | null;
   heightCm: number | null;
   weightKg: number | null;
+  sex: Sex | null;
+  experience: Experience;
   onSet: (exercises: WorkoutExercise[], status: "completed" | "partial") => void;
-  onDone: (exercises: WorkoutExercise[], status: "completed" | "partial") => void;
+  onDone: (exercises: WorkoutExercise[], status: "completed" | "partial", nextWeek: ExercisePrescription[] | null) => void;
 }) {
   const gentle = healthConstraints(injuries, conditions).gentle;
+  const body: WarmupBody = { weightKg, sex, age, heightCm, experience };
+  const openingKey = useRef(prescriptions.map((item) => `${item.exerciseId}:${workSetCount(item, gentle)}`).join("|"));
   const plan = useMemo(
     () =>
       prescriptions.map((item, index) => ({
@@ -235,7 +243,9 @@ export function SplitWorkout({
     [prescriptions, gentle, injuries, conditions],
   );
   const [items, setItems] = useState(prescriptions);
-  const [cards, setCards] = useState<Step[][]>(() => plan.map((item) => buildSteps(item.index, item.sets, item.reserve)));
+  const [cards, setCards] = useState<Step[][]>(() =>
+    prescriptions.map((item, index) => buildSteps(warmupSetCount(item.exerciseId, index, workouts), plan[index]?.sets ?? item.sets, plan[index]?.reserve ?? 1)),
+  );
   const [skipped, setSkipped] = useState<boolean[]>(() => prescriptions.map(() => false));
   const [switching, setSwitching] = useState<number | null>(null);
   const [muscle, setMuscle] = useState<MuscleGroup | null>(null);
@@ -244,6 +254,9 @@ export function SplitWorkout({
   const [focus, setFocus] = useState(0);
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
+  const [overtimeAsk, setOvertimeAsk] = useState(false);
+  const [updateAsk, setUpdateAsk] = useState(false);
+  const overtimeSeen = useRef(false);
   const [restUntil, setRestUntil] = useState<number | null>(null);
   const [restOn, setRestOn] = useState<number | null>(null);
   /** A full-card rest covers the set just finished. A handoff rest sits on the next exercise. */
@@ -259,6 +272,11 @@ export function SplitWorkout({
 
   const elapsedSec = Math.floor((now - startedAt.current) / 1000);
   const restLeft = restUntil == null ? 0 : Math.max(0, Math.ceil((restUntil - now) / 1000));
+  useEffect(() => {
+    if (overtimeSeen.current || elapsedSec < Math.max(1, durationMin) * 60) return;
+    overtimeSeen.current = true;
+    setOvertimeAsk(true);
+  }, [elapsedSec, durationMin]);
   useEffect(() => {
     if (restUntil != null && now >= restUntil) {
       setRestUntil(null);
@@ -281,7 +299,7 @@ export function SplitWorkout({
     if (!current) return;
     setItems((list) => list.map((item, i) => (i === index ? { ...item, exerciseId } : item)));
     setCards((list) =>
-      list.map((steps, i) => (i === index ? buildSteps(index, plan[index]?.sets ?? 3, suggestedReserve(exerciseId, current.rpeTarget, injuries, conditions)) : steps)),
+      list.map((steps, i) => (i === index ? buildSteps(warmupSetCount(exerciseId, index, workouts), plan[index]?.sets ?? 3, suggestedReserve(exerciseId, current.rpeTarget, injuries, conditions)) : steps)),
     );
     setSkipped((list) => list.map((value, i) => (i === index ? false : value)));
     setSwitching(null);
@@ -303,7 +321,7 @@ export function SplitWorkout({
     setItems((list) => [...list, prescription]);
     setCards((list) => [
       ...list,
-      buildSteps(index, workSetCount(prescription, gentle), suggestedReserve(exerciseId, prescription.rpeTarget, injuries, conditions)),
+      buildSteps(warmupSetCount(exerciseId, index, workouts), workSetCount(prescription, gentle), suggestedReserve(exerciseId, prescription.rpeTarget, injuries, conditions)),
     ]);
     setSkipped((list) => [...list, false]);
     setFocus(index);
@@ -319,7 +337,7 @@ export function SplitWorkout({
 
   function openStep(exerciseIndex: number, stepIndex: number, item: ExercisePrescription, step: Step) {
     const warmupsBefore = cards[exerciseIndex].slice(0, stepIndex).filter((entry) => entry.warmup).length;
-    const advice = adviceFor(workouts, item, unit, step.warmup ? warmupsBefore : null, injuries, conditions);
+    const advice = adviceFor(workouts, item, unit, step.warmup ? warmupsBefore : null, injuries, conditions, body);
     patch(exerciseIndex, stepIndex, {
       opened: true,
       reps: step.reps || String(step.warmup ? WARMUP_REPS : advice.reps),
@@ -333,12 +351,17 @@ export function SplitWorkout({
       if (skipped[index]) return [];
       const done = (list[index] ?? []).filter((step) => step.done);
       const sets = done
-        .map((step) => ({
-          reps: Math.max(0, Math.round(Number(step.reps) || 0)),
-          weightKg: Math.max(0, fromDisplayWeight(Number(step.weight) || 0, unit)),
-          unit,
-          warmup: step.warmup || undefined,
-        }))
+        .map((step) => {
+          const card = list[index] ?? [];
+          const warmupsBefore = card.slice(0, card.indexOf(step)).filter((entry) => entry.warmup).length;
+          const shown = step.weight || (step.warmup ? adviceFor(workouts, item, unit, warmupsBefore, injuries, conditions, body).weight : "");
+          return {
+            reps: Math.max(0, Math.round(Number(step.reps) || 0)),
+            weightKg: Math.max(0, fromDisplayWeight(Number(shown) || 0, unit)),
+            unit,
+            warmup: step.warmup || undefined,
+          };
+        })
         .filter((set) => set.reps > 0);
       if (!sets.length) return [];
       const reserve = [...done].reverse().find((step) => !step.warmup)?.reserve ?? null;
@@ -369,13 +392,22 @@ export function SplitWorkout({
     if (moreHere) {
       setRestOn(exerciseIndex);
       setRestCovers(true);
-      setRestUntil(Date.now() + (items[exerciseIndex]?.restSec || 90) * 1000);
+      setRestUntil(Date.now() + 120_000);
     } else if (nextIndex >= 0) {
       setRestOn(nextIndex);
       setRestCovers(false);
-      setRestUntil(Date.now() + (items[exerciseIndex]?.restSec || 90) * 1000);
+      setRestUntil(Date.now() + 120_000);
       setAdvanceTo(nextIndex);
     }
+  }
+
+  function keptRoutine(): ExercisePrescription[] {
+    return items.flatMap((item, index) => {
+      if (skipped[index]) return [];
+      const working = (cards[index] ?? []).filter((step) => !step.warmup);
+      if (working.length === 0) return [];
+      return [{ ...item, sets: working.length }];
+    });
   }
 
   function finish() {
@@ -384,8 +416,25 @@ export function SplitWorkout({
       setNotice("Finish a set before you end the session.");
       return;
     }
+    const kept = keptRoutine();
+    if (dayListKey(kept) === openingKey.current) {
+      const saved = packed(cards);
+      onDone(saved.exercises, saved.status, kept);
+      return;
+    }
+    setUpdateAsk(true);
+  }
+
+  function confirmDay(update: boolean) {
     const saved = packed(cards);
-    onDone(saved.exercises, saved.status);
+    onDone(saved.exercises, saved.status, update ? keptRoutine() : null);
+  }
+
+  function acceptTrim() {
+    const next = shortenLeft(cards, skipped);
+    setCards(next.cards);
+    setSkipped(next.skipped);
+    setOvertimeAsk(false);
   }
 
   if (detailIndex != null) {
@@ -453,7 +502,6 @@ export function SplitWorkout({
   const shown = items[focus] ? focus : Math.max(0, currentIndex);
   const currentId = items[shown]?.exerciseId ?? items[0]?.exerciseId;
   const currentNames = muscleNames(currentId ?? "");
-  const highlights = highlightsFor(getExercise(currentId ?? "")?.muscle ?? "all", currentId ?? null);
 
   return (
     <div className="space-y-4">
@@ -470,7 +518,6 @@ export function SplitWorkout({
       </div>
       {currentId && (
         <div className="space-y-4">
-          <BodyFigure highlights={highlights} shift={0} label={currentNames.primary ? `Works ${currentNames.primary}` : "No muscle highlighted"} />
           <div className="grid grid-cols-3 gap-2 text-center">
             {[
               ["Age", age != null ? String(age) : "—"],
@@ -500,7 +547,7 @@ export function SplitWorkout({
         const warmFinished = warmSteps.length === 0 || warmSteps.every((step) => step.done);
         const history = lastWorking(workouts, item.exerciseId);
         const glowStep = [...steps].reverse().find((step) => !step.warmup && (step.opened || step.done) && Math.round(Number(step.reps) || 0) > 0);
-        const glowAdvice = glowStep ? adviceFor(workouts, item, unit, null, injuries, conditions) : null;
+        const glowAdvice = glowStep ? adviceFor(workouts, item, unit, null, injuries, conditions, body) : null;
         const glowTone = history && glowStep && glowAdvice ? toneFor(glowStep, glowAdvice, unit) : "plain";
         const workSteps = steps.map((step, stepIndex) => ({ step, stepIndex })).filter((entry) => !entry.step.warmup);
         const openWork = workSteps.find((entry) => !entry.step.done);
@@ -508,7 +555,7 @@ export function SplitWorkout({
 
         function stage(step: Step, stepIndex: number, title: string) {
           const warmupsBefore = steps.slice(0, stepIndex).filter((entry) => entry.warmup).length;
-          const advice = adviceFor(workouts, item, unit, step.warmup ? warmupsBefore : null, injuries, conditions);
+          const advice = adviceFor(workouts, item, unit, step.warmup ? warmupsBefore : null, injuries, conditions, body);
           const tone = !step.warmup && history ? toneFor(step, advice, unit) : "plain";
           const active = !passed && !step.done;
           return (
@@ -553,11 +600,24 @@ export function SplitWorkout({
                   </button>
                 )}
               </div>
+              {active && step.opened && !step.warmup && (
+                <p className="mt-3 text-[11px] leading-snug text-white/55">
+                  {loadHint({
+                    tracksWeight: getExercise(item.exerciseId)?.tracksWeight ?? true,
+                    lastKg: advice.lastKg != null ? String(toDisplayWeight(advice.lastKg, unit)) : null,
+                    nextKg: advice.weight || null,
+                    lastReps: advice.lastReps,
+                    reps: advice.reps,
+                    rpe: item.rpeTarget,
+                    unit,
+                  })}
+                </p>
+              )}
               {active && step.opened && (
-                <div className={cn("mt-3 flex gap-4", restLeft > 0 && restOn === index && "opacity-30")}>
+                <div className={cn("mt-2 flex gap-4", restLeft > 0 && restOn === index && "opacity-30")}>
                   <BigStep
                     label={unit}
-                    value={step.weight}
+                    value={step.warmup ? step.weight || advice.weight : step.weight}
                     decimal
                     onChange={(weight) => patch(index, stepIndex, { weight })}
                   />
@@ -604,12 +664,26 @@ export function SplitWorkout({
 
         const warmIndex = steps.findIndex((step) => step.warmup && !step.done);
         const warmStep = warmIndex >= 0 ? steps[warmIndex] : null;
+        const cardAdvice = adviceFor(workouts, item, unit, null, injuries, conditions, body);
         return (
           <section id={`exercise-card-${index}`} key={`${item.exerciseId}-${index}`} className={cn("relative scroll-mt-24 rounded-card bg-white/[0.04] p-4", !passed && !complete && toneGlow(glowTone))} onClick={() => setFocus(index)}>
             <h3 className={cn("text-2xl font-semibold text-[#F8F9FA]", (passed || complete) && "line-through decoration-2")}>{info?.name ?? item.exerciseId}</h3>
             <p className="mt-1 text-sm leading-relaxed text-white/60">{info?.cue}</p>
             <p className="mt-2 text-xs uppercase tracking-[0.14em] text-white/45">Target muscles</p>
             <p className="text-sm text-[#F8F9FA]">{muscleNames(item.exerciseId).primary || info?.muscle}</p>
+            {!visibleWork.some((entry) => entry.step.opened && !entry.step.warmup) && (
+              <p className="mt-2 text-[11px] leading-snug text-white/55">
+                {loadHint({
+                  tracksWeight: info?.tracksWeight ?? true,
+                  lastKg: cardAdvice.lastKg != null ? String(toDisplayWeight(cardAdvice.lastKg, unit)) : null,
+                  nextKg: cardAdvice.weight || null,
+                  lastReps: cardAdvice.lastReps,
+                  reps: cardAdvice.reps,
+                  rpe: item.rpeTarget,
+                  unit,
+                })}
+              </p>
+            )}
             {restLeft > 0 && restOn === index && !restCovers && (
               <div className="mt-3 flex items-center justify-between gap-3">
                 <p className="text-sm text-[#DFE5E8]">Rest <span className="font-semibold tabular-nums text-brand">{clock(restLeft)}</span></p>
@@ -708,6 +782,32 @@ export function SplitWorkout({
       <button type="button" className="btn-ghost h-12 w-full" onClick={finish}>
         Done
       </button>
+      {overtimeAsk && (
+        <div className="fixed inset-0 z-50 grid place-items-end bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="overtime-title">
+          <div className="glass w-full max-w-[480px] space-y-4 p-5">
+            <p id="overtime-title" className="text-base leading-relaxed text-[#F8F9FA]">
+              This session has gone past the time you set. Do you want to shorten what is left?
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" className="btn-primary h-11" onClick={acceptTrim}>Yes</button>
+              <button type="button" className="btn-ghost h-11" onClick={() => setOvertimeAsk(false)}>No</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {updateAsk && !overtimeAsk && (
+        <div className="fixed inset-0 z-50 grid place-items-end bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="update-day-title">
+          <div className="glass w-full max-w-[480px] space-y-4 p-5">
+            <p id="update-day-title" className="text-base leading-relaxed text-[#F8F9FA]">
+              Day {dayNumber} was different today. Do you want to update Day {dayNumber} for next week?
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" className="btn-primary h-11" onClick={() => confirmDay(true)}>Yes</button>
+              <button type="button" className="btn-ghost h-11" onClick={() => confirmDay(false)}>No</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

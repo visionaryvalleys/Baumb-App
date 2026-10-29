@@ -155,7 +155,7 @@ export function NutritionView() {
       </div>
       <p className="text-[13px] font-semibold text-[#3EF0E0]">{balance}</p>
 
-      <section className="rounded-[22px] border border-[#3EF0E0]/40 bg-[#0d171b] p-4 shadow-[0_0_24px_rgba(62,240,224,0.12)]">
+      <section className="rounded-[22px] border border-[#3EF0E0]/30 bg-[#0c1418] p-4 shadow-[0_0_14px_rgba(62,240,224,0.08)]">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-[15px] font-semibold">Log a meal</h2>
           <DateNav date={date} today={today} onChange={setDate} />
@@ -163,7 +163,7 @@ export function NutritionView() {
         <MealEstimate date={date} />
       </section>
 
-      <section className="rounded-[22px] border border-[#3EF0E0]/35 bg-[#0c1418] p-4 shadow-[0_0_22px_rgba(62,240,224,0.1)]">
+      <section className="rounded-[22px] border border-[#3EF0E0]/25 bg-[#0c1418] p-4 shadow-[0_0_14px_rgba(62,240,224,0.08)]">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-[15px] font-semibold">{date === today ? "Today's meals" : "Meals"}</h2>
           <p className="text-[12px] text-white/55">{groups.length} {groups.length === 1 ? "meal" : "meals"} · {count(calories)} kcal</p>
@@ -180,7 +180,7 @@ export function NutritionView() {
         </div>
       </section>
 
-      <section className="rounded-[22px] border border-[#3EF0E0]/40 bg-[#0e181c] px-4 py-4 shadow-[0_0_24px_rgba(62,240,224,0.14)]">
+      <section className="rounded-[22px] border border-[#3EF0E0]/25 bg-[#0c1418] px-4 py-4 shadow-[0_0_14px_rgba(62,240,224,0.08)]">
         <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#3EF0E0]">
           <Sparkles className="size-3.5" aria-hidden /> AI insight
         </p>
@@ -190,7 +190,7 @@ export function NutritionView() {
         </button>
       </section>
 
-      <Link href="/progress" className="flex items-center gap-3 rounded-[22px] border border-[#3EF0E0]/30 bg-[#10181c] px-4 py-3 shadow-[0_0_16px_rgba(62,240,224,0.1)]">
+      <Link href="/progress" className="flex items-center gap-3 rounded-[22px] border border-[#3EF0E0]/25 bg-[#0c1418] px-4 py-3 shadow-[0_0_14px_rgba(62,240,224,0.08)]">
         <span className="grid size-10 place-items-center rounded-full bg-[#102226] text-[#3EF0E0]"><BarChart3 className="size-4" aria-hidden /></span>
         <span>
           <span className="block text-[14px] font-semibold">Your nutrition progress</span>

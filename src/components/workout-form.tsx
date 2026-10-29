@@ -175,16 +175,19 @@ export function WorkoutForm() {
     }
     const bodyWeight = plans.find((plan) => plan.id === activePlanId)?.bodyWeightKg ?? latestKg ?? 75;
     const access = place === "home" ? "bodyweight" : place === "gym" ? "full_gym" : profile.equipment;
+    const savedDay = goal.dayRoutines?.[day - 1];
+    const sameDay = savedDay && savedDay.splitId === todaySplitId && savedDay.exercises.length > 0 ? savedDay.exercises : null;
     setLive(
-      buildSplitSession(todaySplitId, goal, access, duration, {
-        sex: profile.sex,
-        weightKg: bodyWeight,
-        injuries: profile.injuries,
-        conditions: profile.conditions,
-        workouts,
-        recovery,
-        today,
-      }),
+      sameDay ??
+        buildSplitSession(todaySplitId, goal, access, duration, {
+          sex: profile.sex,
+          weightKg: bodyWeight,
+          injuries: profile.injuries,
+          conditions: profile.conditions,
+          workouts,
+          recovery,
+          today,
+        }),
     );
   }
 
@@ -199,12 +202,16 @@ export function WorkoutForm() {
           injuries={profile.injuries}
           conditions={profile.conditions}
           durationMin={duration}
+          dayNumber={day}
           age={currentAge(profile, today)}
           heightCm={profile.heightCm}
           weightKg={latestKg ?? plans.find((plan) => plan.id === activePlanId)?.bodyWeightKg ?? null}
+          sex={profile.sex}
+          experience={goal?.experience ?? "beginner"}
           onSet={(exercises, status) => record(exercises, status)}
-          onDone={(exercises, status) => {
+          onDone={(exercises, status, nextWeek) => {
             record(exercises, status);
+            if (nextWeek && nextWeek.length > 0) actions.setDayRoutine(day - 1, { splitId: todaySplitId, exercises: nextWeek });
             router.push("/workouts/new");
           }}
         />

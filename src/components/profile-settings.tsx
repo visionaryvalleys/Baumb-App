@@ -3,7 +3,7 @@
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { Check, RefreshCw, UserRound } from "lucide-react";
 import { sortedWeights } from "@/calculations/trend";
-import { buildPlanVersion } from "@/services/plan";
+import { programme } from "@/agent/programme";
 import { actions, getState, newId, useAppState } from "@/lib/store";
 import { useToday } from "@/lib/hooks";
 import type { PlanVersion } from "@/lib/types";
@@ -118,7 +118,7 @@ function Editor({ notice, onSaved, onDismiss }: { notice: Notice | null; onSaved
     const goal = regenerate ? draftToGoal(g, d, newId(), Date.now()) : null;
     const current = getState();
     const plan = goal
-      ? buildPlanVersion({
+      ? programme({
           id: newId(),
           version: Math.max(0, ...current.plans.map((p) => p.version)) + 1,
           profile,
@@ -127,7 +127,7 @@ function Editor({ notice, onSaved, onDismiss }: { notice: Notice | null; onSaved
           effectiveFrom: today,
           reason: current.goal?.type !== goal.type ? "Goal changed" : "Profile or goal updated",
           now: Date.now(),
-        })
+        })?.plan ?? null
       : null;
     if (regenerate && !plan) {
       onSaved({ message: "Height, age and sex are needed before a plan can be made.", flags: [] });

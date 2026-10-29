@@ -15,19 +15,10 @@ import { JournalLock } from "./journal-lock";
 import { EmptyState, PageSkeleton } from "./ui";
 import { registerAppMenu } from "@/lib/menu-bus";
 import { AppTabBar } from "./app-tab-bar";
-import { MusicPlayer } from "./music-player";
+import { publishBoard } from "@/lib/board-client";
 
 const MENU = [
-  { href: "/dashboard", label: "Home" },
-  { href: "/transformation", label: "Transformation" },
-  { href: "/music", label: "Music" },
-  { href: "/nutrition", label: "Nutrition" },
-  { href: "/workouts/new", label: "Workout" },
-  { href: "/progress", label: "Progress" },
-  { href: "/calendar", label: "Calendar" },
-  { href: "/calendar?line=1", label: "Weekly Review" },
-  { href: "/exercises", label: "Exercises" },
-  { href: "/profile", label: "Profile & Goal" },
+  { href: "/profile", label: "Profile" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -71,6 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const session = useSession();
   const { onboarded } = useAppState();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [resetAsk, setResetAsk] = useState(false);
   useRecordKeeper(session.ready && !session.locked);
 
   useEffect(() => {
@@ -92,7 +84,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className={home ? "relative h-dvh overflow-hidden" : "relative min-h-dvh"}>
       <Backdrop />
 
-      <header className={showHome ? "hidden" : "sticky top-0 z-40 bg-[#0C0A09]/95 backdrop-blur-md"}>
+      <header className={showHome ? "hidden" : "sticky top-0 z-40 border-b border-[#3EF0E0]/10 bg-[#070B10]/95 backdrop-blur-md"}>
         <div className="mx-auto flex h-14 w-full max-w-[480px] items-center justify-between px-4">
           <div className="flex min-w-0 items-center">
             {showBack && (
@@ -115,29 +107,61 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
 
       {showBar && <AppTabBar />}
-      {pathname === "/music" && showBar && <MusicPlayer />}
 
       <MenuOverlay
         fixed
         open={menuOpen}
-        onClose={() => setMenuOpen(false)}
+        onClose={() => {
+          setMenuOpen(false);
+          setResetAsk(false);
+        }}
         links={MENU}
         activeHref={activeHref(pathname, MENU)}
-        cta={{ href: "/nutrition", label: "Log meal" }}
         footer={
-          session.user && (
-            <button
-              type="button"
-              onClick={async () => {
-                setMenuOpen(false);
-                await signOut();
-                router.replace("/signin");
-              }}
-              className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-control text-sm font-semibold text-white/70 transition hover:bg-white/[0.04] hover:text-white"
-            >
-              <LogOut className="size-4" aria-hidden /> Sign out {session.user.name}
-            </button>
-          )
+          <div className="mt-4 space-y-2">
+            {resetAsk ? (
+              <div className="rounded-2xl border border-danger/40 bg-danger/10 px-4 py-4">
+                <p className="text-[16px] font-semibold text-white">This returns Ostin to the start.</p>
+                <p className="mt-2 text-sm leading-relaxed text-white/70">Workouts, meals, your plan, weigh-ins, photos and G coins are cleared on this device and in your account. Your sign-in stays. This cannot be undone.</p>
+                <div className="mt-4 flex gap-2">
+                  <button type="button" className="btn-ghost h-11 flex-1" onClick={() => setResetAsk(false)}>
+                    Keep my data
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-danger h-11 flex-1"
+                    onClick={() => {
+                      actions.reset();
+                      void publishBoard(getState());
+                      setResetAsk(false);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {session.user && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setMenuOpen(false);
+                      await signOut();
+                      router.replace("/signin");
+                    }}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold text-white/80 transition hover:bg-white/[0.04]"
+                  >
+                    <LogOut className="size-4" aria-hidden /> Sign out
+                  </button>
+                )}
+                <button type="button" className="btn-danger h-12 w-full" onClick={() => setResetAsk(true)}>
+                  Reset
+                </button>
+              </>
+            )}
+          </div>
         }
       />
     </div>

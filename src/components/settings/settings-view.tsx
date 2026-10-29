@@ -1,23 +1,13 @@
 "use client";
 
 import { type ChangeEvent, useRef, useState } from "react";
-import { Bell, Check, Download, Palette, RotateCcw, Sparkles, Upload } from "lucide-react";
+import { Bell, Download, RotateCcw, Sparkles, Upload } from "lucide-react";
 import { buildSampleState } from "@/lib/sample";
 import { publishBoard } from "@/lib/board-client";
-import { DEFAULT_ACCENT, actions, getState, migrateLegacy, resolveAccent, useAppState } from "@/lib/store";
-import { THEMES } from "@/lib/themes";
+import { actions, getState, migrateLegacy, useAppState } from "@/lib/store";
 import type { AppState } from "@/lib/types";
 import { Card, CardTitle, Segmented, cn } from "../ui";
-import { JournalSetupCard } from "../journal-lock";
 import { AccountCard } from "./account-card";
-import { CalculationLog } from "./calculation-log";
-
-const ACCENTS = [
-  { value: DEFAULT_ACCENT, label: "Pine" },
-  { value: "#3E5852", label: "Shade" },
-  { value: "#626D74", label: "Ridge" },
-  { value: "#8EAEA4", label: "Glacier" },
-];
 
 function looksLikeState(v: unknown): v is Partial<AppState> {
   if (!v || typeof v !== "object") return false;
@@ -78,48 +68,6 @@ export function SettingsView() {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <AccountCard />
-      <JournalSetupCard />
-
-      <Card>
-        <CardTitle action={<Palette className="size-4 text-white/50" aria-hidden />}>Theme</CardTitle>
-        <div className="grid grid-cols-2 gap-2">
-          {THEMES.map((theme) => {
-            const active = (state.settings.theme ?? "pine") === theme.id;
-            return (
-              <button
-                key={theme.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => actions.updateSettings({ theme: theme.id, accent: theme.brand })}
-                className={cn("rounded-control p-2 text-left text-[12px] transition", active ? "bg-white/[0.08] text-white ring-1 ring-white/15" : "text-white/55 hover:bg-white/[0.04]")}
-              >
-                <span className="relative block h-14 overflow-hidden rounded-xl" style={{ background: `radial-gradient(circle at 50% 35%, ${theme.lift}, ${theme.ground} 72%)` }}>
-                  <span className="absolute bottom-2 left-2 size-3 rounded-full" style={{ background: theme.brand }} />
-                </span>
-                <span className="mt-2 block px-1">{theme.label}</span>
-              </button>
-            );
-          })}
-        </div>
-        <p className="mb-3 mt-5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">Accent</p>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-          {ACCENTS.map((a) => {
-            const active = resolveAccent(state.settings.accent) === a.value;
-            return (
-              <button key={a.value} type="button" onClick={() => actions.updateSettings({ accent: a.value, theme: state.settings.theme ?? "pine" })} aria-pressed={active} className={cn("flex flex-col items-center gap-2 rounded-control p-2 text-[11px] transition", active ? "bg-white/[0.08] text-white ring-1 ring-white/15" : "text-white/55 hover:bg-white/[0.04]")}>
-                <span className="grid size-9 place-items-center rounded-full ring-1 ring-white/10" style={{ background: a.value }}>
-                  {active && <Check className="size-4 text-[#F8F9FA]" aria-hidden />}
-                </span>
-                {a.label}
-              </button>
-            );
-          })}
-        </div>
-        <label className="mt-5 flex items-center gap-3 text-sm text-white/70">
-          Custom
-          <input type="color" value={resolveAccent(state.settings.accent)} onChange={(e) => actions.updateSettings({ accent: e.target.value, theme: state.settings.theme ?? "pine" })} className="h-9 w-14 cursor-pointer rounded-lg border border-line bg-transparent" />
-        </label>
-      </Card>
 
       <Card>
         <CardTitle>Units</CardTitle>
@@ -210,8 +158,6 @@ export function SettingsView() {
           {state.workouts.length} workouts · {state.meals.length} meal items · {state.weights.length} weigh-ins · {state.measurements.length} measurements · {state.photos.length} photos · {state.events.length} events · {state.plans.length} plan versions · {state.energyRecords.length} saved energy days · {state.weeklyReviews.length} saved reviews — saved to your account.
         </p>
       </Card>
-
-      <CalculationLog />
     </div>
   );
 }

@@ -126,7 +126,7 @@ function Composer({ id, onSend, streaming = false, placeholder = "Ask about your
   }
 
   return (
-    <form onSubmit={submit} className="flex items-end gap-1.5 rounded-[28px] border border-white/10 bg-[#1b2622] py-1.5 pl-2 pr-1.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]">
+    <form onSubmit={submit} className="flex items-end gap-1.5 rounded-[28px] border border-[#3EF0E0]/25 bg-[#0c1418] py-1.5 pl-2 pr-1.5">
       <label htmlFor={id} className="sr-only">
         Ask Ostin Trainer
       </label>

@@ -91,6 +91,8 @@ export interface Goal {
   split?: SplitPreference;
   /** Split chosen for each training day, in day order. Absent until the person edits one. */
   daySplits?: string[];
+  /** The exercise list kept for a training day. Absent until that day is finished unchanged, or the person agrees to update it. */
+  dayRoutines?: DayRoutine[];
   /** Where this week’s sessions are trained. Gym and home load different movements. */
   trainingPlace?: "gym" | "home";
   strengthTests?: StrengthTest[];
@@ -274,6 +276,12 @@ export interface ExercisePrescription {
   rpeTarget: number;
   /** First-session load from the strength test, in kg. */
   startKg?: number | null;
+}
+
+/** Exercises kept for one programme day, repeated until the person agrees to a change. */
+export interface DayRoutine {
+  splitId: string;
+  exercises: ExercisePrescription[];
 }
 
 export interface WorkoutDay {

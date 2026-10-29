@@ -59,7 +59,7 @@ export function AppTabBar() {
 
   return (
     <>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#3EF0E0]/15 bg-[#07090b]/95 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur-md" aria-label="Main">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#3EF0E0]/15 bg-[#070B10]/95 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur-md" aria-label="Main">
         <div className="mx-auto grid h-16 w-full max-w-[480px] grid-cols-5">
           <Link href="/dashboard" aria-current={current === "home" ? "page" : undefined} className={cn("grid place-items-center", item("home"))}>
             <span className="grid justify-items-center gap-1 text-[10px] font-medium">

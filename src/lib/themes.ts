@@ -23,11 +23,11 @@ export const THEMES: OstinTheme[] = [
     id: "pine",
     label: "Ember",
     brand: "#FF6A1A",
-    ground: "#0C0A09",
-    lift: "#3A2418",
-    base: "#14110F",
-    card: "#1C1613",
-    elevated: "#2A211C",
+    ground: "#070B10",
+    lift: "#070B10",
+    base: "#0c1418",
+    card: "#0c1418",
+    elevated: "#121a1f",
     fg: "#F8F9FA",
     muted: "#E7D7CC",
     subtle: "#E7D7CC",
@@ -77,10 +77,11 @@ export function themeById(id: string | undefined): OstinTheme {
   return THEMES.find((theme) => theme.id === id) ?? THEMES[0];
 }
 
-export function applyTheme(settings: Settings) {
-  const theme = themeById(settings.theme);
+/** The app stays on Ember. Saved Ridge, Mist, or Snow choices are not painted. */
+export function applyTheme(_settings: Settings) {
+  const theme = THEMES[0];
   const root = document.documentElement;
-  const brand = (settings.accent || theme.brand).toLowerCase();
+  const brand = theme.brand.toLowerCase();
   root.style.setProperty("--color-brand", brand);
   root.style.setProperty("--color-ground", theme.ground);
   root.style.setProperty("--color-base", theme.base);
