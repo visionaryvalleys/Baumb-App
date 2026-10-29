@@ -44,7 +44,8 @@ function databaseSocket() {
   const socket = new Socket();
   const open = socket.connect.bind(socket);
   socket.connect = ((port: number, host?: string) => {
-    if (typeof port !== "number" || !host) return open(port, host);
+    if (typeof port !== "number") return open(port as unknown as string);
+    if (!host) return open(port);
     void hostAddress(host).then(
       (address) => {
         open(port, address);
