@@ -74,7 +74,7 @@ function mealTitle(items: MealItem[]) {
 function MealRow({ items, timeZone, recent = false }: { items: MealItem[]; timeZone?: string; recent?: boolean }) {
   const totals = sumNutrition(items);
   return (
-    <article className={cn("flex items-center gap-3 rounded-[18px] border border-[#3EF0E0]/25 bg-[#0c1418] px-3 py-3", recent && "bg-[#101416]")}>
+    <article className={cn("flex w-full min-w-0 max-w-full items-center gap-3 rounded-[18px] border border-[#3EF0E0]/25 bg-[#0c1418] px-3 py-3", recent && "bg-[#101416]")}>
       <span className="grid size-10 shrink-0 place-items-center rounded-full border border-[#3EF0E0]/30 bg-[#0e1c20] text-[#3EF0E0]">
         <Utensils className="size-4" aria-hidden />
       </span>
@@ -83,7 +83,7 @@ function MealRow({ items, timeZone, recent = false }: { items: MealItem[]; timeZ
           <p className="truncate text-[14px] font-semibold">{mealTitle(items)}</p>
           <p className="shrink-0 text-[11px] text-white/45">{recent ? formatDate(items[0].date) : clock(items[0].timestamp, timeZone)}</p>
         </div>
-        <p className="mt-0.5 text-[12px] tabular-nums text-white/60">
+        <p className="mt-0.5 break-words text-[12px] tabular-nums text-white/60">
           {count(totals.calories)} kcal · {count(totals.proteinG)} g protein · {count(totals.carbsG)} g carbs · {count(totals.fatG)} g fat
         </p>
       </div>
@@ -162,7 +162,7 @@ export function NutritionView() {
         {groups.length === 0 ? (
           <p className="text-sm text-white/55">Nothing is logged for this day. Type the meal, or the macros if you already know them.</p>
         ) : (
-          <div className="grid gap-2">
+          <div className="grid min-w-0 gap-2">
             {groups.map((items) => <MealRow key={items[0].id} items={items} timeZone={profile.timezone} />)}
           </div>
         )}
@@ -184,7 +184,7 @@ export function NutritionView() {
         {recent.length === 0 ? (
           <p className="text-sm text-white/50">Earlier meals show up here after you log them.</p>
         ) : (
-          <div className="grid gap-2">
+          <div className="grid min-w-0 gap-2">
             {recent.map((items) => <MealRow key={items[0].id} items={items} timeZone={profile.timezone} recent />)}
           </div>
         )}

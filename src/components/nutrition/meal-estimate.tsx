@@ -13,7 +13,7 @@ interface DraftItem extends NutritionProfile {
   grams: number;
 }
 
-const MAX_SIDE = 768;
+const MAX_SIDE = 480;
 const EXAMPLE_MACROS = "650 kcal, 28 g protein, 80 g carbs, 15 g fat";
 const EXAMPLE_MEAL = "2 roti, dal, and a small bowl of rice";
 
@@ -27,7 +27,7 @@ async function compress(file: File): Promise<string> {
   if (!ctx) throw new Error("canvas");
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
-  return canvas.toDataURL("image/jpeg", 0.72);
+  return canvas.toDataURL("image/jpeg", 0.55);
 }
 
 function line(item: { name: string; calories: number; proteinG: number; carbsG: number; fatG: number }) {
@@ -113,7 +113,7 @@ export function MealEstimate({ date }: { date: LocalDate }) {
         rows={2}
         maxLength={1000}
         placeholder={EXAMPLE_MEAL}
-        className="field min-h-[4.5rem] resize-none text-base"
+        className="field min-h-[4.5rem] resize-none text-[#F8F9FA]"
       />
       <div className="flex flex-wrap items-center gap-2">
         <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-full border border-[#3EF0E0]/35 px-3 text-sm font-semibold text-white/80">

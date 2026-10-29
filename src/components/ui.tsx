@@ -6,7 +6,7 @@ export function cn(...classes: (string | false | null | undefined)[]): string {
 }
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <section className={cn("glass rounded-card p-5 sm:p-6", className)}>{children}</section>;
+  return <section className={cn("glass min-w-0 max-w-full rounded-card p-5 sm:p-6", className)}>{children}</section>;
 }
 
 export function CardTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {

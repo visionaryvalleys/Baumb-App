@@ -1,0 +1,15 @@
+---
+description: Keep every card inside the phone width on Android and iPhone
+alwaysApply: true
+---
+
+# Cards stay on the phone
+
+The app is a phone column, at most 480px wide, with 16px of side padding. The narrowest phone leaves about 288px for content. Nothing in a card may paint past that column.
+
+- Give every card `min-w-0` and `max-w-full`. A flex or grid child that holds text also needs `min-w-0`.
+- Long names and macro lines wrap or truncate. Do not leave a single line that sets the card width.
+- Do not set a min-width that is wider than the column.
+- Horizontal scrolling belongs inside its own box, not on the page.
+- This is layout only. Do not change what a control does in order to make it fit.
+---

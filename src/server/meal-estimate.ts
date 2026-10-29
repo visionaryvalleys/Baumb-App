@@ -1,5 +1,5 @@
 import "server-only";
-import { FOOD_EFFORT, aiEnabled, aiJson, type AiImage } from "./ai";
+import { aiEnabled, aiJson, type AiImage } from "./ai";
 import { HttpError } from "./http";
 
 export interface EstimatedItem {
@@ -94,9 +94,9 @@ export async function estimateMeal(text: string, image?: AiImage): Promise<MealE
     system: SYSTEM,
     prompt,
     schema: SCHEMA,
-    maxTokens: 2000,
-    effort: FOOD_EFFORT,
-    timeoutMs: 45_000,
+    maxTokens: 600,
+    effort: "low",
+    timeoutMs: 20_000,
     cacheKey: "baumb-meal-estimate",
     image,
   });

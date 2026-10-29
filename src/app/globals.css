@@ -233,6 +233,20 @@ body {
   background-image: var(--page-ground);
   background-attachment: fixed;
   color: var(--color-fg);
+  overflow-x: clip;
+}
+
+/* Cards stay inside the phone. A long line wraps instead of widening the screen. */
+main {
+  min-width: 0;
+  overflow-x: clip;
+}
+main :where(article, section) {
+  min-width: 0;
+  max-width: 100%;
+}
+main :where(article, section) :where(p, h1, h2, h3) {
+  overflow-wrap: break-word;
 }
 
 @utility page-ground {
