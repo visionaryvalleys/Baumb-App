@@ -160,9 +160,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
             <input type="checkbox" className="mt-1 size-4 accent-brand" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
             <span>
               I am 16 or older. I agree that a meal I describe, and a photo if I add one, is sent to the configured model provider to estimate nutrition.{" "}
-              <Link href="/privacy" className="font-semibold text-brand">Privacy</Link>
+              <Link href="/privacy?from=/signup" className="font-semibold text-brand">Privacy</Link>
               {" · "}
-              <Link href="/terms" className="font-semibold text-brand">Terms</Link>
+              <Link href="/terms?from=/signup" className="font-semibold text-brand">Terms</Link>
             </span>
           </label>
         )}

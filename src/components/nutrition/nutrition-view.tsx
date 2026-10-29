@@ -2,12 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BarChart3, Sparkles, Trash2, Utensils } from "lucide-react";
+import { BarChart3, Trash2, Utensils } from "lucide-react";
 import { groupLoggedMeals } from "@/calculations/meal-text";
 import { calculateDailyNutrition, sumNutrition } from "@/calculations/nutrition";
 import { formatDate } from "@/lib/date";
 import { useDaySummary, useToday } from "@/lib/hooks";
-import { openAppTrainer } from "@/components/app-tab-bar";
 import { actions, useAppState } from "@/lib/store";
 import type { MealItem, NutritionProfile } from "@/lib/types";
 import { DateNav } from "../date-nav";
@@ -122,14 +121,6 @@ export function NutritionView() {
   else if (left != null && left > 0) balance = `${count(left)} kcal left.`;
   else if (left != null) balance = `${count(Math.abs(left))} kcal over today's target.`;
 
-  const proteinLeft = target && eaten ? Math.round(target.proteinG - eaten.proteinG) : target ? Math.round(target.proteinG) : null;
-  let insight = "Finish your plan to see today's targets.";
-  if (target && !eaten) insight = `Nothing is logged. The target is ${count(calorieTarget)} kcal.`;
-  else if (target && left != null && left > 0) {
-    insight = `${count(left)} kcal left today.`;
-    if (proteinLeft != null && proteinLeft > 0) insight += ` Protein is ${count(proteinLeft)} g under today's target.`;
-  } else if (target) insight = "Today's calorie target is already met.";
-
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -163,7 +154,7 @@ export function NutritionView() {
         <MealEstimate date={date} />
       </section>
 
-      <section className="rounded-[22px] border border-[#3EF0E0]/25 bg-[#0c1418] p-4 shadow-[0_0_14px_rgba(62,240,224,0.08)]">
+      <section className="rounded-[22px] border border-[#3EF0E0]/35 bg-[#0c1418] p-4 shadow-[0_0_22px_rgba(62,240,224,0.1)]">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-[15px] font-semibold">{date === today ? "Today's meals" : "Meals"}</h2>
           <p className="text-[12px] text-white/55">{groups.length} {groups.length === 1 ? "meal" : "meals"} · {count(calories)} kcal</p>
@@ -178,16 +169,6 @@ export function NutritionView() {
         <div className="mt-4">
           <MacroBar label="Fiber" value={eaten?.fiberG ?? 0} max={target?.fiberG ?? 0} color={VIOLET} />
         </div>
-      </section>
-
-      <section className="rounded-[22px] border border-[#3EF0E0]/25 bg-[#0c1418] px-4 py-4 shadow-[0_0_14px_rgba(62,240,224,0.08)]">
-        <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#3EF0E0]">
-          <Sparkles className="size-3.5" aria-hidden /> AI insight
-        </p>
-        <p className="mt-2 text-[13px] leading-snug text-white/90">{insight}</p>
-        <button type="button" onClick={() => openAppTrainer()} className="mt-3 text-[13px] font-semibold text-[#3EF0E0]">
-          View meal recommendations →
-        </button>
       </section>
 
       <Link href="/progress" className="flex items-center gap-3 rounded-[22px] border border-[#3EF0E0]/25 bg-[#0c1418] px-4 py-3 shadow-[0_0_14px_rgba(62,240,224,0.08)]">

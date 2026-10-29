@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { BOARD_VISIBLE_DAYS } from "@/lib/board-client";
 import { getSessionUser } from "@/server/auth";
 import { query } from "@/server/db";
 import { HttpError, assertSameOrigin, errorResponse, readJson } from "@/server/http";
@@ -39,7 +40,7 @@ function weekKey(value: Date | string | null): string {
 }
 
 async function standingsFor(userId: string) {
-  const scores = await query<ScoreRow>("SELECT user_id, display_name, workout_count, workout_days, eligible, g_balance, week_count, week_start FROM board_scores WHERE workout_count >= 1 AND week_count >= 1 ORDER BY week_count DESC, display_name ASC");
+  const scores = await query<ScoreRow>("SELECT user_id, display_name, workout_count, workout_days, eligible, g_balance, week_count, week_start FROM board_scores WHERE week_count >= $1 ORDER BY week_count DESC, display_name ASC", [BOARD_VISIBLE_DAYS]);
   const award = (await query<AwardRow>("SELECT winner_user_id, winner_name, workout_count, announced_at FROM board_award WHERE id = 1"))[0];
   return {
     standings: scores.map((row) => ({

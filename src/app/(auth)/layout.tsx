@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AuthBack } from "@/components/auth-back";
 import { Backdrop } from "@/components/backdrop";
 import { BaumbLogo } from "@/components/brand";
 
@@ -9,6 +10,9 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <Backdrop />
 
       <main className="relative mx-auto flex min-h-dvh w-full max-w-[480px] flex-col items-center px-4 pb-10 pt-8">
+        <div className="w-full max-w-[420px]">
+          <AuthBack />
+        </div>
         <BaumbLogo href="/signin" className="animate-fade-in" />
         <div className="flex w-full max-w-[420px] flex-1 flex-col justify-center pt-8">{children}</div>
       </main>

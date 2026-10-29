@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Trophy } from "lucide-react";
-import { type BoardSnapshot, loadBoard, publishBoard } from "@/lib/board-client";
+import { BOARD_VISIBLE_DAYS, type BoardSnapshot, loadBoard, publishBoard } from "@/lib/board-client";
 import { startOfWeek } from "@/lib/date";
 import { G_PER_WORKOUT, REWARDS, gBalance, isBoardEligible, workoutDayCount } from "@/lib/g-system";
 import { useToday } from "@/lib/hooks";
@@ -50,7 +50,7 @@ export function SessionBoard() {
 
   const rows = (board?.standings ?? [])
     .map((row) => ({ ...row, shown: row.weekStart === week ? row.weekCount : 0 }))
-    .filter((row) => row.shown > 0)
+    .filter((row) => row.shown >= BOARD_VISIBLE_DAYS)
     .sort((a, b) => b.shown - a.shown || a.name.localeCompare(b.name))
     .slice(0, 10);
   const visible = showAll ? rows : rows.slice(0, 5);
@@ -58,7 +58,7 @@ export function SessionBoard() {
   return (
     <Card>
       <CardTitle action={<Trophy className="size-4 text-brand" aria-hidden />}>Leaderboard</CardTitle>
-      <p className="text-sm text-white/55">Names appear after a workout this week, ordered by how many. A week runs Monday through Sunday.</p>
+      <p className="text-sm text-white/55">Names appear on day 3, after the exercises for day 1 and day 2 are finished. Rank is by completed days, not by reps or sets. A week runs Monday through Sunday.</p>
       {!ready ? null : rows.length > 0 ? (
         <>
           <ol className="mt-4 grid gap-2">
@@ -70,7 +70,7 @@ export function SessionBoard() {
                 </p>
                 <p className="shrink-0 text-right text-[15px] font-semibold tabular-nums text-white">
                   {row.shown}
-                  <span className="ml-1 text-[11px] font-medium uppercase tracking-[0.12em] text-white/45">{row.shown === 1 ? "workout" : "workouts"}</span>
+                  <span className="ml-1 text-[11px] font-medium uppercase tracking-[0.12em] text-white/45">{row.shown === 1 ? "day" : "days"}</span>
                 </p>
               </li>
             ))}
@@ -82,7 +82,7 @@ export function SessionBoard() {
           )}
         </>
       ) : (
-        <p className="mt-4 text-sm text-white/55">Log a workout this week and your name appears here.</p>
+        <p className="mt-4 text-sm text-white/55">Finish day 1 and day 2. Your name appears on day 3, once that day&apos;s exercises are done.</p>
       )}
     </Card>
   );

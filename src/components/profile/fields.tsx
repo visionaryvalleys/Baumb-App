@@ -4,8 +4,8 @@ import { Check } from "lucide-react";
 import { EQUIPMENT_LABELS, EXPERIENCE_DETAILS, EXPERIENCE_LABELS, GOAL_LIST, LIFESTYLE_LABELS, SPLIT_OPTIONS, goalConfig } from "@/data/goals";
 import { STRENGTH_LEVELS, strengthProfile, strengthTestLifts, type StrengthLevel } from "@/calculations/strength";
 import { bmi } from "@/calculations/targets";
-import { MAX_SESSION_MINUTES, MIN_SESSION_MINUTES, weekStructure } from "@/calculations/workout";
-import { WEEKDAY_SHORT, deviceTimezone } from "@/lib/date";
+import { MAX_SESSION_MINUTES, MIN_SESSION_MINUTES } from "@/calculations/workout";
+import { deviceTimezone } from "@/lib/date";
 import type { EquipmentAccess, Experience, Goal, GoalType, HealthCondition, InjuryArea, Lifestyle, Profile, Sex, SplitPreference, StrengthTest, UnitSystem } from "@/lib/types";
 import { cmToFeetInches, feetInchesToCm, fromDisplayWeight, toDisplayWeight, weightUnit } from "@/lib/units";
 import { Segmented, SectionLabel, cn } from "../ui";
@@ -407,40 +407,13 @@ function ChoiceCards<T extends string>({ value, onChange, options, label, column
             role="radio"
             aria-checked={active}
             onClick={() => onChange(o.value)}
-            className={cn("relative rounded-xl px-3.5 py-3 text-left transition", active ? "bg-brand/12 shadow-[inset_0_0_0_1.5px_var(--color-brand)]" : "bg-white/[0.03] ring-1 ring-inset ring-white/[0.08] hover:bg-white/[0.06]")}
+            className={cn("rounded-xl px-3.5 py-3 text-left transition", active ? "bg-brand/12 shadow-[inset_0_0_0_1.5px_var(--color-brand)]" : "bg-white/[0.03] ring-1 ring-inset ring-white/[0.08] hover:bg-white/[0.06]")}
           >
             <span className={cn("block text-sm font-semibold", active ? "text-white" : "text-white/85")}>{o.label}</span>
             <span className={cn("mt-0.5 block text-xs", active ? "text-white/70" : "text-white/45")}>{o.detail}</span>
-            {active && <Check className="absolute right-3 top-3 size-3.5 text-brand" aria-hidden />}
           </button>
         );
       })}
-    </div>
-  );
-}
-
-function WeekPreview({ g }: { g: GoalDraft }) {
-  const week = weekStructure({ type: g.type, experience: g.experience, daysPerWeek: g.daysPerWeek, split: g.split });
-  const byDay = new Map(week.days.map((d) => [d.weekday, d]));
-  return (
-    <div className="panel p-4">
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <SectionLabel>Your week</SectionLabel>
-        <span className="max-w-[58%] text-right text-xs font-semibold leading-tight text-brand">{week.split}</span>
-      </div>
-      <ol className="grid grid-cols-7 gap-1.5">
-        {WEEKDAY_SHORT.map((label, i) => {
-          const day = byDay.get(i);
-          return (
-            <li key={label} className={cn("min-w-0 overflow-hidden rounded-lg px-0.5 py-1.5 text-center", day ? "bg-white/[0.06] ring-1 ring-inset ring-white/10" : "bg-black/20")}>
-              <span className="block text-[9px] font-semibold uppercase tracking-wider text-white/40">{label}</span>
-              <span className={cn("mt-1 block break-words text-[9px] font-semibold leading-tight", day ? "text-white" : "text-white/30")}>{day?.name ?? "Rest"}</span>
-              {day && <span className="mt-0.5 hidden text-[10px] leading-tight text-white/45 md:block">{day.focus}</span>}
-            </li>
-          );
-        })}
-      </ol>
-      {week.note && <p className="mt-3 text-xs text-white/55">{week.note}</p>}
     </div>
   );
 }
@@ -505,8 +478,19 @@ export function TrainingFields({ g, set, d, setProfile }: { g: GoalDraft; set: S
         />
       </div>
       <div>
-        <span className="label">Workout days per week</span>
-        <Segmented value={g.daysPerWeek} onChange={(v) => set("daysPerWeek", v)} options={[1, 2, 3, 4, 5, 6, 7].map((n) => ({ value: n, label: n }))} />
+        <label htmlFor="days-per-week" className="label">
+          Workout days per week: <span className="font-semibold text-white">{g.daysPerWeek}</span>
+        </label>
+        <input
+          id="days-per-week"
+          type="range"
+          min={1}
+          max={7}
+          step={1}
+          value={g.daysPerWeek}
+          onChange={(e) => set("daysPerWeek", Number(e.target.value))}
+          className="w-full accent-[var(--color-brand)]"
+        />
       </div>
       <div>
         <span className="label">Workout structure</span>
@@ -518,7 +502,6 @@ export function TrainingFields({ g, set, d, setProfile }: { g: GoalDraft; set: S
           options={(Object.keys(SPLIT_OPTIONS) as SplitPreference[]).map((k) => ({ value: k, ...SPLIT_OPTIONS[k] }))}
         />
       </div>
-      <WeekPreview g={g} />
       <div>
         <label htmlFor="session-min" className="label">
           Time per session: <span className="font-semibold text-white">{g.sessionMinutes} min</span> (warm-up, rest and transitions included)

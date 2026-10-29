@@ -96,11 +96,22 @@ export function OnboardingFlow() {
     return {};
   }
 
+  const pendingTop = useRef(false);
+
   function next() {
     const e = problemsFor(step);
     setErrors(e);
-    if (Object.keys(e).length === 0) setStep((s) => Math.min(s + 1, STEPS.length - 1));
+    if (Object.keys(e).length === 0) {
+      pendingTop.current = true;
+      setStep((s) => Math.min(s + 1, STEPS.length - 1));
+    }
   }
+
+  useEffect(() => {
+    if (!pendingTop.current) return;
+    pendingTop.current = false;
+    window.scrollTo(0, 0);
+  }, [step]);
 
   function finish() {
     const aboutErrors = { ...validateAbout(d), ...validateBody(d) };
@@ -211,7 +222,7 @@ export function OnboardingFlow() {
         )}
         {step === PLAN_STEP && <PlanPreview plan={preview} />}
 
-        <div className="mt-8 grid grid-cols-2 gap-2 border-t border-line pt-6 pr-14">
+        <div className="mt-8 flex items-center justify-between gap-2 border-t border-line pt-6">
           <button type="button" className="btn-ghost h-12" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>
             <ArrowLeft className="size-4" aria-hidden /> Back
           </button>
@@ -221,7 +232,7 @@ export function OnboardingFlow() {
             </button>
           ) : (
             <button type="button" className="btn-primary h-12" onClick={finish}>
-              Create my plan <Check className="size-4" aria-hidden />
+              Create plan <Check className="size-4" aria-hidden />
             </button>
           )}
         </div>

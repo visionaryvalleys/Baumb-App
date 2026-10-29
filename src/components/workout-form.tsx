@@ -122,7 +122,7 @@ export function WorkoutForm() {
   const todaySplitLabel = splitLabel(todaySplitId);
   const place = goal?.trainingPlace ?? null;
   const latestKg = [...weights].sort((a, b) => b.date.localeCompare(a.date))[0]?.weightKg ?? null;
-  const [duration, setDuration] = useState(45);
+  const [duration, setDuration] = useState(75);
   const [editing, setEditing] = useState<number | null>(null);
   const [live, setLive] = useState<ReturnType<typeof buildSplitSession> | null>(null);
   const [error, setError] = useState("");
@@ -221,7 +221,7 @@ export function WorkoutForm() {
 
   return (
     <div className="space-y-4">
-      <div className={cn("grid grid-cols-2", place ? "overflow-hidden rounded-card border border-brand" : "gap-3")}>
+      <div className="grid grid-cols-2 gap-3">
         {(["gym", "home"] as const).map((option) => (
           <button
             key={option}
@@ -229,12 +229,8 @@ export function WorkoutForm() {
             aria-pressed={place === option}
             onClick={() => choosePlace(option)}
             className={cn(
-              "min-h-28 text-lg font-semibold tracking-[0.18em]",
-              place
-                ? place === option
-                  ? "bg-brand text-[#F8F9FA]"
-                  : "bg-transparent text-[#F8F9FA]"
-                : "rounded-card border-2 border-dashed border-white/35 text-[#F8F9FA]",
+              "min-h-28 rounded-card border-2 border-dotted text-lg font-semibold tracking-[0.18em]",
+              place === option ? "border-[#3EF0E0] text-[#3EF0E0]" : "border-white/35 text-[#F8F9FA]",
             )}
           >
             {option === "gym" ? "GYM" : "HOME"}

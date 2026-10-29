@@ -51,7 +51,7 @@ function DailySlide({ today, onDone }: { today: string; onDone: () => void }) {
       aria-label="Fitness Powered by Intelligent Motion AI. Slide to continue."
     >
       <div className="flex h-dvh w-full max-w-[480px] flex-col justify-center px-0">
-        <img src="/daily-open.jpg?v=3" alt="" className="mx-auto block h-auto max-h-[calc(100dvh-6.2rem)] w-full object-contain" />
+        <img src="/daily-open.jpg?v=4" alt="" className="mx-auto block h-auto max-h-[calc(100dvh-6.2rem)] w-full object-contain" />
         <div className="mx-auto h-[4.4rem] w-full max-w-[480px] shrink-0 px-[7%] pt-3">
           <SlideKnob onComplete={finish} />
         </div>

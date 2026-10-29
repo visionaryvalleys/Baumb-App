@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BarChart3, ChevronRight, Clock, Dumbbell, Flame, Menu, Plus, Sparkles, UserRound, Utensils } from "lucide-react";
+import { ArrowRight, BarChart3, ChevronRight, Clock, Dumbbell, Flame, Menu, Plus, UserRound, Utensils } from "lucide-react";
 import { programmeDay, splitLabel, splitsForWeek } from "@/calculations/day-split";
 import { groupLoggedMeals } from "@/calculations/meal-text";
 import { calculateDailyNutrition } from "@/calculations/nutrition";
@@ -11,7 +11,6 @@ import { addDays, daysBetween, localDateKey, localMinutes, startOfWeek, todayKey
 import { openAppMenu } from "@/lib/menu-bus";
 import { currentStreak } from "@/lib/stats";
 import { useAppState } from "@/lib/store";
-import { openAppTrainer } from "./app-tab-bar";
 import { BaumbLogo } from "./brand";
 import { NotificationBell } from "./notifications";
 import { cn } from "./ui";
@@ -42,7 +41,7 @@ function Ring({ pct, color, value, detail }: { pct: number; color: string; value
   const circ = 2 * Math.PI * radius;
   const filled = Math.max(0, Math.min(1, pct)) * circ;
   return (
-    <div className="relative grid size-[78px] place-items-center">
+    <div className="relative mx-auto grid aspect-square w-full max-w-[78px] place-items-center">
       <svg viewBox="0 0 72 72" className="absolute inset-0 size-full" aria-hidden>
         <circle cx="36" cy="36" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5" />
         <circle
@@ -59,7 +58,7 @@ function Ring({ pct, color, value, detail }: { pct: number; color: string; value
       </svg>
       <div className="relative text-center leading-none">
         <p className="text-[13px] font-semibold tabular-nums">{value}</p>
-        <p className="mt-1 text-[8px] tabular-nums text-white/50">{detail}</p>
+        <p className="mt-1 max-w-full px-0.5 text-[8px] leading-tight tabular-nums text-white/50">{detail}</p>
       </div>
     </div>
   );
@@ -109,17 +108,8 @@ export function HomeDashboard() {
   const calorieTarget = nutrition?.calories ?? 0;
   const proteinTarget = nutrition?.proteinG ?? 0;
   const fiberTarget = nutrition?.fiberG ?? 0;
-  const calorieGap = eaten ? Math.round(calorieTarget - eaten.calories) : null;
-  const proteinGap = eaten ? Math.round(proteinTarget - eaten.proteinG) : null;
   const mealCount = groupLoggedMeals(meals.filter((item) => item.date === today)).length;
   const weekPct = days > 0 ? Math.max(0, Math.min(1, doneThisWeek / days)) : 0;
-
-  let insight = "Finish your plan to see today's targets.";
-  if (nutrition && eaten == null) insight = `Nothing is logged today. The target is ${count(calorieTarget)} kcal.`;
-  else if (nutrition && calorieGap != null && calorieGap > 0) {
-    insight = `You're ${count(calorieGap)} kcal short of today's target.`;
-    if (proteinGap != null && proteinGap > 0) insight += ` Protein is ${count(proteinGap)} g under today's target.`;
-  } else if (nutrition) insight = "Today's calorie target is already met.";
 
   return (
     <div className="relative min-h-dvh bg-[#070B10] text-[#F8F9FA]">
@@ -219,40 +209,23 @@ export function HomeDashboard() {
               {mealCount} {mealCount === 1 ? "meal" : "meals"} logged
             </span>
           </div>
-          <div className="mt-3 flex items-end justify-between gap-2">
-            <div className="flex flex-1 justify-between">
-              {[
-                { label: "Calories", color: NEON, value: calorieValue, target: calorieTarget, detail: ` / ${count(calorieTarget)} kcal` },
-                { label: "Protein", color: ORANGE, value: proteinValue, target: proteinTarget, detail: ` / ${count(proteinTarget)} g` },
-                { label: "Fiber", color: VIOLET, value: fiberValue, target: fiberTarget, detail: ` / ${count(fiberTarget)} g` },
-              ].map((item) => (
-                <div key={item.label} className="text-center">
-                  <Ring pct={item.target > 0 ? item.value / item.target : 0} color={item.color} value={count(item.value)} detail={item.detail} />
-                  <p className="mt-1 text-[11px] text-white/70">{item.label}</p>
-                  <p className="text-[10px] tabular-nums text-white/40">{pctOf(item.value, item.target)}%</p>
-                </div>
-              ))}
-            </div>
-            <div className="w-[132px] shrink-0 pb-1">
-              <Link href="/nutrition" className="flex h-10 items-center justify-center gap-1.5 rounded-full border border-[#3EF0E0]/35 text-[13px] font-semibold text-[#3EF0E0]">
-                <Plus className="size-3.5" aria-hidden /> Log Meal <ArrowRight className="size-3.5" aria-hidden />
-              </Link>
-              <p className="mt-2 text-center text-[10px] leading-snug text-white/40">Track your meals and get better results.</p>
-            </div>
+          <div className="mt-3 grid grid-cols-3 gap-1">
+            {[
+              { label: "Calories", color: NEON, value: calorieValue, target: calorieTarget, detail: ` / ${count(calorieTarget)} kcal` },
+              { label: "Protein", color: ORANGE, value: proteinValue, target: proteinTarget, detail: ` / ${count(proteinTarget)} g` },
+              { label: "Fiber", color: VIOLET, value: fiberValue, target: fiberTarget, detail: ` / ${count(fiberTarget)} g` },
+            ].map((item) => (
+              <div key={item.label} className="min-w-0 text-center">
+                <Ring pct={item.target > 0 ? item.value / item.target : 0} color={item.color} value={count(item.value)} detail={item.detail} />
+                <p className="mt-1 text-[11px] text-white/70">{item.label}</p>
+                <p className="text-[10px] tabular-nums text-white/40">{pctOf(item.value, item.target)}%</p>
+              </div>
+            ))}
           </div>
-        </article>
-
-        <article className="flex items-center gap-3 rounded-[22px] border border-[#3EF0E0]/25 bg-[#0c1418] px-3.5 py-4">
-          <div className="grid size-9 shrink-0 place-items-center rounded-full border border-[#3EF0E0]/30 text-[#3EF0E0]">
-            <Sparkles className="size-4" aria-hidden />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#3EF0E0]">AI insight</p>
-            <p className="mt-1 text-[13px] leading-snug text-white/90">{insight}</p>
-          </div>
-          <button type="button" onClick={() => openAppTrainer()} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full border border-[#3EF0E0]/40 px-3 text-[11px] font-semibold text-[#3EF0E0]">
-            View Recommendation <ArrowRight className="size-3.5" aria-hidden />
-          </button>
+          <Link href="/nutrition" className="mt-3 flex h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[#3EF0E0]/35 text-[13px] font-semibold text-[#3EF0E0]">
+            <Plus className="size-3.5" aria-hidden /> Log Meal <ArrowRight className="size-3.5" aria-hidden />
+          </Link>
+          <p className="mt-2 text-center text-[10px] leading-snug text-white/40">Track your meals and get better results.</p>
         </article>
 
         <div>

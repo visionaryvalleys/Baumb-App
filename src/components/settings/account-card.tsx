@@ -83,7 +83,7 @@ export function AccountCard() {
           </button>
         </div>
       </div>
-      <p className="mt-4 text-xs leading-relaxed text-white/45">The journal is saved to your account. The password is stored as a hash, not as text. Meal estimates are sent only when you ask, under the <a href="/privacy" className="text-brand">privacy notice</a>.</p>
+      <p className="mt-4 text-xs leading-relaxed text-white/45">The journal is saved to your account. The password is stored as a hash, not as text. Meal estimates are sent only when you ask, under the <a href="/privacy?from=/settings" className="text-brand">privacy notice</a>.</p>
     </Card>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Lock } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ChevronDown, ChevronUp, Lock } from "lucide-react";
 import { avoidReason, healthConstraints } from "@/calculations/health";
 import { dayListKey, loadHint, shortenLeft } from "@/calculations/session-day";
 import { firstWarmupKg, warmupFromWorking, warmupSetCount, type WarmupBody } from "@/calculations/warmup";
@@ -252,6 +253,8 @@ export function SplitWorkout({
   const [adding, setAdding] = useState(false);
   const [addMuscle, setAddMuscle] = useState<MuscleGroup | null>(null);
   const [focus, setFocus] = useState(0);
+  /** The first exercise is open when the sheet opens. Null means every card is closed. */
+  const [openCard, setOpenCard] = useState<number | null>(0);
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const [overtimeAsk, setOvertimeAsk] = useState(false);
@@ -259,8 +262,6 @@ export function SplitWorkout({
   const overtimeSeen = useRef(false);
   const [restUntil, setRestUntil] = useState<number | null>(null);
   const [restOn, setRestOn] = useState<number | null>(null);
-  /** A full-card rest covers the set just finished. A handoff rest sits on the next exercise. */
-  const [restCovers, setRestCovers] = useState(true);
   const [advanceTo, setAdvanceTo] = useState<number | null>(null);
   const startedAt = useRef(Date.now());
   const [now, setNow] = useState(startedAt.current);
@@ -287,11 +288,8 @@ export function SplitWorkout({
   useEffect(() => {
     if (advanceTo == null) return;
     const node = document.getElementById(`exercise-card-${advanceTo}`);
-    if (!node) return;
-    node.scrollIntoView({ behavior: "smooth", block: "start" });
-    const rest = node.querySelector<HTMLElement>("[data-rest-skip]");
-    const start = node.querySelector<HTMLElement>("[data-set-start]");
-    (rest ?? start)?.focus();
+    node?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.querySelector<HTMLElement>("[data-rest-skip]")?.focus();
   }, [advanceTo]);
 
   function replaceExercise(index: number, exerciseId: string) {
@@ -382,23 +380,40 @@ export function SplitWorkout({
     patch(exerciseIndex, stepIndex, { ready: true });
   }
 
+  function loadNext(list: Step[][], exerciseIndex: number): Step[][] {
+    const steps = list[exerciseIndex];
+    const item = items[exerciseIndex];
+    if (!steps || !item) return list;
+    const stepIndex = steps.findIndex((step) => !step.done);
+    if (stepIndex < 0) return list;
+    const step = steps[stepIndex];
+    if (step.weight && step.reps) return list;
+    const warmupsBefore = steps.slice(0, stepIndex).filter((entry) => entry.warmup).length;
+    const advice = adviceFor(workouts, item, unit, step.warmup ? warmupsBefore : null, injuries, conditions, body);
+    const reps = step.reps || String(step.warmup ? WARMUP_REPS : advice.reps);
+    const weight = step.weight || advice.weight;
+    return list.map((row, index) => (index === exerciseIndex ? row.map((entry, i) => (i === stepIndex ? { ...entry, reps, weight } : entry)) : row));
+  }
+
   function submitStep(exerciseIndex: number, stepIndex: number) {
-    const next = cards.map((steps, index) => (index === exerciseIndex ? steps.map((step, i) => (i === stepIndex ? { ...step, done: true, ready: false } : step)) : steps));
-    setCards(next);
+    let next = cards.map((steps, index) => (index === exerciseIndex ? steps.map((step, i) => (i === stepIndex ? { ...step, done: true, ready: false } : step)) : steps));
     const saved = packed(next);
     if (saved.exercises.length) onSet(saved.exercises, saved.status);
     const moreHere = next[exerciseIndex]?.some((step) => !step.done);
     const nextIndex = next.findIndex((list, index) => index > exerciseIndex && !skipped[index] && list.some((step) => !step.done));
     if (moreHere) {
+      next = loadNext(next, exerciseIndex);
       setRestOn(exerciseIndex);
-      setRestCovers(true);
       setRestUntil(Date.now() + 120_000);
+      setOpenCard(exerciseIndex);
     } else if (nextIndex >= 0) {
+      next = loadNext(next, nextIndex);
       setRestOn(nextIndex);
-      setRestCovers(false);
       setRestUntil(Date.now() + 120_000);
       setAdvanceTo(nextIndex);
+      setOpenCard(nextIndex);
     }
+    setCards(next);
   }
 
   function keptRoutine(): ExercisePrescription[] {
@@ -500,8 +515,14 @@ export function SplitWorkout({
     return !skipped[index] && !(steps.length > 0 && steps.every((step) => step.done));
   });
   const shown = items[focus] ? focus : Math.max(0, currentIndex);
+  const restSteps = restOn != null ? cards[restOn] ?? [] : [];
+  const restStepIndex = restSteps.findIndex((step) => !step.done);
+  const restStep = restStepIndex >= 0 ? restSteps[restStepIndex] : null;
+  const restItem = restOn != null ? items[restOn] : null;
+  const restAdvice = restStep && restItem ? adviceFor(workouts, restItem, unit, restStep.warmup ? restSteps.slice(0, restStepIndex).filter((step) => step.warmup).length : null, injuries, conditions, body) : null;
+  const restWeight = restStep && restAdvice ? restStep.weight || restAdvice.weight : "";
+  const restReps = restStep && restAdvice ? Number(restStep.reps) || (restStep.warmup ? WARMUP_REPS : restAdvice.reps) : 0;
   const currentId = items[shown]?.exerciseId ?? items[0]?.exerciseId;
-  const currentNames = muscleNames(currentId ?? "");
 
   return (
     <div className="space-y-4">
@@ -530,9 +551,6 @@ export function SplitWorkout({
               </div>
             ))}
           </div>
-          <p className="text-center text-sm leading-relaxed text-white/70">
-            You are prepared for training. Let&apos;s strengthen your {currentNames.primary || "session"}.
-          </p>
           <p className="text-center text-[12px] text-white/45">
             Exercise {shown + 1} of {items.length}
           </p>
@@ -613,17 +631,17 @@ export function SplitWorkout({
                   })}
                 </p>
               )}
-              {active && step.opened && (
+              {active && (
                 <div className={cn("mt-2 flex gap-4", restLeft > 0 && restOn === index && "opacity-30")}>
                   <BigStep
                     label={unit}
-                    value={step.warmup ? step.weight || advice.weight : step.weight}
+                    value={step.weight || advice.weight}
                     decimal
                     onChange={(weight) => patch(index, stepIndex, { weight })}
                   />
                   <BigStep
                     label="Reps"
-                    value={step.warmup ? String(WARMUP_REPS) : step.reps}
+                    value={step.warmup ? String(WARMUP_REPS) : step.reps || String(advice.reps)}
                     locked={step.warmup}
                     onChange={(reps) => {
                       if (step.warmup) return;
@@ -635,29 +653,38 @@ export function SplitWorkout({
               {active && step.opened && !step.warmup && history && tone === "blue" && <p className="mt-2 text-sm text-[#9BB4D6]">Blue set. Every rep is in.</p>}
               {active && step.opened && !step.warmup && history && tone === "green" && <p className="mt-2 text-sm text-[#8FCBB0]">On target. Push a little harder next time to beat the blue set.</p>}
               {active && step.opened && !step.warmup && history && tone === "orange" && <p className="mt-2 text-sm text-[#E0B07A]">This is below your usual strength – try to push harder next time.</p>}
-              <div className="mt-3">
-                <p className="mb-2 text-xs text-[#DFE5E8]">Reserve</p>
-                <div className="flex flex-wrap gap-2">
-                  {RESERVE.map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className={cn(
-                        "h-8 min-w-8 rounded-md border px-2 text-xs",
-                        step.reserve === value ? "border-[#1B3A6B] bg-[#1B3A6B] text-[#F8F9FA]" : "border-white/20 text-[#DFE5E8]",
-                      )}
-                      onClick={() => patch(index, stepIndex, { reserve: value })}
-                    >
-                      {value === 5 ? "5+" : value}
-                    </button>
-                  ))}
-                </div>
-                {active && step.ready && (
+              {active && step.ready && (
+                <div className="mt-3">
+                  {!step.warmup && (
+                    <>
+                      <p className="mb-2 text-xs text-[#DFE5E8]">Reserve</p>
+                      <div className="flex flex-wrap gap-2">
+                        {RESERVE.map((value) => {
+                          const target = value === suggestedReserve(item.exerciseId, item.rpeTarget, injuries, conditions);
+                          return (
+                            <div key={value} className="flex flex-col items-center">
+                              <button
+                                type="button"
+                                className={cn(
+                                  "h-8 min-w-8 rounded-md border px-2 text-xs",
+                                  step.reserve === value ? "border-[#1B3A6B] bg-[#1B3A6B] text-[#F8F9FA]" : "border-white/20 text-[#DFE5E8]",
+                                )}
+                                onClick={() => patch(index, stepIndex, { reserve: value })}
+                              >
+                                {value === 5 ? "5+" : value}
+                              </button>
+                              {target && <span className="mt-1 text-[9px] uppercase tracking-wide text-[#DFE5E8]">target</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
                   <button type="button" className="btn-primary mt-3 h-11 w-full" onClick={() => submitStep(index, stepIndex)}>
                     Submit Set
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           );
         }
@@ -667,7 +694,23 @@ export function SplitWorkout({
         const cardAdvice = adviceFor(workouts, item, unit, null, injuries, conditions, body);
         return (
           <section id={`exercise-card-${index}`} key={`${item.exerciseId}-${index}`} className={cn("relative scroll-mt-24 rounded-card bg-white/[0.04] p-4", !passed && !complete && toneGlow(glowTone))} onClick={() => setFocus(index)}>
-            <h3 className={cn("text-2xl font-semibold text-[#F8F9FA]", (passed || complete) && "line-through decoration-2")}>{info?.name ?? item.exerciseId}</h3>
+            <div className="flex items-start justify-between gap-3">
+              <h3 className={cn("min-w-0 text-2xl font-semibold text-[#F8F9FA]", (passed || complete) && "line-through decoration-2")}>{info?.name ?? item.exerciseId}</h3>
+              <button
+                type="button"
+                className="grid size-9 shrink-0 place-items-center rounded-md text-[#F8F9FA]"
+                aria-expanded={openCard === index}
+                aria-label={openCard === index ? "Close exercise" : "Open exercise"}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setFocus(index);
+                  setOpenCard((current) => (current === index ? null : index));
+                }}
+              >
+                {openCard === index ? <ChevronUp className="size-5" aria-hidden /> : <ChevronDown className="size-5" aria-hidden />}
+              </button>
+            </div>
+            {openCard === index && <>
             <p className="mt-1 text-sm leading-relaxed text-white/60">{info?.cue}</p>
             <p className="mt-2 text-xs uppercase tracking-[0.14em] text-white/45">Target muscles</p>
             <p className="text-sm text-[#F8F9FA]">{muscleNames(item.exerciseId).primary || info?.muscle}</p>
@@ -683,14 +726,6 @@ export function SplitWorkout({
                   unit,
                 })}
               </p>
-            )}
-            {restLeft > 0 && restOn === index && !restCovers && (
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="text-sm text-[#DFE5E8]">Rest <span className="font-semibold tabular-nums text-brand">{clock(restLeft)}</span></p>
-                <button type="button" data-rest-skip="" className="btn-ghost h-9 px-3" onClick={() => { setRestUntil(null); setRestOn(null); }}>
-                  Skip rest
-                </button>
-              </div>
             )}
             {!complete && <div className="mt-3 space-y-2">
               {warmStep && !passed && stage(warmStep, warmIndex, `Warm-up ${warmSteps.filter((step) => step.done).length + 1}/${warmSteps.length}`)}
@@ -721,17 +756,7 @@ export function SplitWorkout({
                 </div>
               </div>
             )}
-            {restLeft > 0 && restOn === index && restCovers && (
-              <div className="absolute inset-0 grid place-items-center rounded-card bg-[#0B1220]/80">
-                <div className="text-center">
-                  <p className="text-[12px] uppercase tracking-[0.18em] text-[#DFE5E8]">Rest</p>
-                  <p className="text-[4.5rem] font-semibold leading-none text-brand">{clock(restLeft)}</p>
-                  <button type="button" data-rest-skip="" className="btn-ghost mt-3 h-11 px-4" onClick={() => { setRestUntil(null); setRestOn(null); }}>
-                    Skip rest
-                  </button>
-                </div>
-              </div>
-            )}
+            </>}
           </section>
         );
       })}
@@ -808,6 +833,32 @@ export function SplitWorkout({
           </div>
         </div>
       )}
+      {restLeft > 0 &&
+        createPortal(
+          <div className="fixed inset-0 z-[90] grid place-items-center bg-[#0B1220]/80" role="dialog" aria-modal="true" aria-label="Rest">
+            <div className="text-center">
+              <p className="text-[12px] uppercase tracking-[0.18em] text-[#DFE5E8]">Rest</p>
+              <p className="text-[4.5rem] font-semibold leading-none text-brand">{clock(restLeft)}</p>
+              {restStep && (
+                <p className="mt-3 text-lg font-semibold tabular-nums text-[#F8F9FA]">
+                  {restWeight ? `${restWeight} ${unit}` : "Bodyweight"} · {restReps} reps
+                </p>
+              )}
+              <button
+                type="button"
+                data-rest-skip=""
+                className="btn-ghost mt-3 h-11 px-4"
+                onClick={() => {
+                  setRestUntil(null);
+                  setRestOn(null);
+                }}
+              >
+                Skip rest
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
