@@ -7,11 +7,12 @@ const person: WarmupBody = { weightKg: 74.6, sex: "male", age: 24, heightCm: 173
 function workout(exerciseId: string, warmups: number, date: string): Workout {
   return {
     id: date,
+    name: "Session",
     date,
     createdAt: 0,
     timezone: "Asia/Calcutta",
     type: "strength",
-    title: "",
+    durationMin: 45,
     notes: "",
     exercises: [
       {
@@ -22,7 +23,7 @@ function workout(exerciseId: string, warmups: number, date: string): Workout {
         ],
       },
     ],
-  } as Workout;
+  };
 }
 
 describe("first warm-up load", () => {
