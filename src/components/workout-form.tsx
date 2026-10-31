@@ -10,7 +10,7 @@ import { buildSplitSession } from "@/calculations/workout";
 import { currentAge } from "@/calculations/energy";
 import { groupsInSplit, initialSplits, joinGroups, MUSCLE_PICKS, programmeDay, splitLabel, splitsForWeek, type MusclePick } from "@/calculations/day-split";
 import { fromDateKey, startOfWeek, todayKey } from "@/lib/date";
-import type { WorkoutExercise } from "@/lib/types";
+import type { ExercisePrescription, Workout, WorkoutExercise } from "@/lib/types";
 import { actions, newId, useAppState } from "@/lib/store";
 import { weightUnit } from "@/lib/units";
 import { SessionBoard } from "./board/rewards";
@@ -18,6 +18,38 @@ import { Card, cn } from "./ui";
 import { SplitWorkout, type SessionDose } from "./workout/split-workout";
 
 const SESSION_MINUTES = [30, 45, 60, 75, 80, 90] as const;
+
+function unfinishedToday(workouts: Workout[], today: string) {
+  return (
+    workouts
+      .filter((workout) => workout.date === today && workout.status === "partial" && workout.exercises.some((exercise) => exercise.sets.some((set) => set.reps > 0)))
+      .sort((a, b) => b.createdAt - a.createdAt)[0] ?? null
+  );
+}
+
+/** Keeps the day's list, and puts a switched exercise back in the slot the person had reached. */
+function resumePrescriptions(plan: ExercisePrescription[], saved: WorkoutExercise[]): ExercisePrescription[] {
+  const savedIds = new Set(saved.map((exercise) => exercise.exerciseId));
+  const next = plan.map((item) => ({ ...item }));
+  const extras = saved.filter((exercise) => !next.some((item) => item.exerciseId === exercise.exerciseId));
+  let extra = 0;
+  for (let index = 0; index < next.length && extra < extras.length; index++) {
+    if (savedIds.has(next[index].exerciseId)) continue;
+    const exercise = extras[extra++];
+    const planned = exercise.planned;
+    next[index] = {
+      ...next[index],
+      exerciseId: exercise.exerciseId,
+      sets: planned?.sets ?? next[index].sets,
+      repsMin: planned?.repsMin ?? next[index].repsMin,
+      repsMax: planned?.repsMax ?? next[index].repsMax,
+      restSec: planned?.restSec ?? next[index].restSec,
+      rpeTarget: planned?.rpeTarget ?? next[index].rpeTarget,
+      startKg: planned?.weightKg ?? next[index].startKg,
+    };
+  }
+  return next;
+}
 
 function sessionMinutes(value: number) {
   if ((SESSION_MINUTES as readonly number[]).includes(value)) return value;
@@ -130,8 +162,11 @@ export function WorkoutForm() {
   const [dose, setDose] = useState<SessionDose>("regular");
   const [gate, setGate] = useState<{ notes: string[]; away: boolean; feel: "regular" | "sore" } | null>(null);
   const [error, setError] = useState("");
+  const [carried, setCarried] = useState<WorkoutExercise[] | null>(null);
+  const [hold, setHold] = useState(true);
   const sessionId = useRef(newId());
   const sessionAt = useRef(Date.now());
+  const left = unfinishedToday(workouts, today);
 
   function choose(index: number, id: string) {
     const next = splits.slice();
@@ -191,6 +226,28 @@ export function WorkoutForm() {
     );
   }
 
+  function resumeSession() {
+    if (!left || !goal) return;
+    sessionId.current = left.id;
+    sessionAt.current = left.createdAt;
+    setCarried(left.exercises);
+    setHold(false);
+    setDose("regular");
+    setGate(null);
+    setLive(resumePrescriptions(sessionPlan(), left.exercises));
+  }
+
+  function beginAgain() {
+    for (const workout of workouts) {
+      if (workout.date === today && workout.status === "partial") actions.deleteWorkout(workout.id);
+    }
+    sessionId.current = newId();
+    sessionAt.current = Date.now();
+    setCarried(null);
+    setHold(false);
+    start();
+  }
+
   function openSheet(next: SessionDose) {
     setDose(next);
     setGate(null);
@@ -234,6 +291,7 @@ export function WorkoutForm() {
           sex={profile.sex}
           experience={goal?.experience ?? "beginner"}
           dose={dose}
+          resume={carried}
           onSet={(exercises, status) => record(exercises, status)}
           onDone={(exercises, status, nextWeek) => {
             record(exercises, status);
@@ -269,6 +327,19 @@ export function WorkoutForm() {
       </Card>
       <p className="text-sm text-[#DFE5E8]">Let’s start Day {day} – {todaySplitLabel}.</p>
       {error && <p role="alert" className="text-sm text-[#E0B07A]">{error}</p>}
+      {left && hold && createPortal(
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-[#0B1220]/80 p-4" role="dialog" aria-modal="true" aria-labelledby="resume-title">
+          <div className="glass w-full max-w-[480px] space-y-4 p-5">
+            <h2 id="resume-title" className="text-lg font-semibold text-[#F8F9FA]">Resume this session?</h2>
+            <p className="text-sm leading-relaxed text-[#DFE5E8]">You left this session before it was finished. Resume where you stopped, or start from the beginning.</p>
+            <div className="grid gap-3">
+              <button type="button" className="btn-primary h-11" onClick={resumeSession}>Resume</button>
+              <button type="button" className="btn-ghost h-11" onClick={beginAgain}>Start from beginning</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
       <button type="button" className="btn-primary h-12 w-full" onClick={start}>
         Start Day {day}
       </button>

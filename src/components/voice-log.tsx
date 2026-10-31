@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MessageCircle, Mic } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { mealSlotForTime } from "@/calculations/nutrition";
 import { deviceTimezone, localMinutes, todayKey } from "@/lib/date";
 import { loadFoodCatalogue, useFoodCatalogue } from "@/lib/food-catalogue";
@@ -315,8 +315,8 @@ export function VoiceLog() {
         </div>
       )}
 
-      <div className="fixed bottom-5 right-4 z-40 flex flex-col items-end gap-2.5 pb-[env(safe-area-inset-bottom)]">
-        {trainerOn === true && (
+      {trainerOn === true && (
+        <div className="fixed bottom-5 right-4 z-40 pb-[env(safe-area-inset-bottom)]">
           <button
             type="button"
             onClick={() => (rendered === "trainer" && !closing ? closeSheet() : openSheet("trainer"))}
@@ -326,21 +326,8 @@ export function VoiceLog() {
           >
             <MessageCircle className="size-5" aria-hidden />
           </button>
-        )}
-        <button
-          type="button"
-          onClick={talk}
-          className={cn(
-            "relative grid h-11 w-12 place-items-center rounded-2xl shadow-[inset_0_1px_0_0_rgb(255_255_255/0.35)] backdrop-blur-xl",
-            listening || reading ? "bg-[#F8F9FA] text-[#1A120E]" : "bg-brand text-[#F8F9FA]",
-          )}
-          aria-label={listening ? "Listening" : "Microphone"}
-          aria-pressed={listening}
-        >
-          <Mic className="size-5" aria-hidden />
-          {listening && <span className="absolute inset-x-2 bottom-1.5 h-0.5 overflow-hidden rounded-full bg-brand/25"><span className="block h-full bg-brand" style={{ width: `${Math.round(level * 100)}%` }} /></span>}
-        </button>
-      </div>
+        </div>
+      )}
     </>
   );
 }
