@@ -31,12 +31,19 @@ interface Step {
   label: string;
   reps: string;
   weight: string;
+  /** True once the person has edited the field, including clearing it. */
+  repsTyped: boolean;
+  weightTyped: boolean;
   reserve: number;
   opened: boolean;
   /** Done was pressed. Submit Set is waiting. */
   ready: boolean;
   done: boolean;
 }
+
+export type SessionDose = "regular" | "sore" | "return";
+
+type SetBand = "lower" | "target" | "growth" | "plain";
 
 interface Advice {
   weight: string;
@@ -52,10 +59,6 @@ function ordered(workouts: Workout[]) {
   return [...workouts].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
 }
 
-function lastWorking(workouts: Workout[], exerciseId: string): WorkoutSet[] | null {
-  return recentWorking(workouts, exerciseId)[0]?.sets ?? null;
-}
-
 function recentWorking(workouts: Workout[], exerciseId: string) {
   const found: { sets: WorkoutSet[]; technique: WorkoutExercise["technique"] }[] = [];
   for (const workout of ordered(workouts)) {
@@ -69,18 +72,20 @@ function recentWorking(workouts: Workout[], exerciseId: string) {
 }
 
 /** Working sets stay at three, four on a peak week, or fewer when a saved condition calls for less. */
-function workSetCount(prescription: ExercisePrescription, gentle: boolean) {
+function workSetCount(prescription: ExercisePrescription, gentle: boolean, dose: SessionDose) {
   if (prescription.sets <= 1) return 1;
-  if (gentle || prescription.sets === 2) return 2;
+  if (dose === "return") return Math.min(2, prescription.sets);
+  if (gentle || dose === "sore" || prescription.sets === 2) return Math.min(2, prescription.sets);
   return Math.min(4, prescription.sets);
 }
 
-function suggestedReserve(exerciseId: string, rpeTarget: number, injuries: InjuryArea[], conditions: HealthCondition[]) {
+function suggestedReserve(exerciseId: string, rpeTarget: number, injuries: InjuryArea[], conditions: HealthCondition[], dose: SessionDose) {
   const health = healthConstraints(injuries, conditions);
   let reserve = Math.max(1, Math.min(4, Math.round(10 - rpeTarget)));
   if (health.gentle || health.avoidIds.has(exerciseId)) reserve += 2;
   else if (injuries.some((area) => area !== "none") || conditions.some((condition) => condition !== "none")) reserve += 1;
   if (!getExercise(exerciseId)?.compound) reserve = Math.max(reserve, 2);
+  if (dose === "sore" || dose === "return") reserve = Math.max(reserve, 3);
   return Math.min(5, reserve);
 }
 
@@ -133,36 +138,50 @@ function adviceLine(advice: Advice, warmup: boolean, unit: Unit) {
   return `No saved load yet · ${reps}`;
 }
 
-function toneFor(step: Step, advice: Advice, unit: Unit): "blue" | "green" | "orange" | "plain" {
-  const reps = Math.round(Number(step.reps) || 0);
-  const kg = fromDisplayWeight(Number(step.weight) || 0, unit);
-  if (step.warmup) {
-    if (!step.opened && reps <= 0) return "plain";
-    if (advice.lastKg != null && kg > 0 && kg >= advice.lastKg) return "blue";
-    const suggested = advice.weight ? fromDisplayWeight(Number(advice.weight), unit) : 0;
-    if (suggested > 0 && kg > 0 && kg + 0.01 < suggested) return "orange";
-    if (reps >= WARMUP_REPS || step.opened) return "green";
-    return "plain";
-  }
+/** Lower is the bottom of the range, target is the middle, growth is the top. */
+function setBand(reps: number, repsMin: number, repsMax: number): SetBand {
   if (reps <= 0) return "plain";
-  const belowUsual = advice.lastReps != null && (reps < advice.lastReps || (advice.lastKg != null && kg > 0 && kg < advice.lastKg));
-  if (reps >= advice.blueReps && !belowUsual) return "blue";
-  if (belowUsual || reps < advice.reps) return "orange";
-  return "green";
+  const low = Math.min(repsMin, repsMax);
+  const high = Math.max(repsMin, repsMax);
+  if (low === high) return reps >= high ? "target" : "lower";
+  const mid = Math.round((low + high) / 2);
+  if (reps >= high) return "growth";
+  if (reps >= mid) return "target";
+  return "lower";
 }
 
-function toneButton(tone: "blue" | "green" | "orange" | "plain") {
-  if (tone === "blue") return "bg-[#1B3A6B]";
-  if (tone === "green") return "bg-[#3E8F6A]";
-  if (tone === "orange") return "bg-[#C47A3A]";
-  return "bg-brand";
+function performedReps(step: Step) {
+  if (step.warmup || (!step.repsTyped && !step.opened && !step.ready && !step.done)) return 0;
+  return Math.round(Number(step.reps) || 0);
 }
 
-function toneGlow(tone: "blue" | "green" | "orange" | "plain") {
-  if (tone === "blue") return "shadow-[0_0_0_1px_#1B3A6B,0_0_10px_rgba(27,58,107,0.45)]";
-  if (tone === "green") return "shadow-[0_0_0_1px_#3E8F6A,0_0_10px_rgba(62,143,106,0.38)]";
-  if (tone === "orange") return "shadow-[0_0_0_1px_#C47A3A,0_0_10px_rgba(196,122,58,0.4)]";
+function bandGlow(band: SetBand) {
+  if (band === "lower") return "shadow-[0_0_0_1px_#FF6A1A,0_0_22px_rgba(255,106,26,0.55)]";
+  if (band === "target") return "shadow-[0_0_0_1px_#3DDC97,0_0_22px_rgba(61,220,151,0.5)]";
+  if (band === "growth") return "shadow-[0_0_0_1px_#3EF0E0,0_0_28px_rgba(62,240,224,0.7)]";
   return "";
+}
+
+function bandText(band: SetBand) {
+  if (band === "lower") return "text-[#FF6A1A]";
+  if (band === "target") return "text-[#3DDC97]";
+  if (band === "growth") return "text-[#3EF0E0]";
+  return "";
+}
+
+function bandName(band: SetBand) {
+  if (band === "lower") return "Lower set";
+  if (band === "target") return "Target set";
+  if (band === "growth") return "Growth set";
+  return "";
+}
+
+function typedNumber(raw: string, decimal: boolean) {
+  if (!decimal) return raw.replace(/\D/g, "");
+  const clean = raw.replace(/[^\d.]/g, "");
+  const dot = clean.indexOf(".");
+  if (dot < 0) return clean;
+  return `${clean.slice(0, dot + 1)}${clean.slice(dot + 1).replace(/\./g, "")}`;
 }
 
 function clock(totalSeconds: number) {
@@ -172,7 +191,7 @@ function clock(totalSeconds: number) {
 
 function BigStep({ label, value, onChange, locked = false, decimal = false }: { label: string; value: string; onChange: (value: string) => void; locked?: boolean; decimal?: boolean }) {
   return (
-    <div className="min-w-0 flex-1">
+    <div className="min-w-0 flex-1" onClick={(event) => event.stopPropagation()}>
       <p className="text-center text-[12px] font-medium uppercase tracking-[0.16em] text-[#DFE5E8]">{label}</p>
       <div className="mt-2 flex items-center justify-center">
         {locked ? (
@@ -181,11 +200,21 @@ function BigStep({ label, value, onChange, locked = false, decimal = false }: { 
           </span>
         ) : (
           <input
+            type="text"
             inputMode={decimal ? "decimal" : "numeric"}
+            enterKeyHint="done"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
             aria-label={label}
-            className="field h-16 w-full text-center text-[2rem] font-semibold"
+            className="field h-16 w-full text-center text-[2rem] font-semibold text-[#F8F9FA] caret-[#F8F9FA]"
+            style={{ color: "#F8F9FA", caretColor: "#F8F9FA", WebkitTextFillColor: "#F8F9FA" }}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onFocus={(event) => {
+              const field = event.currentTarget;
+              requestAnimationFrame(() => field.select());
+            }}
+            onChange={(event) => onChange(typedNumber(event.target.value, decimal))}
           />
         )}
       </div>
@@ -195,8 +224,8 @@ function BigStep({ label, value, onChange, locked = false, decimal = false }: { 
 
 function buildSteps(warmups: number, sets: number, reserve: number): Step[] {
   const steps: Step[] = [];
-  for (let i = 0; i < warmups; i++) steps.push({ warmup: true, label: `Warm-up ${i + 1}/${warmups}`, reps: "", weight: "", reserve, opened: false, ready: false, done: false });
-  for (let i = 0; i < sets; i++) steps.push({ warmup: false, label: `Set ${i + 1}`, reps: "", weight: "", reserve, opened: false, ready: false, done: false });
+  for (let i = 0; i < warmups; i++) steps.push({ warmup: true, label: `Warm-up ${i + 1}/${warmups}`, reps: "", weight: "", repsTyped: false, weightTyped: false, reserve, opened: false, ready: false, done: false });
+  for (let i = 0; i < sets; i++) steps.push({ warmup: false, label: `Set ${i + 1}`, reps: "", weight: "", repsTyped: false, weightTyped: false, reserve, opened: false, ready: false, done: false });
   return steps;
 }
 
@@ -213,6 +242,7 @@ export function SplitWorkout({
   weightKg,
   sex,
   experience,
+  dose = "regular",
   onSet,
   onDone,
 }: {
@@ -228,20 +258,21 @@ export function SplitWorkout({
   weightKg: number | null;
   sex: Sex | null;
   experience: Experience;
+  dose?: SessionDose;
   onSet: (exercises: WorkoutExercise[], status: "completed" | "partial") => void;
   onDone: (exercises: WorkoutExercise[], status: "completed" | "partial", nextWeek: ExercisePrescription[] | null) => void;
 }) {
   const gentle = healthConstraints(injuries, conditions).gentle;
   const body: WarmupBody = { weightKg, sex, age, heightCm, experience };
-  const openingKey = useRef(prescriptions.map((item) => `${item.exerciseId}:${workSetCount(item, gentle)}`).join("|"));
+  const openingKey = useRef(prescriptions.map((item) => `${item.exerciseId}:${workSetCount(item, gentle, dose)}`).join("|"));
   const plan = useMemo(
     () =>
       prescriptions.map((item, index) => ({
-        sets: workSetCount(item, gentle),
-        reserve: suggestedReserve(item.exerciseId, item.rpeTarget, injuries, conditions),
+        sets: workSetCount(item, gentle, dose),
+        reserve: suggestedReserve(item.exerciseId, item.rpeTarget, injuries, conditions, dose),
         index,
       })),
-    [prescriptions, gentle, injuries, conditions],
+    [prescriptions, gentle, injuries, conditions, dose],
   );
   const [items, setItems] = useState(prescriptions);
   const [cards, setCards] = useState<Step[][]>(() =>
@@ -297,7 +328,7 @@ export function SplitWorkout({
     if (!current) return;
     setItems((list) => list.map((item, i) => (i === index ? { ...item, exerciseId } : item)));
     setCards((list) =>
-      list.map((steps, i) => (i === index ? buildSteps(warmupSetCount(exerciseId, index, workouts), plan[index]?.sets ?? 3, suggestedReserve(exerciseId, current.rpeTarget, injuries, conditions)) : steps)),
+      list.map((steps, i) => (i === index ? buildSteps(warmupSetCount(exerciseId, index, workouts), plan[index]?.sets ?? 3, suggestedReserve(exerciseId, current.rpeTarget, injuries, conditions, dose)) : steps)),
     );
     setSkipped((list) => list.map((value, i) => (i === index ? false : value)));
     setSwitching(null);
@@ -319,7 +350,7 @@ export function SplitWorkout({
     setItems((list) => [...list, prescription]);
     setCards((list) => [
       ...list,
-      buildSteps(warmupSetCount(exerciseId, index, workouts), workSetCount(prescription, gentle), suggestedReserve(exerciseId, prescription.rpeTarget, injuries, conditions)),
+      buildSteps(warmupSetCount(exerciseId, index, workouts), workSetCount(prescription, gentle, dose), suggestedReserve(exerciseId, prescription.rpeTarget, injuries, conditions, dose)),
     ]);
     setSkipped((list) => [...list, false]);
     setFocus(index);
@@ -338,8 +369,10 @@ export function SplitWorkout({
     const advice = adviceFor(workouts, item, unit, step.warmup ? warmupsBefore : null, injuries, conditions, body);
     patch(exerciseIndex, stepIndex, {
       opened: true,
-      reps: step.reps || String(step.warmup ? WARMUP_REPS : advice.reps),
-      weight: step.weight || advice.weight,
+      reps: step.repsTyped ? step.reps : String(step.warmup ? WARMUP_REPS : advice.reps),
+      weight: step.weightTyped ? step.weight : advice.weight,
+      repsTyped: true,
+      weightTyped: true,
     });
   }
 
@@ -352,7 +385,7 @@ export function SplitWorkout({
         .map((step) => {
           const card = list[index] ?? [];
           const warmupsBefore = card.slice(0, card.indexOf(step)).filter((entry) => entry.warmup).length;
-          const shown = step.weight || (step.warmup ? adviceFor(workouts, item, unit, warmupsBefore, injuries, conditions, body).weight : "");
+          const shown = step.weightTyped ? step.weight : step.weight || (step.warmup ? adviceFor(workouts, item, unit, warmupsBefore, injuries, conditions, body).weight : "");
           return {
             reps: Math.max(0, Math.round(Number(step.reps) || 0)),
             weightKg: Math.max(0, fromDisplayWeight(Number(shown) || 0, unit)),
@@ -387,12 +420,12 @@ export function SplitWorkout({
     const stepIndex = steps.findIndex((step) => !step.done);
     if (stepIndex < 0) return list;
     const step = steps[stepIndex];
-    if (step.weight && step.reps) return list;
+    if (step.weightTyped && step.repsTyped) return list;
     const warmupsBefore = steps.slice(0, stepIndex).filter((entry) => entry.warmup).length;
     const advice = adviceFor(workouts, item, unit, step.warmup ? warmupsBefore : null, injuries, conditions, body);
-    const reps = step.reps || String(step.warmup ? WARMUP_REPS : advice.reps);
-    const weight = step.weight || advice.weight;
-    return list.map((row, index) => (index === exerciseIndex ? row.map((entry, i) => (i === stepIndex ? { ...entry, reps, weight } : entry)) : row));
+    const reps = step.repsTyped ? step.reps : String(step.warmup ? WARMUP_REPS : advice.reps);
+    const weight = step.weightTyped ? step.weight : advice.weight;
+    return list.map((row, index) => (index === exerciseIndex ? row.map((entry, i) => (i === stepIndex ? { ...entry, reps, weight, repsTyped: true, weightTyped: true } : entry)) : row));
   }
 
   function submitStep(exerciseIndex: number, stepIndex: number) {
@@ -520,7 +553,7 @@ export function SplitWorkout({
   const restStep = restStepIndex >= 0 ? restSteps[restStepIndex] : null;
   const restItem = restOn != null ? items[restOn] : null;
   const restAdvice = restStep && restItem ? adviceFor(workouts, restItem, unit, restStep.warmup ? restSteps.slice(0, restStepIndex).filter((step) => step.warmup).length : null, injuries, conditions, body) : null;
-  const restWeight = restStep && restAdvice ? restStep.weight || restAdvice.weight : "";
+  const restWeight = restStep && restAdvice ? (restStep.weightTyped ? restStep.weight : restStep.weight || restAdvice.weight) : "";
   const restReps = restStep && restAdvice ? Number(restStep.reps) || (restStep.warmup ? WARMUP_REPS : restAdvice.reps) : 0;
   const currentId = items[shown]?.exerciseId ?? items[0]?.exerciseId;
 
@@ -554,6 +587,11 @@ export function SplitWorkout({
           <p className="text-center text-[12px] text-white/45">
             Exercise {shown + 1} of {items.length}
           </p>
+          <div className="flex justify-center gap-4 text-[10px] font-semibold uppercase tracking-[0.14em]">
+            <span className="text-[#FF6A1A]">Lower</span>
+            <span className="text-[#3DDC97]">Target</span>
+            <span className="text-[#3EF0E0]">Growth</span>
+          </div>
         </div>
       )}
       {items.map((item, index) => {
@@ -563,10 +601,8 @@ export function SplitWorkout({
         const complete = steps.length > 0 && steps.every((step) => step.done);
         const warmSteps = steps.filter((step) => step.warmup);
         const warmFinished = warmSteps.length === 0 || warmSteps.every((step) => step.done);
-        const history = lastWorking(workouts, item.exerciseId);
-        const glowStep = [...steps].reverse().find((step) => !step.warmup && (step.opened || step.done) && Math.round(Number(step.reps) || 0) > 0);
-        const glowAdvice = glowStep ? adviceFor(workouts, item, unit, null, injuries, conditions, body) : null;
-        const glowTone = history && glowStep && glowAdvice ? toneFor(glowStep, glowAdvice, unit) : "plain";
+        const glowStep = [...steps].reverse().find((step) => performedReps(step) > 0);
+        const cardBand = glowStep ? setBand(performedReps(glowStep), item.repsMin, item.repsMax) : "plain";
         const workSteps = steps.map((step, stepIndex) => ({ step, stepIndex })).filter((entry) => !entry.step.warmup);
         const openWork = workSteps.find((entry) => !entry.step.done);
         const visibleWork = warmFinished ? workSteps.filter((entry) => entry.step.done || entry === openWork) : [];
@@ -574,7 +610,7 @@ export function SplitWorkout({
         function stage(step: Step, stepIndex: number, title: string) {
           const warmupsBefore = steps.slice(0, stepIndex).filter((entry) => entry.warmup).length;
           const advice = adviceFor(workouts, item, unit, step.warmup ? warmupsBefore : null, injuries, conditions, body);
-          const tone = !step.warmup && history ? toneFor(step, advice, unit) : "plain";
+          const band = setBand(performedReps(step), item.repsMin, item.repsMax);
           const active = !passed && !step.done;
           return (
             <div
@@ -597,13 +633,7 @@ export function SplitWorkout({
                 {active && (
                   <button
                     type="button"
-                    className={cn(
-                      "h-8 shrink-0 rounded-md px-3 text-xs font-semibold text-[#F8F9FA]",
-                      tone === "blue" && "bg-[#1B3A6B]",
-                      tone === "green" && "bg-[#3E8F6A]",
-                      tone === "orange" && "bg-[#C47A3A]",
-                      tone === "plain" && "bg-brand",
-                    )}
+                    className="h-8 shrink-0 rounded-md bg-brand px-3 text-xs font-semibold text-[#F8F9FA]"
                     data-set-start=""
                     disabled={step.ready}
                     onClick={() => {
@@ -635,24 +665,24 @@ export function SplitWorkout({
                 <div className={cn("mt-2 flex gap-4", restLeft > 0 && restOn === index && "opacity-30")}>
                   <BigStep
                     label={unit}
-                    value={step.weight || advice.weight}
+                    value={step.weightTyped ? step.weight : advice.weight}
                     decimal
-                    onChange={(weight) => patch(index, stepIndex, { weight })}
+                    onChange={(weight) => patch(index, stepIndex, { weight, weightTyped: true })}
                   />
                   <BigStep
                     label="Reps"
-                    value={step.warmup ? String(WARMUP_REPS) : step.reps || String(advice.reps)}
+                    value={step.warmup ? String(WARMUP_REPS) : step.repsTyped ? step.reps : String(advice.reps)}
                     locked={step.warmup}
                     onChange={(reps) => {
                       if (step.warmup) return;
-                      patch(index, stepIndex, { reps });
+                      patch(index, stepIndex, { reps, repsTyped: true });
                     }}
                   />
                 </div>
               )}
-              {active && step.opened && !step.warmup && history && tone === "blue" && <p className="mt-2 text-sm text-[#9BB4D6]">Blue set. Every rep is in.</p>}
-              {active && step.opened && !step.warmup && history && tone === "green" && <p className="mt-2 text-sm text-[#8FCBB0]">On target. Push a little harder next time to beat the blue set.</p>}
-              {active && step.opened && !step.warmup && history && tone === "orange" && <p className="mt-2 text-sm text-[#E0B07A]">This is below your usual strength – try to push harder next time.</p>}
+              {active && !step.warmup && band !== "plain" && (
+                <p className={cn("mt-2 text-sm font-semibold", bandText(band))}>{bandName(band)}</p>
+              )}
               {active && step.ready && (
                 <div className="mt-3">
                   {!step.warmup && (
@@ -660,7 +690,7 @@ export function SplitWorkout({
                       <p className="mb-2 text-xs text-[#DFE5E8]">Reserve</p>
                       <div className="flex flex-wrap gap-2">
                         {RESERVE.map((value) => {
-                          const target = value === suggestedReserve(item.exerciseId, item.rpeTarget, injuries, conditions);
+                          const target = value === suggestedReserve(item.exerciseId, item.rpeTarget, injuries, conditions, dose);
                           return (
                             <div key={value} className="flex flex-col items-center">
                               <button
@@ -693,7 +723,7 @@ export function SplitWorkout({
         const warmStep = warmIndex >= 0 ? steps[warmIndex] : null;
         const cardAdvice = adviceFor(workouts, item, unit, null, injuries, conditions, body);
         return (
-          <section id={`exercise-card-${index}`} key={`${item.exerciseId}-${index}`} className={cn("relative scroll-mt-24 rounded-card bg-white/[0.04] p-4", !passed && !complete && toneGlow(glowTone))} onClick={() => setFocus(index)}>
+          <section id={`exercise-card-${index}`} key={`${item.exerciseId}-${index}`} className={cn("relative scroll-mt-24 rounded-card bg-white/[0.04] p-4", !passed && bandGlow(cardBand))} onClick={() => setFocus(index)}>
             <div className="flex items-start justify-between gap-3">
               <h3 className={cn("min-w-0 text-2xl font-semibold text-[#F8F9FA]", (passed || complete) && "line-through decoration-2")}>{info?.name ?? item.exerciseId}</h3>
               <button

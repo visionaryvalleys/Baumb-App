@@ -1,19 +1,21 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { plannedWorkoutOn } from "@/calculations/calendar";
+import { healthConstraints } from "@/calculations/health";
 import { buildSplitSession } from "@/calculations/workout";
 import { currentAge } from "@/calculations/energy";
 import { groupsInSplit, initialSplits, joinGroups, MUSCLE_PICKS, programmeDay, splitLabel, splitsForWeek, type MusclePick } from "@/calculations/day-split";
-import { startOfWeek, todayKey } from "@/lib/date";
+import { fromDateKey, startOfWeek, todayKey } from "@/lib/date";
 import type { WorkoutExercise } from "@/lib/types";
 import { actions, newId, useAppState } from "@/lib/store";
 import { weightUnit } from "@/lib/units";
 import { SessionBoard } from "./board/rewards";
 import { Card, cn } from "./ui";
-import { SplitWorkout } from "./workout/split-workout";
+import { SplitWorkout, type SessionDose } from "./workout/split-workout";
 
 const SESSION_MINUTES = [30, 45, 60, 75, 80, 90] as const;
 
@@ -125,6 +127,8 @@ export function WorkoutForm() {
   const [duration, setDuration] = useState(75);
   const [editing, setEditing] = useState<number | null>(null);
   const [live, setLive] = useState<ReturnType<typeof buildSplitSession> | null>(null);
+  const [dose, setDose] = useState<SessionDose>("regular");
+  const [gate, setGate] = useState<{ notes: string[]; away: boolean; feel: "regular" | "sore" } | null>(null);
   const [error, setError] = useState("");
   const sessionId = useRef(newId());
   const sessionAt = useRef(Date.now());
@@ -168,27 +172,48 @@ export function WorkoutForm() {
     });
   }
 
+  function sessionPlan() {
+    const bodyWeight = plans.find((plan) => plan.id === activePlanId)?.bodyWeightKg ?? latestKg ?? 75;
+    const access = place === "home" ? "bodyweight" : place === "gym" ? "full_gym" : profile.equipment;
+    const savedDay = goal?.dayRoutines?.[day - 1];
+    const sameDay = savedDay && savedDay.splitId === todaySplitId && savedDay.exercises.length > 0 ? savedDay.exercises : null;
+    return (
+      sameDay ??
+      buildSplitSession(todaySplitId, goal!, access, duration, {
+        sex: profile.sex,
+        weightKg: bodyWeight,
+        injuries: profile.injuries,
+        conditions: profile.conditions,
+        workouts,
+        recovery,
+        today,
+      })
+    );
+  }
+
+  function openSheet(next: SessionDose) {
+    setDose(next);
+    setGate(null);
+    setLive(sessionPlan());
+  }
+
   function start() {
     if (!goal) {
       setError("Finish signup so Ostin knows the days in your programme.");
       return;
     }
-    const bodyWeight = plans.find((plan) => plan.id === activePlanId)?.bodyWeightKg ?? latestKg ?? 75;
-    const access = place === "home" ? "bodyweight" : place === "gym" ? "full_gym" : profile.equipment;
-    const savedDay = goal.dayRoutines?.[day - 1];
-    const sameDay = savedDay && savedDay.splitId === todaySplitId && savedDay.exercises.length > 0 ? savedDay.exercises : null;
-    setLive(
-      sameDay ??
-        buildSplitSession(todaySplitId, goal, access, duration, {
-          sex: profile.sex,
-          weightKg: bodyWeight,
-          injuries: profile.injuries,
-          conditions: profile.conditions,
-          workouts,
-          recovery,
-          today,
-        }),
-    );
+    const notes = healthConstraints(profile.injuries, profile.conditions).flags.map((flag) => flag.message);
+    let last = "";
+    for (const workout of workouts) {
+      if (workout.date <= today && workout.date > last) last = workout.date;
+    }
+    const away = last !== "" && Math.round((fromDateKey(today).getTime() - fromDateKey(last).getTime()) / 86_400_000) >= 14;
+    if (away) notes.push("It has been two weeks or more since the last session. Today starts with fewer sets and more reps left in reserve.");
+    if (notes.length === 0) {
+      openSheet("regular");
+      return;
+    }
+    setGate({ notes, away, feel: "regular" });
   }
 
   if (live) {
@@ -208,6 +233,7 @@ export function WorkoutForm() {
           weightKg={latestKg ?? plans.find((plan) => plan.id === activePlanId)?.bodyWeightKg ?? null}
           sex={profile.sex}
           experience={goal?.experience ?? "beginner"}
+          dose={dose}
           onSet={(exercises, status) => record(exercises, status)}
           onDone={(exercises, status, nextWeek) => {
             record(exercises, status);
@@ -246,6 +272,40 @@ export function WorkoutForm() {
       <button type="button" className="btn-primary h-12 w-full" onClick={start}>
         Start Day {day}
       </button>
+      {gate && createPortal(
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-[#0B1220]/80 p-4" role="dialog" aria-modal="true" aria-labelledby="session-gate-title">
+          <div className="glass max-h-[70dvh] w-full max-w-[480px] space-y-4 overflow-y-auto p-5">
+            <h2 id="session-gate-title" className="text-lg font-semibold text-[#F8F9FA]">Before this session</h2>
+            {gate.notes.map((note) => (
+              <p key={note} className="text-sm leading-relaxed text-[#DFE5E8]">{note}</p>
+            ))}
+            {!gate.away && (
+              <div className="grid grid-cols-2 gap-2">
+                {(["regular", "sore"] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    aria-pressed={gate.feel === option}
+                    className={cn(
+                      "h-11 rounded-card border text-sm font-semibold",
+                      gate.feel === option ? "border-[#3EF0E0] text-[#3EF0E0]" : "border-white/20 text-[#F8F9FA]",
+                    )}
+                    onClick={() => setGate({ ...gate, feel: option })}
+                  >
+                    {option === "regular" ? "Regular" : "Sore"}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!gate.away && <p className="text-xs leading-relaxed text-[#DFE5E8]">Sore keeps fewer sets and more reps in reserve.</p>}
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" className="btn-ghost h-11" onClick={() => setGate(null)}>Not today</button>
+              <button type="button" className="btn-primary h-11" onClick={() => openSheet(gate.away ? "return" : gate.feel === "sore" ? "sore" : "regular")}>Continue</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
       <Card>
         <h2 className="mb-4 text-[13px] font-medium text-white/70">Split</h2>
         <ul className="space-y-2">
