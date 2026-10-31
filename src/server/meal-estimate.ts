@@ -90,16 +90,24 @@ export async function estimateMeal(text: string, image?: AiImage): Promise<MealE
   const prompt = text.trim()
     ? `Meal:\n${text.trim().slice(0, 1000)}`
     : "Estimate the meal in the photograph. Name each food you can see.";
-  const raw = await aiJson<MealEstimate>({
-    system: SYSTEM,
-    prompt,
-    schema: SCHEMA,
-    maxTokens: 600,
-    effort: "low",
-    timeoutMs: 20_000,
-    cacheKey: "baumb-meal-estimate",
-    image,
-  });
+  let raw: MealEstimate;
+  try {
+    raw = await aiJson<MealEstimate>({
+      system: SYSTEM,
+      prompt,
+      schema: SCHEMA,
+      maxTokens: 600,
+      effort: "low",
+      timeoutMs: 45_000,
+      cacheKey: "baumb-meal-estimate",
+      image,
+    });
+  } catch (err) {
+    if (err instanceof HttpError) throw err;
+    const name = err instanceof Error ? err.name : "";
+    if (name === "TimeoutError" || name === "AbortError") throw new HttpError(504, "The estimate took too long. Try again, or type the macros.");
+    throw err;
+  }
   const meal = clean(raw);
   if (!meal.items.length) throw new HttpError(422, "That doesn't look like a meal. Describe the food, or use a clearer photo.");
   return meal;
