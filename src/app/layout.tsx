@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Syne } from "next/font/google";
-import { DailySlideGate } from "@/components/daily-slide";
 import { ThemeRoot } from "@/components/theme-root";
 import "./globals.css";
 
@@ -31,7 +30,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`h-full antialiased ${ostin.variable}`}>
       <body className="page-ground min-h-full font-sans text-fg">
         <ThemeRoot />
-        <DailySlideGate />
         {children}
       </body>
     </html>
