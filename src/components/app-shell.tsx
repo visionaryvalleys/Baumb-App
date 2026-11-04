@@ -81,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const showBar = ready && onboarded && !session.locked && session.auth !== "error";
 
   return (
-    <div className={home ? "relative h-dvh overflow-hidden" : "relative min-h-dvh"}>
+    <div className="relative min-h-dvh">
       <Backdrop />
 
       <header className={showHome ? "hidden" : "sticky top-0 z-40 border-b border-[#CDCBCA]/10 bg-[#080808]/90 backdrop-blur-xl"}>
@@ -102,7 +102,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main key={pathname} className={showHome ? "relative z-10 h-dvh overflow-y-auto" : home ? "relative h-0" : "relative z-10 mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-[480px] px-4 pb-28 pt-6 animate-fade-slide-up"}>
+      <main key={pathname} className={showHome ? "relative z-10" : home ? "relative h-0" : "relative z-10 mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-[480px] px-4 pb-28 pt-6 animate-fade-slide-up"}>
         {session.auth === "error" ? <SessionProblem message={session.message} /> : !ready ? <PageSkeleton /> : session.locked ? <JournalLock /> : gated ? <OnboardingGate /> : children}
       </main>
 

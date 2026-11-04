@@ -137,7 +137,7 @@ export function HomeDashboard() {
         </div>
 
         <section className="relative min-w-0 max-w-full overflow-hidden pb-1 pt-2">
-          <span aria-hidden className="ghost-word absolute left-0 top-5 whitespace-nowrap text-[104px]">TRAINING</span>
+          <span aria-hidden className="ghost-word absolute left-0 top-5 whitespace-nowrap text-[clamp(56px,22vw,96px)]">SCULPT</span>
           <div className="relative min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">{greeting(profile.timezone)}</p>
             <h1 className="mt-1 truncate text-[36px] font-bold leading-none tracking-[-0.03em]">{name}</h1>
