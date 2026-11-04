@@ -15,7 +15,7 @@ export default function NewWorkoutPage() {
           <>
             Let&apos;s
             <br />
-            <span className="font-semibold text-brand">workout</span>
+            <span className="font-semibold text-brand!">workout</span>
           </>
         }
       />

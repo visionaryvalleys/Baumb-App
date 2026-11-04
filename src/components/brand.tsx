@@ -19,7 +19,9 @@ export function BaumbLogo({ className, href = "/" }: { className?: string; href?
   return (
     <Link href={href} className={cn("flex h-10 items-center gap-2.5", className)} aria-label="Ostin home">
       <OstinMark />
-      <span className="font-wordmark text-[15px] font-semibold uppercase leading-none tracking-[0.22em] text-fg">Ostin</span>
+      <span className="font-wordmark text-[15px] font-bold uppercase leading-none tracking-[0.22em] text-fg">
+        Ostin
+      </span>
     </Link>
   );
 }
@@ -137,7 +139,7 @@ export function MenuOverlay({
               style={style}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "group flex min-h-11 items-center justify-between rounded-2xl px-3 py-2 text-[17px] font-medium tracking-[-0.01em]",
+                "group flex min-h-11 items-center justify-between rounded-[14px] px-3 py-2 text-[17px] font-medium tracking-[-0.01em]",
                 active ? "text-fg" : "text-muted hover:text-fg",
               )}
             >

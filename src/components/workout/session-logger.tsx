@@ -72,7 +72,7 @@ function BigStep({ label, value, onStep, step = 1 }: { label: string; value: str
         <button type="button" className="grid size-11 place-items-center border border-line text-fg" aria-label={`Decrease ${label}`} onClick={() => onStep(-step)}>
           <Minus className="size-4" aria-hidden />
         </button>
-        <span className="grid h-16 min-w-16 place-items-center rounded-2xl bg-base-2 px-3 text-[2rem] font-semibold leading-none text-fg">{value || "0"}</span>
+        <span className="grid h-16 min-w-16 place-items-center rounded-[14px] bg-base-2 px-3 text-[2rem] font-semibold leading-none text-fg">{value || "0"}</span>
         <button type="button" className="grid size-11 place-items-center border border-line text-fg" aria-label={`Increase ${label}`} onClick={() => onStep(step)}>
           <Plus className="size-4" aria-hidden />
         </button>
@@ -204,7 +204,7 @@ function ExerciseStage({
                   {tracksWeight ? <BigStep label={unit} value={progress.warmupWeight} step={0.5} onStep={onWarmupStep} /> : <BigStep label="Weight" value="BW" onStep={() => undefined} />}
                   <div className="min-w-0 flex-1">
                     <p className="text-center text-[12px] font-medium uppercase tracking-[0.16em] text-muted">Reps</p>
-                    <div className="mt-2 flex h-16 items-center justify-center gap-2 rounded-2xl bg-base-2 text-[2rem] font-semibold text-fg">
+                    <div className="mt-2 flex h-16 items-center justify-center gap-2 rounded-[14px] bg-base-2 text-[2rem] font-semibold text-fg">
                       <Lock className="size-4 text-muted" aria-hidden /> {WARMUP_REPS}
                     </div>
                   </div>

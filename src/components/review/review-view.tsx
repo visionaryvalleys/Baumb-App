@@ -143,7 +143,7 @@ export function ReviewView() {
       <Card>
         <CardTitle action={<KindTag kind="estimated" label={`${month.confidence} confidence`} />}>Monthly progress</CardTitle>
         <p className="mb-4 text-sm text-[#DFE5E8]">{month.summary}</p>
-        <div className="mb-4 rounded-2xl bg-white/[0.04] px-4 py-3">
+        <div className="mb-4 rounded-[14px] bg-white/[0.04] px-4 py-3">
           <div className="text-base font-semibold text-[#F8F9FA]">{monthPlan.headline}</div>
           <p className="mt-1 text-sm text-[#DFE5E8]">{monthPlan.detail}</p>
           {monthPlan.suggestions.length > 0 && (

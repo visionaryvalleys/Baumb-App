@@ -2,8 +2,8 @@ import { gBalance, isBoardEligible, workoutDayCount } from "./g-system";
 import { addDays, startOfWeek, todayKey } from "./date";
 import type { AppState, Workout } from "./types";
 
-/** A name is shown once day 1 and day 2 are finished and day 3 is complete. */
-export const BOARD_VISIBLE_DAYS = 3;
+/** A name is shown once day 1 and day 2 are complete. */
+export const BOARD_VISIBLE_DAYS = 2;
 
 /** Distinct days in this week whose exercises were finished. A submitted set does not count. */
 export function completedDaysThisWeek(workouts: Workout[], today: string): number {

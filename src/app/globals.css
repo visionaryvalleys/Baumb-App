@@ -1,28 +1,28 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-ostin), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-ostin), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-ostin), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-inter), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-inter), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --font-wordmark: var(--font-ostin), "Segoe UI", sans-serif;
 }
 
 @theme {
   /* Ember field. Themes override these from the saved palette. */
-  --color-base: #0c1418;
-  --color-base-2: #0c1418;
-  --color-card: #0c1418;
-  --color-elevated: #121a1f;
+  --color-base: #0e0e0e;
+  --color-base-2: #0e0e0e;
+  --color-card: #101010;
+  --color-elevated: #161616;
   --color-line: rgb(255 255 255 / 0.1);
   --color-line-strong: rgb(255 255 255 / 0.16);
 
   /* Eternal Snow and Karakoram Mist. No grey type. */
   --color-fg: #F8F9FA;
-  --color-muted: #DFE5E8;
-  --color-subtle: #DFE5E8;
+  --color-muted: #CDCBCA;
+  --color-subtle: #CDCBCA;
 
-  /* Warm orange. `brand` follows the user's accent setting. */
-  --color-brand: #FF6A1A;
+  /* Signal red on chrome silver. `brand` follows the user's accent setting. */
+  --color-brand: #D41514;
   --color-brand-strong: color-mix(in oklab, var(--color-brand) 88%, white);
   --color-cyan: #38d6ee;
   --color-violet: #8b7cf6;
@@ -34,11 +34,11 @@
   --color-iris: #c4b0dc;
 
   /* Legacy names kept so existing classes resolve to the new palette */
-  --color-bm-night: #070B10;
-  --color-bm-dark: #0c1418;
+  --color-bm-night: #080808;
+  --color-bm-dark: #0e0e0e;
   --color-bm-yellow: var(--color-brand);
   --color-bm-red: var(--color-danger);
-  --color-surface: #1C1613;
+  --color-surface: #101010;
   --color-surface-raised: rgb(236 235 230 / 0.05);
 
   --breakpoint-sm: 240rem;
@@ -47,8 +47,8 @@
   --breakpoint-xl: 240rem;
   --breakpoint-2xl: 240rem;
 
-  --radius-card: 22px;
-  --radius-control: 18px;
+  --radius-card: 16px;
+  --radius-control: 12px;
 
   --shadow-card: none;
   --shadow-lift: none;
@@ -223,9 +223,9 @@
 
 :root {
   color-scheme: dark;
-  --color-ground: #070B10;
+  --color-ground: #080808;
   /* Flat field, the same ground as the home page. Themes replace this. */
-  --page-ground: #070B10;
+  --page-ground: #080808;
 }
 
 body {
@@ -270,12 +270,49 @@ main :where(article, section) :where(p, h1, h2, h3) {
   scrollbar-color: rgb(255 255 255 / 0.14) transparent;
 }
 
-/* Soft raised surface. Radius comes from the card token so every panel matches. */
+/* Frosted chrome surface. Radius comes from the card token so every panel matches. */
 @utility glass {
-  background: var(--color-card);
-  border: 1px solid color-mix(in oklab, #3ef0e0 28%, transparent);
+  background: linear-gradient(160deg, rgb(205 203 202 / 0.09), rgb(205 203 202 / 0.02) 55%), var(--color-card);
+  border: 1px solid rgb(205 203 202 / 0.16);
   border-radius: var(--radius-card);
-  box-shadow: 0 0 14px rgb(62 240 224 / 0.08);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 18px 40px rgb(0 0 0 / 0.45);
+}
+
+/* Small rounded tag, e.g. an exercise name above its numbers. */
+@utility chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(205 203 202 / 0.18);
+  background: rgb(205 203 202 / 0.08);
+  padding: 0.25rem 0.625rem;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #cdcbca;
+  white-space: nowrap;
+}
+
+/* Stat numerals: seven-segment clock digits. Every digit is the same width, so a value keeps its width as it counts up. */
+@utility stat-num {
+  font-family: var(--font-stat), ui-monospace, monospace;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Oversized background word in fading chrome. */
+@utility ghost-word {
+  background-image: linear-gradient(to bottom, rgb(205 203 202 / 0.5), rgb(205 203 202 / 0.04) 85%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 0.85;
+  pointer-events: none;
+  user-select: none;
 }
 
 /* Quiet inset panel inside a card. */
@@ -303,7 +340,7 @@ main :where(article, section) :where(p, h1, h2, h3) {
   z-index: 35;
   display: flex;
   flex-direction: column;
-  background: #000;
+  background: #080808;
   animation: sheetUp 0.62s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
@@ -375,11 +412,11 @@ input[type="number"] {
 
 @utility btn-primary {
   @apply btn-base bg-brand text-sm text-[#F8F9FA] hover:bg-brand-strong;
-  box-shadow: 0 0 18px color-mix(in oklab, var(--color-brand) 55%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 0 22px color-mix(in oklab, var(--color-brand) 50%, transparent);
 }
 
 @utility btn-ghost {
-  @apply btn border border-[#3EF0E0]/35 bg-transparent text-[#3EF0E0] hover:bg-[#3EF0E0]/10;
+  @apply btn border border-[#CDCBCA]/30 bg-white/[0.04] text-[#F8F9FA] hover:bg-white/[0.08];
 }
 
 @utility btn-danger {
@@ -387,7 +424,7 @@ input[type="number"] {
 }
 
 .muscle-shape {
-  fill: #ff6a1a;
+  fill: #d41514;
   mix-blend-mode: screen;
   transition: opacity 480ms ease;
 }
@@ -481,7 +518,7 @@ input[type="number"] {
   }
 }
 
-/* Faded white type reads as grey. Secondary copy stays Karakoram Mist. */
+/* Faded white type reads as grey. Secondary copy stays Chrome Silver. */
 .text-white\/30,
 .text-white\/35,
 .text-white\/40,
@@ -490,5 +527,5 @@ input[type="number"] {
 .text-white\/55,
 .text-white\/60,
 .text-white\/70 {
-  color: #DFE5E8;
+  color: #CDCBCA;
 }

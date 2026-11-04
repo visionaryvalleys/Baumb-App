@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, ChevronUp, Lock, Pencil } from "lucide-react";
+import { ChevronDown, ChevronUp, Lock, Pencil, X } from "lucide-react";
 import { avoidReason, healthConstraints } from "@/calculations/health";
 import { dayListKey, loadHint, shortenLeft } from "@/calculations/session-day";
+import { stageDayAsk } from "./session-close";
 import { firstWarmupKg, warmupFromWorking, warmupSetCount, type WarmupBody } from "@/calculations/warmup";
 import { suggestNextLoad } from "@/calculations/workout";
 import { muscleNames } from "@/lib/anatomy";
@@ -169,6 +170,13 @@ function bandText(band: SetBand) {
   return "";
 }
 
+function bandButton(band: SetBand) {
+  if (band === "lower") return "bg-[#FF6A1A] text-[#080808]";
+  if (band === "target") return "bg-[#bfd200] text-[#080808]";
+  if (band === "growth") return "bg-[#00f5d4] text-[#080808]";
+  return "bg-brand text-[#F8F9FA]";
+}
+
 function bandName(band: SetBand) {
   if (band === "lower") return "Lower set";
   if (band === "target") return "Target set";
@@ -197,11 +205,11 @@ function clock(totalSeconds: number) {
 function BigStep({ label, value, onChange, locked = false, decimal = false }: { label: string; value: string; onChange: (value: string) => void; locked?: boolean; decimal?: boolean }) {
   return (
     <div className="min-w-0 flex-1" onClick={(event) => event.stopPropagation()}>
-      <p className="text-center text-[12px] font-medium uppercase tracking-[0.16em] text-[#DFE5E8]">{label}</p>
+      <p className="text-center text-[12px] font-medium uppercase tracking-[0.16em] text-[#CDCBCA]">{label}</p>
       <div className="mt-2 flex items-center justify-center">
         {locked ? (
-          <span className="inline-flex h-16 min-w-16 flex-1 items-center justify-center gap-2 rounded-2xl bg-white/[0.06] px-3 text-[2rem] font-semibold leading-none text-[#F8F9FA]">
-            <Lock className="size-4 text-[#DFE5E8]" aria-hidden /> {value}
+          <span className="stat-num inline-flex h-16 min-w-16 flex-1 items-center justify-center gap-2 rounded-[12px] border border-[#CDCBCA]/15 bg-white/[0.06] px-3 text-[1.75rem] leading-none text-[#F8F9FA]">
+            <Lock className="size-4 text-[#CDCBCA]" aria-hidden /> {value}
           </span>
         ) : (
           <input
@@ -212,7 +220,7 @@ function BigStep({ label, value, onChange, locked = false, decimal = false }: { 
             autoCorrect="off"
             spellCheck={false}
             aria-label={label}
-            className="field h-16 w-full text-center text-[2rem] font-semibold text-[#F8F9FA] caret-[#F8F9FA]"
+            className="field stat-num h-16 w-full rounded-[12px] text-center text-[1.75rem] text-[#F8F9FA] caret-[#F8F9FA]"
             style={{ color: "#F8F9FA", caretColor: "#F8F9FA", WebkitTextFillColor: "#F8F9FA" }}
             value={value}
             onFocus={(event) => {
@@ -264,6 +272,7 @@ export function SplitWorkout({
   conditions,
   durationMin,
   dayNumber,
+  splitId,
   age,
   heightCm,
   weightKg,
@@ -281,6 +290,7 @@ export function SplitWorkout({
   conditions: HealthCondition[];
   durationMin: number;
   dayNumber: number;
+  splitId: string;
   age: number | null;
   heightCm: number | null;
   weightKg: number | null;
@@ -327,10 +337,10 @@ export function SplitWorkout({
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const [overtimeAsk, setOvertimeAsk] = useState(false);
-  const [updateAsk, setUpdateAsk] = useState(false);
   const overtimeSeen = useRef(false);
   const [restUntil, setRestUntil] = useState<number | null>(null);
   const [restOn, setRestOn] = useState<number | null>(null);
+  const [restBand, setRestBand] = useState<SetBand>("plain");
   const [advanceTo, setAdvanceTo] = useState<number | null>(null);
   const [editAt, setEditAt] = useState<{ exercise: number; step: number; weight: string } | null>(null);
   const startedAt = useRef(Date.now());
@@ -365,6 +375,20 @@ export function SplitWorkout({
     node?.scrollIntoView({ behavior: "smooth", block: "start" });
     document.querySelector<HTMLElement>("[data-rest-skip]")?.focus();
   }, [advanceTo]);
+  useEffect(() => {
+    if (detailIndex == null && switching == null) return;
+    const link = document.querySelector<HTMLAnchorElement>('a[aria-label="Back to home"]');
+    if (!link) return;
+    const leave = (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setDetailIndex(null);
+      setSwitching(null);
+      setMuscle(null);
+    };
+    link.addEventListener("click", leave);
+    return () => link.removeEventListener("click", leave);
+  }, [detailIndex, switching]);
 
   function replaceExercise(index: number, exerciseId: string) {
     const current = items[index];
@@ -482,6 +506,9 @@ export function SplitWorkout({
   }
 
   function submitStep(exerciseIndex: number, stepIndex: number) {
+    const submitted = cards[exerciseIndex]?.[stepIndex];
+    const submittedItem = items[exerciseIndex];
+    setRestBand(submitted && submittedItem ? setBand(performedReps(submitted), submittedItem.repsMin, submittedItem.repsMax) : "plain");
     let next = cards.map((steps, index) => (index === exerciseIndex ? steps.map((step, i) => (i === stepIndex ? { ...step, done: true, ready: false } : step)) : steps));
     const saved = packed(next);
     if (saved.exercises.length) onSet(saved.exercises, saved.status);
@@ -518,17 +545,10 @@ export function SplitWorkout({
       return;
     }
     const kept = keptRoutine();
-    if (dayListKey(kept) === openingKey.current) {
-      const saved = packed(cards);
-      onDone(saved.exercises, saved.status, kept);
-      return;
-    }
-    setUpdateAsk(true);
-  }
-
-  function confirmDay(update: boolean) {
     const saved = packed(cards);
-    onDone(saved.exercises, saved.status, update ? keptRoutine() : null);
+    const changed = dayListKey(kept) !== openingKey.current;
+    stageDayAsk(changed ? { dayNumber, splitId, exercises: kept } : null);
+    onDone(saved.exercises, saved.status, changed ? null : kept);
   }
 
   function acceptTrim() {
@@ -543,14 +563,19 @@ export function SplitWorkout({
     const named = muscleNames(items[detailIndex]?.exerciseId ?? "");
     return (
       <div className="space-y-4">
-        <button type="button" className="text-sm font-semibold text-[#F8F9FA]" onClick={() => setDetailIndex(null)}>
-          Back
-        </button>
+        <div className="flex items-center justify-between">
+          <button type="button" className="py-2 pr-4 text-sm font-semibold text-[#F8F9FA]" onClick={() => setDetailIndex(null)}>
+            Back
+          </button>
+          <button type="button" aria-label="Close" className="grid size-10 place-items-center text-[#F8F9FA]" onClick={() => setDetailIndex(null)}>
+            <X className="size-5" aria-hidden />
+          </button>
+        </div>
         <h2 className="text-xl font-semibold text-[#F8F9FA]">{chosen?.name ?? "Exercise"}</h2>
-        <p className="text-sm text-[#DFE5E8]">Equipment · {chosen ? EQUIPMENT_LABEL[chosen.equipment] : "—"}</p>
-        <p className="text-sm text-[#DFE5E8]">Works {named.primary || chosen?.muscle || "—"}</p>
-        {named.secondary && <p className="text-sm text-[#DFE5E8]">Also {named.secondary}</p>}
-        <p className="text-xs leading-relaxed text-[#DFE5E8]">A training map of the muscles this exercise is meant to work. It is not a measurement of growth.</p>
+        <p className="text-sm text-[#CDCBCA]">Equipment · {chosen ? EQUIPMENT_LABEL[chosen.equipment] : "—"}</p>
+        <p className="text-sm text-[#CDCBCA]">Works {named.primary || chosen?.muscle || "—"}</p>
+        {named.secondary && <p className="text-sm text-[#CDCBCA]">Also {named.secondary}</p>}
+        <p className="text-xs leading-relaxed text-[#CDCBCA]">A training map of the muscles this exercise is meant to work. It is not a measurement of growth.</p>
         <p className="text-sm leading-relaxed text-[#F8F9FA]">{chosen?.cue}</p>
       </div>
     );
@@ -561,9 +586,14 @@ export function SplitWorkout({
     const choices = muscle ? EXERCISES.filter((exercise) => exercise.muscle === muscle && !avoid.has(exercise.id)) : [];
     return (
       <div className="space-y-4">
-        <button type="button" className="text-sm font-semibold text-[#F8F9FA]" onClick={() => { setSwitching(null); setMuscle(null); }}>
-          Back
-        </button>
+        <div className="flex items-center justify-between">
+          <button type="button" className="py-2 pr-4 text-sm font-semibold text-[#F8F9FA]" onClick={() => { setSwitching(null); setMuscle(null); }}>
+            Back
+          </button>
+          <button type="button" aria-label="Close" className="grid size-10 place-items-center text-[#F8F9FA]" onClick={() => { setSwitching(null); setMuscle(null); }}>
+            <X className="size-5" aria-hidden />
+          </button>
+        </div>
         <h2 className="text-xl font-semibold text-[#F8F9FA]">Switch</h2>
         <div className="flex flex-wrap gap-2">
           {MUSCLE_GROUPS.map((group) => (
@@ -571,8 +601,8 @@ export function SplitWorkout({
               key={group}
               type="button"
               className={cn(
-                "rounded-md border px-3 py-1.5 text-xs capitalize",
-                muscle === group ? "border-brand bg-brand/20 text-[#F8F9FA]" : "border-white/20 text-[#DFE5E8]",
+                "rounded-full border px-3 py-1.5 text-xs capitalize",
+                muscle === group ? "border-brand bg-brand/20 text-[#F8F9FA]" : "border-white/20 text-[#CDCBCA]",
               )}
               onClick={() => setMuscle(group)}
             >
@@ -585,7 +615,7 @@ export function SplitWorkout({
             <li key={exercise.id}>
               <button type="button" className="w-full rounded-card bg-white/[0.04] px-3 py-3 text-left" onClick={() => replaceExercise(switching, exercise.id)}>
                 <span className="block text-sm font-semibold text-[#F8F9FA]">{exercise.name}</span>
-                <span className="text-xs text-[#DFE5E8]">{EQUIPMENT_LABEL[exercise.equipment]}</span>
+                <span className="text-xs text-[#CDCBCA]">{EQUIPMENT_LABEL[exercise.equipment]}</span>
               </button>
             </li>
           ))}
@@ -596,6 +626,7 @@ export function SplitWorkout({
 
   const budget = Math.max(1, durationMin * 60);
   const pct = Math.min(100, Math.round((elapsedSec / budget) * 100));
+  const extraMin = Math.max(0, Math.floor((elapsedSec - budget) / 60));
   const currentIndex = items.findIndex((_, index) => {
     const steps = cards[index] ?? [];
     return !skipped[index] && !(steps.length > 0 && steps.every((step) => step.done));
@@ -614,32 +645,27 @@ export function SplitWorkout({
     <div className="space-y-4">
       <div>
         <div className="flex items-end justify-between gap-3">
-          <p className="text-[12px] uppercase tracking-[0.14em] text-[#DFE5E8]">
-            {Math.floor(elapsedSec / 60)} min / {durationMin} min
+          <p className="text-[12px] uppercase tracking-[0.14em] text-[#CDCBCA]">
+            {Math.min(Math.floor(elapsedSec / 60), durationMin)} min / {durationMin} min
           </p>
-          <span className="text-[13px] tabular-nums text-brand">{pct}%</span>
+          <span className="text-[13px] tabular-nums text-brand">{extraMin > 0 ? `+${extraMin} min extra` : `${pct}%`}</span>
         </div>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Session time">
-          <div className="h-full bg-brand" style={{ width: `${pct}%` }} />
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Session time">
+          <div className="h-full rounded-full bg-brand shadow-[0_0_10px_rgba(212,21,20,0.8)]" style={{ width: `${pct}%` }} />
         </div>
       </div>
       {currentId && (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-2 text-center">
-            {[
-              ["Age", age != null ? String(age) : "—"],
-              ["Height (cm)", heightCm != null ? String(heightCm) : "—"],
-              ["Weight (kg)", weightKg != null ? String(weightKg) : "—"],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">{label}</p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums text-[#F8F9FA]">{value}</p>
-              </div>
-            ))}
+          <div className="flex flex-col items-center gap-2">
+            <span className="chip">
+              Exercise {shown + 1} of {items.length}
+            </span>
+            <div className="flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1.5" aria-hidden>
+              {items.map((item, index) => (
+                <span key={`${item.exerciseId}-${index}`} className={cn("h-1.5 rounded-full", index === shown ? "w-4 bg-[#F8F9FA]" : "w-1.5 bg-white/30")} />
+              ))}
+            </div>
           </div>
-          <p className="text-center text-[12px] text-white/45">
-            Exercise {shown + 1} of {items.length}
-          </p>
           <div className="flex justify-center gap-4 text-[10px] font-semibold uppercase tracking-[0.14em]">
             <span className="text-[#FF6A1A]">Lower</span>
             <span className="text-[#bfd200]">Target</span>
@@ -654,20 +680,13 @@ export function SplitWorkout({
         const complete = steps.length > 0 && steps.every((step) => step.done);
         const warmSteps = steps.filter((step) => step.warmup);
         const warmFinished = warmSteps.length === 0 || warmSteps.every((step) => step.done);
-        const performedBands = steps
-          .map((step) => setBand(performedReps(step), item.repsMin, item.repsMax))
-          .filter((band) => band !== "plain");
-        const targetCount = performedBands.filter((band) => band === "target").length;
-        const lowerCount = performedBands.filter((band) => band === "lower").length;
-        const cardBand = performedBands.includes("growth")
-          ? "growth"
-          : targetCount > lowerCount
-            ? "target"
-            : lowerCount > targetCount
-              ? "lower"
-              : targetCount > 0
-                ? "target"
-                : "plain";
+        const workOnly = steps.filter((step) => !step.warmup);
+        const workDone = workOnly.length > 0 && workOnly.every((step) => step.done);
+        const openSet = workOnly.find((step) => !step.done);
+        const bandOf = (step: Step) => setBand(performedReps(step), item.repsMin, item.repsMax);
+        const finishedBands = workOnly.map(bandOf).filter((band) => band !== "plain");
+        const average = finishedBands.length === 0 ? 0 : finishedBands.reduce((sum, band) => sum + (band === "growth" ? 3 : band === "target" ? 2 : 1), 0) / finishedBands.length;
+        const cardBand = workDone ? (average >= 2.5 ? "growth" : average >= 1.5 ? "target" : average > 0 ? "lower" : "plain") : openSet ? bandOf(openSet) : "plain";
         const workSteps = steps.map((step, stepIndex) => ({ step, stepIndex })).filter((entry) => !entry.step.warmup);
         const openWork = workSteps.find((entry) => !entry.step.done);
         const visibleWork = warmFinished ? workSteps.filter((entry) => entry.step.done || entry === openWork) : [];
@@ -677,18 +696,24 @@ export function SplitWorkout({
           const advice = adviceFor(workouts, item, unit, step.warmup ? warmupsBefore : null, injuries, conditions, body);
           const band = setBand(performedReps(step), item.repsMin, item.repsMax);
           const active = !passed && !step.done;
+          const shownWeight = step.weightTyped ? step.weight : advice.weight;
+          const lowReps = Math.min(item.repsMin, item.repsMax);
+          const highReps = Math.max(item.repsMin, item.repsMax);
+          const targetReps = lowReps === highReps ? highReps : Math.round((lowReps + highReps) / 2);
           return (
             <div
               key={step.warmup ? "warmup" : step.label}
               className={cn(
                 "px-3 py-2.5",
-                step.warmup ? "rounded-md border border-dashed border-[#E2C15A] bg-[#E2C15A]/10" : "rounded-md bg-white/[0.03]",
+                step.warmup
+                  ? "rounded-[14px] border border-dashed border-[#86EFAC]/70 bg-white/[0.04] [&_:not(button)]:text-[#86EFAC]! [&_input]:caret-[#86EFAC]! [&_input]:[-webkit-text-fill-color:#86EFAC]!"
+                  : "rounded-[14px] border border-[#CDCBCA]/10 bg-white/[0.03]",
               )}
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className={cn("text-sm font-semibold", step.warmup ? "text-[#F3D98A]" : "text-[#F8F9FA]", step.done && "line-through decoration-2")}>{title}</div>
-                  <p className="text-xs text-[#DFE5E8]">
+                  <div className={cn("text-sm font-semibold", step.warmup ? "text-[#CDCBCA]" : "text-[#F8F9FA]", step.done && "line-through decoration-2")}>{title}</div>
+                  <p className="text-xs text-[#CDCBCA]">
                     {step.warmup
                       ? adviceLine(advice, step.warmup, unit)
                       : loadHint({
@@ -707,10 +732,10 @@ export function SplitWorkout({
                     </p>
                   )}
                 </div>
-                {active && (
+                {active && !step.ready && (
                   <button
                     type="button"
-                    className="h-8 shrink-0 rounded-md bg-brand px-3 text-xs font-semibold text-[#F8F9FA]"
+                    className={cn("h-9 shrink-0 rounded-[10px] px-4 text-xs font-semibold", bandButton(step.opened ? band : "plain"))}
                     data-set-start=""
                     disabled={step.ready}
                     onClick={() => {
@@ -729,7 +754,7 @@ export function SplitWorkout({
                 <div className={cn("mt-2 flex gap-4", restLeft > 0 && restOn === index && "opacity-30")}>
                   <BigStep
                     label={unit}
-                    value={step.weightTyped ? step.weight : advice.weight}
+                    value={shownWeight}
                     decimal
                     onChange={(weight) => patch(index, stepIndex, { weight, weightTyped: true })}
                   />
@@ -744,20 +769,33 @@ export function SplitWorkout({
                   />
                 </div>
               )}
-              {active && !step.warmup && band !== "plain" && (
+              {active && !step.warmup && shownWeight && (
+                <p className="mt-2 text-[13px] leading-relaxed text-white/70">
+                  At this weight,{" "}
+                  <span className="font-semibold text-[#bfd200]">{targetReps} reps is the target</span>
+                  {targetReps === highReps ? (
+                    <>
+                      {" "}and the <span className="font-semibold text-[#00f5d4]">challenge</span>.
+                    </>
+                  ) : (
+                    <>
+                      {" "}and <span className="font-semibold text-[#00f5d4]">{highReps} reps is the challenge</span>.
+                    </>
+                  )}
+                </p>
+              )}
+              {active && !step.warmup && band !== "plain" && band !== "growth" && (
                 <p className={cn("mt-2 text-sm font-semibold", bandText(band))}>
                   {band === "target"
                     ? `${Math.max(item.repsMin, item.repsMax)} reps makes it a Challenge set with the same weight.`
-                    : band === "growth"
-                      ? "You are on the Challenge set. Finish it with everything you have."
-                      : bandName(band)}
+                    : bandName(band)}
                 </p>
               )}
               {active && step.ready && (
                 <div className="mt-3">
                   {!step.warmup && (
                     <>
-                      <p className="mb-2 text-xs text-[#DFE5E8]">Reserve</p>
+                      <p className="mb-2 text-xs text-[#CDCBCA]">Reserve</p>
                       <div className="flex flex-wrap gap-2">
                         {RESERVE.map((value) => {
                           const target = value === suggestedReserve(item.exerciseId, item.rpeTarget, injuries, conditions, dose);
@@ -766,21 +804,21 @@ export function SplitWorkout({
                               <button
                                 type="button"
                                 className={cn(
-                                  "h-8 min-w-8 rounded-md border px-2 text-xs",
-                                  step.reserve === value ? "border-[#1B3A6B] bg-[#1B3A6B] text-[#F8F9FA]" : "border-white/20 text-[#DFE5E8]",
+                                  "h-8 min-w-8 rounded-full border px-2 text-xs",
+                                  step.reserve === value ? "border-[#CDCBCA] bg-[#CDCBCA] font-semibold text-[#080808]" : "border-white/20 text-[#CDCBCA]",
                                 )}
                                 onClick={() => patch(index, stepIndex, { reserve: value })}
                               >
                                 {value === 5 ? "5+" : value}
                               </button>
-                              {target && <span className="mt-1 text-[9px] uppercase tracking-wide text-[#DFE5E8]">target</span>}
+                              {target && <span className="mt-1 text-[9px] uppercase tracking-wide text-[#CDCBCA]">target</span>}
                             </div>
                           );
                         })}
                       </div>
                     </>
                   )}
-                  <button type="button" className="btn-primary mt-3 h-11 w-full" onClick={() => submitStep(index, stepIndex)}>
+                  <button type="button" className={cn("btn-base mt-3 h-11 w-full rounded-[0.75rem]! text-sm", bandButton(band))} onClick={() => submitStep(index, stepIndex)}>
                     Submit Set
                   </button>
                 </div>
@@ -792,7 +830,7 @@ export function SplitWorkout({
         const warmIndex = steps.findIndex((step) => step.warmup && !step.done);
         const warmStep = warmIndex >= 0 ? steps[warmIndex] : null;
         return (
-          <section id={`exercise-card-${index}`} key={`${item.exerciseId}-${index}`} className={cn("relative scroll-mt-24 rounded-card bg-white/[0.04] p-4", !passed && bandGlow(cardBand))} onClick={() => setFocus(index)}>
+          <section id={`exercise-card-${index}`} key={`${item.exerciseId}-${index}`} className={cn("relative scroll-mt-24 rounded-card border border-[#CDCBCA]/15 bg-gradient-to-b from-white/[0.07] to-white/[0.02] p-4", !passed && bandGlow(cardBand))} onClick={() => setFocus(index)}>
             <div className="flex items-start justify-between gap-3">
               <h3 className={cn("min-w-0 text-2xl font-semibold text-[#F8F9FA]", (passed || complete) && "line-through decoration-2")}>{info?.name ?? item.exerciseId}</h3>
               <button
@@ -817,7 +855,7 @@ export function SplitWorkout({
               {warmStep && !passed && !complete && stage(warmStep, warmIndex, `Warm-up ${warmSteps.filter((step) => step.done).length + 1}/${warmSteps.length}`)}
               {visibleWork.map(({ step, stepIndex }) =>
                 step.done && !(editAt?.exercise === index && editAt.step === stepIndex) ? (
-                  <div key={step.label} className="flex min-w-0 items-center gap-2 rounded-md bg-white/[0.03] px-3 py-2.5">
+                  <div key={step.label} className="flex min-w-0 items-center gap-2 rounded-[14px] border border-[#CDCBCA]/10 bg-white/[0.03] px-3 py-2.5">
                     <div className="min-w-0 flex-1 text-sm font-semibold text-[#F8F9FA] line-through decoration-2">{step.label}</div>
                     <p className="shrink-0 text-sm font-semibold tabular-nums text-[#F8F9FA]">{step.weight ? `${step.weight} × ${step.reps || "0"} reps` : `Bodyweight × ${step.reps || "0"} reps`}</p>
                     <button
@@ -833,9 +871,9 @@ export function SplitWorkout({
                     </button>
                   </div>
                 ) : step.done ? (
-                  <div key={step.label} className="rounded-md bg-white/[0.03] px-3 py-2.5" onClick={(event) => event.stopPropagation()}>
+                  <div key={step.label} className="rounded-[14px] border border-[#CDCBCA]/10 bg-white/[0.03] px-3 py-2.5" onClick={(event) => event.stopPropagation()}>
                     <div className="text-sm font-semibold text-[#F8F9FA]">{step.label}</div>
-                    <p className="mt-2 text-center text-[12px] font-medium uppercase tracking-[0.16em] text-[#DFE5E8]">{unit}</p>
+                    <p className="mt-2 text-center text-[12px] font-medium uppercase tracking-[0.16em] text-[#CDCBCA]">{unit}</p>
                     <input
                       type="text"
                       inputMode="decimal"
@@ -886,7 +924,7 @@ export function SplitWorkout({
       })}
       <button
         type="button"
-        className="h-12 w-full rounded-card border border-dashed border-white/35 text-sm font-semibold text-[#F8F9FA]"
+        className="h-12 w-full rounded-control border border-dashed border-[#CDCBCA]/35 bg-white/[0.02] text-sm font-semibold text-[#F8F9FA]"
         aria-expanded={adding}
         onClick={() => {
           setAdding((open) => !open);
@@ -905,7 +943,7 @@ export function SplitWorkout({
                 aria-pressed={addMuscle === group}
                 className={cn(
                   "shrink-0 rounded-full border px-3 py-1.5 text-xs capitalize",
-                  addMuscle === group ? "border-brand bg-brand/20 text-[#F8F9FA]" : "border-white/20 text-[#DFE5E8]",
+                  addMuscle === group ? "border-brand bg-brand/20 text-[#F8F9FA]" : "border-white/20 text-[#CDCBCA]",
                 )}
                 onClick={() => setAddMuscle(group)}
               >
@@ -919,7 +957,7 @@ export function SplitWorkout({
                 <li key={exercise.id}>
                   <button type="button" className="w-full rounded-card bg-white/[0.04] px-3 py-3 text-left" onClick={() => addExercise(exercise.id)}>
                     <span className="block text-sm font-semibold text-[#F8F9FA]">{exercise.name}</span>
-                    <span className="text-xs text-[#DFE5E8]">{EQUIPMENT_LABEL[exercise.equipment]}</span>
+                    <span className="text-xs text-[#CDCBCA]">{EQUIPMENT_LABEL[exercise.equipment]}</span>
                   </button>
                 </li>
               ))}
@@ -944,25 +982,12 @@ export function SplitWorkout({
           </div>
         </div>
       )}
-      {updateAsk && !overtimeAsk && (
-        <div className="fixed inset-0 z-50 grid place-items-end bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="update-day-title">
-          <div className="glass w-full max-w-[480px] space-y-4 p-5">
-            <p id="update-day-title" className="text-base leading-relaxed text-[#F8F9FA]">
-              Day {dayNumber} was different today. Do you want to update Day {dayNumber} for next week?
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <button type="button" className="btn-primary h-11" onClick={() => confirmDay(true)}>Yes</button>
-              <button type="button" className="btn-ghost h-11" onClick={() => confirmDay(false)}>No</button>
-            </div>
-          </div>
-        </div>
-      )}
       {restLeft > 0 &&
         createPortal(
-          <div className="fixed inset-0 z-[90] grid place-items-center bg-[#0B1220]/80" role="dialog" aria-modal="true" aria-label="Rest">
+          <div className="fixed inset-0 z-[90] grid place-items-center bg-[#080808]/85 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Rest">
             <div className="text-center">
-              <p className="text-[12px] uppercase tracking-[0.18em] text-[#DFE5E8]">Rest</p>
-              <p className="text-[4.5rem] font-semibold leading-none text-brand">{clock(restLeft)}</p>
+              <p className="text-[20px] font-semibold uppercase tracking-[0.2em] text-[#CDCBCA]">Rest</p>
+              <p className={cn("stat-num mt-3 text-[3.5rem] leading-none drop-shadow-[0_0_24px_color-mix(in_srgb,currentColor_60%,transparent)]", bandText(restBand) || "text-brand")}>{clock(restLeft)}</p>
               {restStep && (
                 <p className="mt-3 text-lg font-semibold tabular-nums text-[#F8F9FA]">
                   {restWeight ? `${restWeight} ${unit}` : "Bodyweight"} · {restReps} reps

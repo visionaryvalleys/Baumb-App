@@ -103,12 +103,12 @@ function Turn({ turn }: { turn: ChatTurn }) {
   if (turn.role === "user") {
     return (
       <div className="flex justify-center">
-        <div className="max-w-[92%] whitespace-pre-wrap rounded-[22px] bg-white/[0.07] px-4 py-2.5 text-center text-[14px] leading-snug text-white/80 ring-1 ring-inset ring-white/10">{turn.content}</div>
+        <div className="max-w-[92%] whitespace-pre-wrap rounded-[16px] bg-white/[0.07] px-4 py-2.5 text-center text-[14px] leading-snug text-white/80 ring-1 ring-inset ring-white/10">{turn.content}</div>
       </div>
     );
   }
   return (
-    <div className={cn("rounded-[24px] bg-white/[0.05] px-4 py-3.5 text-[15px] leading-relaxed text-white/85 ring-1 ring-inset ring-white/10", turn.failed && "text-amber-200/90")}>
+    <div className={cn("rounded-[16px] bg-white/[0.05] px-4 py-3.5 text-[15px] leading-relaxed text-white/85 ring-1 ring-inset ring-white/10", turn.failed && "text-amber-200/90")}>
       <div className="space-y-2.5">{turn.content ? <RichText text={turn.content} /> : <Thinking />}</div>
     </div>
   );
@@ -126,7 +126,7 @@ function Composer({ id, onSend, streaming = false, placeholder = "Ask about your
   }
 
   return (
-    <form onSubmit={submit} className="flex items-end gap-1.5 rounded-[28px] border border-[#3EF0E0]/25 bg-[#0c1418] py-1.5 pl-2 pr-1.5">
+    <form onSubmit={submit} className="flex items-end gap-1.5 rounded-[18px] border border-[#CDCBCA]/20 bg-white/[0.05] py-1.5 pl-2 pr-1.5">
       <label htmlFor={id} className="sr-only">
         Ask Ostin Trainer
       </label>
@@ -214,13 +214,13 @@ export function TrainerChat() {
             <p className="text-center text-[13px] text-white/50">Hi {profile.firstName || "there"}</p>
             <h2 className="mx-auto mt-1.5 max-w-[16rem] text-center text-[1.55rem] font-semibold leading-[1.15] tracking-[-0.03em] text-white">What are we working on today?</h2>
             <p className="mx-auto mt-2 max-w-[18rem] text-center text-[12px] leading-relaxed text-white/45">I can see your plan, today&apos;s food and your last 7 days, so answers fit you, not an average person.</p>
-            <div className="mx-auto mt-4 grid w-full grid-cols-2 gap-1 rounded-[28px] border border-white/10 bg-white/[0.04] p-1.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]">
+            <div className="mx-auto mt-4 grid w-full grid-cols-2 gap-1 rounded-[18px] border border-white/10 bg-white/[0.04] p-1.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s.question}
                   type="button"
                   onClick={() => send(s.question)}
-                  className="flex min-h-11 flex-col justify-center rounded-[20px] px-3 py-2 text-left active:bg-white/[0.06]"
+                  className="flex min-h-11 flex-col justify-center rounded-[12px] px-3 py-2 text-left active:bg-white/[0.06]"
                 >
                   <span className="block text-[11px] text-white/40">{s.topic}</span>
                   <span className="mt-0.5 block text-[13px] leading-snug text-white/85">{s.question}</span>
@@ -258,7 +258,7 @@ export function TrainerSheet() {
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
         {SUGGESTIONS.map((item) => (
-          <button key={item.question} type="button" onClick={() => ask(item.question)} className="min-h-11 rounded-[22px] bg-white/[0.05] px-3 py-2.5 text-left ring-1 ring-inset ring-white/10">
+          <button key={item.question} type="button" onClick={() => ask(item.question)} className="min-h-11 rounded-[12px] bg-white/[0.05] px-3 py-2.5 text-left ring-1 ring-inset ring-white/10">
             <span className="block text-[10px] text-white/40">{item.topic}</span>
             <span className="mt-1 block text-[13px] leading-snug text-white/85">{item.question}</span>
           </button>
@@ -304,7 +304,7 @@ export function TrainerPrompt() {
             key={s.question}
             type="button"
             onClick={() => send(s.question)}
-            className="min-h-11 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-left text-[13px] text-white/70"
+            className="min-h-11 rounded-control border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-left text-[13px] text-white/70"
           >
             {s.question}
           </button>

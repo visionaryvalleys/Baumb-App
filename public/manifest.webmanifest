@@ -3,8 +3,8 @@
   "short_name": "Ostin",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#1E2A27",
-  "theme_color": "#1E2A27",
+  "background_color": "#080808",
+  "theme_color": "#080808",
   "start_url": "/",
   "scope": "/",
   "icons": [

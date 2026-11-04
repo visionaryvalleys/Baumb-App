@@ -34,11 +34,11 @@ export function PageHeader({
       <div className="min-w-0">
         {subtitle && (
           <div className="mb-2 flex items-center gap-2">
-            {Icon && <Icon className="size-3.5 text-[#3EF0E0]" aria-hidden />}
+            {Icon && <Icon className="size-3.5 text-brand" aria-hidden />}
             <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">{subtitle}</span>
           </div>
         )}
-        <h1 className="text-[34px] font-semibold leading-[1.05] tracking-[-0.03em] text-fg [&_span]:text-[#3EF0E0]">{title}</h1>
+        <h1 className="text-[34px] font-semibold leading-[1.05] tracking-[-0.03em] text-fg [&_span]:text-[#CDCBCA]">{title}</h1>
       </div>
       {action}
     </header>
@@ -178,7 +178,7 @@ export function Segmented<T extends string | number>({
   size?: "sm" | "md";
 }) {
   return (
-    <div className={cn("flex w-full max-w-full flex-wrap gap-1 rounded-[22px] border border-line bg-white/[0.04] p-1", className)} role="radiogroup">
+    <div className={cn("flex w-full max-w-full flex-wrap gap-1 rounded-[16px] border border-line bg-white/[0.04] p-1", className)} role="radiogroup">
       {options.map((o) => (
         <button
           key={String(o.value)}
@@ -187,7 +187,7 @@ export function Segmented<T extends string | number>({
           aria-checked={o.value === value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "min-h-11 min-w-0 flex-1 basis-[40%] whitespace-normal rounded-[16px] text-center font-medium leading-tight transition duration-200",
+            "min-h-11 min-w-0 flex-1 basis-[40%] whitespace-normal rounded-[12px] text-center font-medium leading-tight transition duration-200",
             size === "sm" ? "px-1.5 py-1.5 text-[12px]" : "px-2 py-2 text-[13px]",
             o.value === value ? "bg-brand text-[#F8F9FA]" : "bg-transparent text-muted",
           )}
@@ -205,9 +205,9 @@ export function SectionLabel({ children, className }: { children: ReactNode; cla
 
 export function BigNumber({ children, unit, gold, className }: { children: ReactNode; unit?: ReactNode; gold?: boolean; className?: string }) {
   return (
-    <div className={cn("text-[2.15rem] font-semibold leading-none tracking-[-0.03em] tabular-nums", gold ? "text-brand" : "text-fg", className)}>
+    <div className={cn("stat-num min-w-0 text-[2.15rem] leading-none [overflow-wrap:anywhere]", gold ? "text-brand" : "text-fg", className)}>
       {children}
-      {unit && <span className={cn("ml-1.5 text-[15px] font-medium tracking-normal", gold ? "text-brand/60" : "text-white/40")}>{unit}</span>}
+      {unit && <span className={cn("ml-1.5 font-sans text-[15px] font-medium tracking-normal", gold ? "text-brand/60" : "text-white/40")}>{unit}</span>}
     </div>
   );
 }

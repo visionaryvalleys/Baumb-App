@@ -116,8 +116,8 @@ export function MealEstimate({ date }: { date: LocalDate }) {
         className="field min-h-[4.5rem] resize-none text-[#F8F9FA]"
       />
       <div className="flex flex-wrap items-center gap-2">
-        <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-full border border-[#3EF0E0]/35 px-3 text-sm font-semibold text-white/80">
-          <Camera className="size-4 text-[#3EF0E0]" aria-hidden /> {image ? "Photo ready" : "Photo"}
+        <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-control border border-[#CDCBCA]/30 bg-white/[0.04] px-3 text-sm font-semibold text-white/80">
+          <Camera className="size-4 text-[#D41514]" aria-hidden /> {image ? "Photo ready" : "Photo"}
           <input
             type="file"
             accept="image/*"
@@ -131,12 +131,12 @@ export function MealEstimate({ date }: { date: LocalDate }) {
             }}
           />
         </label>
-        <button type="submit" className="btn-primary ml-auto h-11 rounded-full px-4" disabled={busy || (!text.trim() && !image)}>
+        <button type="submit" className="btn-primary ml-auto h-11 px-4" disabled={busy || (!text.trim() && !image)}>
           <Plus className="size-4" aria-hidden /> {busy ? "Counting…" : "Log meal"}
         </button>
       </div>
       {error && <p className="text-sm text-red-200" role="alert">{error}</p>}
-      {counted && <p className="text-sm leading-snug text-[#3EF0E0]">{counted}</p>}
+      {counted && <p className="text-sm leading-snug text-[#CDCBCA]">{counted}</p>}
     </form>
   );
 }

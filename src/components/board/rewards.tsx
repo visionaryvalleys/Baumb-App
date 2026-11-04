@@ -58,12 +58,11 @@ export function SessionBoard() {
   return (
     <Card>
       <CardTitle action={<Trophy className="size-4 text-brand" aria-hidden />}>Leaderboard</CardTitle>
-      <p className="text-sm text-white/55">Names appear on day 3, after the exercises for day 1 and day 2 are finished. Rank is by completed days, not by reps or sets. A week runs Monday through Sunday.</p>
       {!ready ? null : rows.length > 0 ? (
         <>
           <ol className="mt-4 grid gap-2">
             {visible.map((row, index) => (
-              <li key={`${row.name}-${index}`} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-4 py-3">
+              <li key={`${row.name}-${index}`} className="flex items-center justify-between gap-3 rounded-[14px] bg-white/[0.04] px-4 py-3">
                 <p className="min-w-0 truncate text-[16px] font-medium text-white">
                   <span className="mr-2 tabular-nums text-brand">{index + 1}</span>
                   {row.name}
@@ -82,7 +81,7 @@ export function SessionBoard() {
           )}
         </>
       ) : (
-        <p className="mt-4 text-sm text-white/55">Finish day 1 and day 2. Your name appears on day 3, once that day&apos;s exercises are done.</p>
+        <p className="mt-4 text-sm text-white/55">Finish day 1 and day 2. Your name appears once both days&apos; exercises are done.</p>
       )}
     </Card>
   );
@@ -131,7 +130,7 @@ export function RewardsBoard() {
             {REWARDS.map((item) => {
               const affordable = balance >= item.cost;
               return (
-                <li key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-3 py-3">
+                <li key={item.id} className="flex items-center justify-between gap-3 rounded-[14px] bg-white/[0.04] px-3 py-3">
                   <div>
                     <p className="text-[15px] font-medium text-white">{item.name}</p>
                     <p className="text-[12px] tabular-nums text-white/45">{item.cost} G</p>

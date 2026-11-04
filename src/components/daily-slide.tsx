@@ -5,7 +5,7 @@ import { todayKey } from "@/lib/date";
 import { DAILY_SLIDE_KEY, dailySlideDue } from "@/lib/daily-slide";
 import { cn } from "./ui";
 
-/** The opening screen, once on the first visit of each day. Sliding the mark puts it away until tomorrow. */
+/** The opening screen, once on the first visit of each day. The mark draws itself, then the app opens until tomorrow. */
 export function DailySlideGate() {
   const [today, setToday] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -24,9 +24,22 @@ export function DailySlideGate() {
   return <DailySlide today={today} onDone={() => setOpen(false)} />;
 }
 
+const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
+
 function DailySlide({ today, onDone }: { today: string; onDone: () => void }) {
+  const [drawn, setDrawn] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const committed = useRef(false);
+
+  useEffect(() => {
+    const quick = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const frame = requestAnimationFrame(() => setDrawn(true));
+    const done = window.setTimeout(finish, quick ? 600 : 2600);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(done);
+    };
+  }, []);
 
   function finish() {
     if (committed.current) return;
@@ -37,104 +50,48 @@ function DailySlide({ today, onDone }: { today: string; onDone: () => void }) {
       /* The screen still closes for this visit. */
     }
     setLeaving(true);
-    window.setTimeout(onDone, 320);
+    window.setTimeout(onDone, 450);
   }
 
   return (
     <div
-      className={cn(
-        "fixed inset-0 z-[80] flex justify-center bg-[#070605] transition-transform duration-300",
-        leaving && "-translate-y-full",
-      )}
+      className={cn("fixed inset-0 z-[80] grid place-items-center bg-[#080808] transition-opacity duration-[450ms]", leaving && "opacity-0")}
       role="dialog"
       aria-modal="true"
-      aria-label="Fitness Powered by Intelligent Motion AI. Slide to continue."
+      aria-label="Ostin is opening"
     >
-      <div className="flex h-dvh w-full max-w-[480px] flex-col justify-center px-0">
-        <img src="/daily-open.jpg?v=4" alt="" className="mx-auto block h-auto max-h-[calc(100dvh-6.2rem)] w-full object-contain" />
-        <div className="mx-auto h-[4.4rem] w-full max-w-[480px] shrink-0 px-[7%] pt-3">
-          <SlideKnob onComplete={finish} />
-        </div>
+      <div className="flex flex-col items-center gap-5">
+        <svg
+          viewBox="0 0 32 32"
+          className="size-24 text-brand"
+          style={{ filter: drawn ? "drop-shadow(0 0 18px rgba(212,21,20,0.5))" : "none", transition: `filter 900ms ease 1100ms` }}
+          aria-hidden
+        >
+          <path
+            d="M16 6.4a9.6 9.6 0 1 0 7.2 3.3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            pathLength={1}
+            strokeDasharray="1"
+            style={{ opacity: drawn ? 1 : 0, strokeDashoffset: drawn ? 0 : 1, transition: `opacity 150ms ease 150ms, stroke-dashoffset 1200ms ${EASE} 150ms` }}
+          />
+          <circle
+            cx="24"
+            cy="8.7"
+            r="1.7"
+            fill="currentColor"
+            style={{ opacity: drawn ? 1 : 0, transform: drawn ? "scale(1)" : "scale(0)", transformOrigin: "24px 8.7px", transition: `opacity 300ms ease 1250ms, transform 420ms ${EASE} 1250ms` }}
+          />
+        </svg>
+        <span
+          className="font-wordmark text-2xl font-semibold uppercase leading-none text-fg"
+          style={{ opacity: drawn ? 1 : 0, letterSpacing: drawn ? "0.32em" : "0.7em", transition: `opacity 700ms ease 1400ms, letter-spacing 900ms ${EASE} 1400ms` }}
+        >
+          Ostin
+        </span>
       </div>
     </div>
-  );
-}
-
-function SlideKnob({ onComplete }: { onComplete: () => void }) {
-  const track = useRef<HTMLDivElement>(null);
-  const knob = useRef<HTMLButtonElement>(null);
-  const drag = useRef<{ startX: number; start: number } | null>(null);
-  const [offset, setOffset] = useState(0);
-
-  function limit() {
-    const width = track.current?.clientWidth ?? 0;
-    const knobWidth = knob.current?.offsetWidth ?? 56;
-    return Math.max(0, width - knobWidth - width * 0.03);
-  }
-
-  function release(next: number) {
-    drag.current = null;
-    if (next >= limit() * 0.82) {
-      setOffset(limit());
-      onComplete();
-      return;
-    }
-    setOffset(0);
-  }
-
-  return (
-    <div ref={track} className="relative h-full rounded-full border border-white/10 bg-[#100e0c]">
-      <span className="pointer-events-none absolute inset-y-0 right-[9%] grid place-items-center text-[clamp(12px,3.4vw,16px)] font-medium text-white/70">
-        Get Started
-      </span>
-      <button
-        ref={knob}
-        type="button"
-        aria-label="Slide to start the day"
-        className="absolute top-[7%] left-[1.5%] grid aspect-square h-[86%] place-items-center rounded-full border border-white/10 bg-[#1A1411] text-[#FF6A1A] shadow-[0_0_16px_rgba(255,106,26,0.35)] touch-none"
-        style={{ transform: `translateX(${offset}px)` }}
-        onPointerDown={(event) => {
-          try {
-            event.currentTarget.setPointerCapture(event.pointerId);
-          } catch {
-            /* The pointer is still tracked from this press. */
-          }
-          drag.current = { startX: event.clientX, start: offset };
-        }}
-        onPointerMove={(event) => {
-          if (!drag.current) return;
-          setOffset(Math.min(limit(), Math.max(0, drag.current.start + event.clientX - drag.current.startX)));
-        }}
-        onPointerUp={(event) => {
-          if (!drag.current) return;
-          release(Math.min(limit(), Math.max(0, drag.current.start + event.clientX - drag.current.startX)));
-        }}
-        onPointerCancel={() => release(offset)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onComplete();
-          }
-        }}
-      >
-        <RunnerIcon />
-      </button>
-    </div>
-  );
-}
-
-function RunnerIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-7" aria-hidden>
-      <circle cx="16.2" cy="4.6" r="1.7" fill="currentColor" />
-      <path
-        d="M14.6 8.2 11.2 10.6 8.6 14.2M14.6 8.2l3.4 1.5 1.8-2.2M13.4 12.4 9.2 17.2 6.4 21.2M13.4 12.4l4.2 3.4 2.4-1.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

@@ -251,7 +251,7 @@ export function VoiceLog() {
           <div
             role="dialog"
             aria-label={rendered === "trainer" ? "Ostin Trainer" : "Result"}
-            className={cn("glass absolute inset-x-0 bottom-0 max-h-[78dvh] rounded-t-[1.75rem] px-5 pb-[max(8.5rem,env(safe-area-inset-bottom))] pt-3", closing ? "animate-sheet-down" : "animate-sheet-up")}
+            className={cn("glass absolute inset-x-0 bottom-0 max-h-[78dvh] rounded-t-[20px] px-5 pb-[max(8.5rem,env(safe-area-inset-bottom))] pt-3", closing ? "animate-sheet-down" : "animate-sheet-up")}
             style={drag ? { transform: `translateY(${drag}px)` } : undefined}
             onAnimationEnd={(event) => {
               if (event.target === event.currentTarget && closing) finishClose();
@@ -293,7 +293,7 @@ export function VoiceLog() {
                 {heard && <p className="text-center text-sm text-white/45">Heard “{heard}”</p>}
                 <ul className="grid gap-2">
                   {matched.map((line) => (
-                    <li key={line} className="rounded-2xl bg-white/[0.05] px-4 py-3 text-[16px] tracking-[-0.01em] text-white">
+                    <li key={line} className="rounded-[14px] bg-white/[0.05] px-4 py-3 text-[16px] tracking-[-0.01em] text-white">
                       {line}
                     </li>
                   ))}

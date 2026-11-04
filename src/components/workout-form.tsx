@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { ChevronRight, Dumbbell, Pencil } from "lucide-react";
 import { plannedWorkoutOn } from "@/calculations/calendar";
 import { healthConstraints } from "@/calculations/health";
 import { buildSplitSession } from "@/calculations/workout";
@@ -130,7 +130,7 @@ function DurationBar({ value, onChange }: { value: number; onChange: (minutes: n
             key={minutes}
             className={cn(
               "absolute -translate-x-1/2 text-[10px] tabular-nums",
-              minutes === value ? "font-semibold text-[#F8F9FA]" : "text-[#DFE5E8]",
+              minutes === value ? "font-semibold text-[#F8F9FA]" : "text-[#CDCBCA]",
             )}
             style={{ left: `calc(8px + (100% - 16px) * ${i / (SESSION_MINUTES.length - 1)})` }}
           >
@@ -150,7 +150,10 @@ export function WorkoutForm() {
   const days = goal?.daysPerWeek ?? plans.find((plan) => plan.id === activePlanId)?.goal.daysPerWeek ?? 4;
   const saved = goal?.daySplits;
   const splits = splitsForWeek(days, saved);
-  const worked = new Set(workouts.filter((workout) => workout.date >= startOfWeek(today) && workout.date < today).map((workout) => workout.date)).size;
+  const sessionId = useRef(newId());
+  const worked =
+    new Set(workouts.filter((workout) => workout.date >= startOfWeek(today) && workout.date < today).map((workout) => workout.date)).size +
+    new Set(workouts.filter((workout) => workout.date === today && workout.status === "completed" && workout.id !== sessionId.current).map((workout) => workout.name)).size;
   const day = programmeDay(worked, days);
   const todaySplitId = splits[day - 1] ?? splits[0];
   const todaySplitLabel = splitLabel(todaySplitId);
@@ -164,7 +167,6 @@ export function WorkoutForm() {
   const [error, setError] = useState("");
   const [carried, setCarried] = useState<WorkoutExercise[] | null>(null);
   const [hold, setHold] = useState(true);
-  const sessionId = useRef(newId());
   const sessionAt = useRef(Date.now());
   const left = unfinishedToday(workouts, today);
 
@@ -259,6 +261,7 @@ export function WorkoutForm() {
       setError("Finish signup so Ostin knows the days in your programme.");
       return;
     }
+    sessionAt.current = Date.now();
     const notes = healthConstraints(profile.injuries, profile.conditions).flags.map((flag) => flag.message);
     let last = "";
     for (const workout of workouts) {
@@ -276,7 +279,7 @@ export function WorkoutForm() {
   if (live) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-[#DFE5E8]">Day {day} · {todaySplitLabel} · {duration} minutes</p>
+        <p className="text-sm text-[#CDCBCA]">Day {day} · {todaySplitLabel} · {duration} minutes</p>
         <SplitWorkout
           prescriptions={live}
           workouts={workouts}
@@ -285,6 +288,7 @@ export function WorkoutForm() {
           conditions={profile.conditions}
           durationMin={duration}
           dayNumber={day}
+          splitId={todaySplitId}
           age={currentAge(profile, today)}
           heightCm={profile.heightCm}
           weightKg={latestKg ?? plans.find((plan) => plan.id === activePlanId)?.bodyWeightKg ?? null}
@@ -296,7 +300,7 @@ export function WorkoutForm() {
           onDone={(exercises, status, nextWeek) => {
             record(exercises, status);
             if (nextWeek && nextWeek.length > 0) actions.setDayRoutine(day - 1, { splitId: todaySplitId, exercises: nextWeek });
-            router.push("/workouts/new");
+            router.push("/workouts/after");
           }}
         />
       </div>
@@ -314,7 +318,7 @@ export function WorkoutForm() {
             onClick={() => choosePlace(option)}
             className={cn(
               "min-h-28 rounded-card border-2 border-dotted text-lg font-semibold tracking-[0.18em]",
-              place === option ? "border-[#3EF0E0] text-[#3EF0E0]" : "border-white/35 text-[#F8F9FA]",
+              place === option ? "border-[#D41514] bg-[#D41514]/10 text-[#F8F9FA] shadow-[0_0_22px_rgba(212,21,20,0.35)]" : "border-[#CDCBCA]/35 bg-white/[0.03] text-[#CDCBCA]",
             )}
           >
             {option === "gym" ? "GYM" : "HOME"}
@@ -325,13 +329,13 @@ export function WorkoutForm() {
       <Card>
         <DurationBar value={duration} onChange={(minutes) => setDuration(sessionMinutes(minutes))} />
       </Card>
-      <p className="text-sm text-[#DFE5E8]">Let’s start Day {day} – {todaySplitLabel}.</p>
+      <p className="text-sm text-[#CDCBCA]">Let’s start Day {day} – {todaySplitLabel}.</p>
       {error && <p role="alert" className="text-sm text-[#E0B07A]">{error}</p>}
       {left && hold && createPortal(
-        <div className="fixed inset-0 z-[80] grid place-items-center bg-[#0B1220]/80 p-4" role="dialog" aria-modal="true" aria-labelledby="resume-title">
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-[#080808]/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="resume-title">
           <div className="glass w-full max-w-[480px] space-y-4 p-5">
             <h2 id="resume-title" className="text-lg font-semibold text-[#F8F9FA]">Resume this session?</h2>
-            <p className="text-sm leading-relaxed text-[#DFE5E8]">You left this session before it was finished. Resume where you stopped, or start from the beginning.</p>
+            <p className="text-sm leading-relaxed text-[#CDCBCA]">You left this session before it was finished. Resume where you stopped, or start from the beginning.</p>
             <div className="grid gap-3">
               <button type="button" className="btn-primary h-11" onClick={resumeSession}>Resume</button>
               <button type="button" className="btn-ghost h-11" onClick={beginAgain}>Start from beginning</button>
@@ -340,15 +344,27 @@ export function WorkoutForm() {
         </div>,
         document.body,
       )}
-      <button type="button" className="btn-primary h-12 w-full" onClick={start}>
-        Start Day {day}
+      <button
+        type="button"
+        className="flex h-[60px] w-full min-w-0 items-center gap-3 rounded-[18px] border border-[#CDCBCA]/20 bg-white/[0.06] p-1.5 pr-5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition active:scale-[0.98]"
+        onClick={start}
+      >
+        <span className="grid size-12 shrink-0 place-items-center rounded-full bg-[#D41514] text-white shadow-[0_0_22px_rgba(212,21,20,0.65)]">
+          <Dumbbell className="size-5" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[#F8F9FA]">Start Day {day}</span>
+        <span className="flex shrink-0" aria-hidden>
+          <ChevronRight className="size-4 text-white/25" />
+          <ChevronRight className="-ml-2 size-4 text-white/55" />
+          <ChevronRight className="-ml-2 size-4 text-white" />
+        </span>
       </button>
       {gate && createPortal(
-        <div className="fixed inset-0 z-[80] grid place-items-center bg-[#0B1220]/80 p-4" role="dialog" aria-modal="true" aria-labelledby="session-gate-title">
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-[#080808]/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="session-gate-title">
           <div className="glass max-h-[70dvh] w-full max-w-[480px] space-y-4 overflow-y-auto p-5">
             <h2 id="session-gate-title" className="text-lg font-semibold text-[#F8F9FA]">Before this session</h2>
             {gate.notes.map((note) => (
-              <p key={note} className="text-sm leading-relaxed text-[#DFE5E8]">{note}</p>
+              <p key={note} className="text-sm leading-relaxed text-[#CDCBCA]">{note}</p>
             ))}
             {!gate.away && (
               <div className="grid grid-cols-2 gap-2">
@@ -359,7 +375,7 @@ export function WorkoutForm() {
                     aria-pressed={gate.feel === option}
                     className={cn(
                       "h-11 rounded-card border text-sm font-semibold",
-                      gate.feel === option ? "border-[#3EF0E0] text-[#3EF0E0]" : "border-white/20 text-[#F8F9FA]",
+                      gate.feel === option ? "border-[#CDCBCA] bg-[#CDCBCA] text-[#080808]" : "border-white/20 text-[#F8F9FA]",
                     )}
                     onClick={() => setGate({ ...gate, feel: option })}
                   >
@@ -368,7 +384,7 @@ export function WorkoutForm() {
                 ))}
               </div>
             )}
-            {!gate.away && <p className="text-xs leading-relaxed text-[#DFE5E8]">Sore keeps fewer sets and more reps in reserve.</p>}
+            {!gate.away && <p className="text-xs leading-relaxed text-[#CDCBCA]">Sore keeps fewer sets and more reps in reserve.</p>}
             <div className="grid grid-cols-2 gap-3">
               <button type="button" className="btn-ghost h-11" onClick={() => setGate(null)}>Not today</button>
               <button type="button" className="btn-primary h-11" onClick={() => openSheet(gate.away ? "return" : gate.feel === "sore" ? "sore" : "regular")}>Continue</button>
@@ -387,7 +403,7 @@ export function WorkoutForm() {
               <li key={`${id}-${index}`} className={cn("rounded-card px-3 py-3", index + 1 === day && "bg-white/[0.05]")}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-xs uppercase tracking-[0.14em] text-[#DFE5E8]">Day {index + 1}</div>
+                    <div className="text-xs uppercase tracking-[0.14em] text-[#CDCBCA]">Day {index + 1}</div>
                     <div className="text-sm font-semibold text-[#F8F9FA]">{splitLabel(id)}</div>
                   </div>
                   <button
@@ -408,7 +424,7 @@ export function WorkoutForm() {
                         aria-pressed={selected.includes(option.id)}
                         className={cn(
                           "rounded-full border px-3 py-1.5 text-xs",
-                          selected.includes(option.id) ? "border-brand bg-brand/20 text-[#F8F9FA]" : "border-white/15 text-[#DFE5E8]",
+                          selected.includes(option.id) ? "border-brand bg-brand/20 text-[#F8F9FA]" : "border-white/15 text-[#CDCBCA]",
                         )}
                         onClick={() => toggleGroup(index, option.id)}
                       >

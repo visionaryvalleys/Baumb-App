@@ -24,7 +24,7 @@ export function GameView() {
   return (
     <div className="space-y-6">
       {celebrate && (
-        <div className="level-rise rounded-[1.4rem] border border-brand/40 bg-brand/10 px-4 py-5" role="dialog" aria-labelledby="level-up-title">
+        <div className="level-rise rounded-[16px] border border-brand/40 bg-brand/10 px-4 py-5" role="dialog" aria-labelledby="level-up-title">
           <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-brand">Level {progress.level}</p>
           <h2 id="level-up-title" className="mt-1 font-display text-[28px] text-white">{progress.levelName}</h2>
           <p className="mt-2 text-sm leading-relaxed text-white/75">
@@ -95,7 +95,7 @@ export function GameView() {
             const earned = progress.trainingDays >= item.days;
             const claimed = state.game.claimed.includes(item.id);
             return (
-              <li key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-3 py-3">
+              <li key={item.id} className="flex items-center justify-between gap-3 rounded-[14px] bg-white/[0.04] px-3 py-3">
                 <div>
                   <p className="text-[15px] font-medium text-white">{item.name}</p>
                   <p className="text-[12px] text-white/45">{item.detail} · {Math.min(progress.trainingDays, item.days)}/{item.days}</p>

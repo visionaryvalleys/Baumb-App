@@ -126,7 +126,7 @@ export function SettingsView() {
           </button>
         </div>
         {resetOpen && (
-          <div role="alertdialog" aria-labelledby="reset-title" className="mt-4 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-4">
+          <div role="alertdialog" aria-labelledby="reset-title" className="mt-4 rounded-[14px] border border-danger/40 bg-danger/10 px-4 py-4">
             <p id="reset-title" className="text-[16px] font-semibold text-white">This returns Ostin to the start.</p>
             <p className="mt-2 text-sm leading-relaxed text-white/70">Workouts, meals, your plan, weigh-ins, photos and G coins are cleared on this device and in your account. Your sign-in stays. This cannot be undone.</p>
             <div className="mt-4 flex flex-wrap gap-2">

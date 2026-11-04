@@ -60,7 +60,7 @@ export function NotificationBell({ tone = "glass" }: { tone?: "glass" | "hero" }
         aria-expanded={open}
         aria-haspopup="dialog"
         className={tone === "hero"
-          ? "relative grid size-9 place-items-center rounded-full border border-white/15 bg-white/5 text-white"
+          ? "relative grid size-10 place-items-center rounded-full border border-[#CDCBCA]/20 bg-white/[0.06] text-white"
           : "glass-button relative grid size-11 place-items-center transition hover:bg-white/[0.04]"}
       >
         <Bell className="size-[18px] text-white/85" aria-hidden />

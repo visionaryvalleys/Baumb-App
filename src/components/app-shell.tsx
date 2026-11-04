@@ -84,7 +84,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className={home ? "relative h-dvh overflow-hidden" : "relative min-h-dvh"}>
       <Backdrop />
 
-      <header className={showHome ? "hidden" : "sticky top-0 z-40 border-b border-[#3EF0E0]/10 bg-[#070B10]/95 backdrop-blur-md"}>
+      <header className={showHome ? "hidden" : "sticky top-0 z-40 border-b border-[#CDCBCA]/10 bg-[#080808]/90 backdrop-blur-xl"}>
         <div className="mx-auto flex h-14 w-full max-w-[480px] items-center justify-between px-4">
           <div className="flex min-w-0 items-center">
             {showBack && (
@@ -120,7 +120,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         footer={
           <div className="mt-4 space-y-2">
             {resetAsk ? (
-              <div className="rounded-2xl border border-danger/40 bg-danger/10 px-4 py-4">
+              <div className="rounded-[14px] border border-danger/40 bg-danger/10 px-4 py-4">
                 <p className="text-[16px] font-semibold text-white">This returns Ostin to the start.</p>
                 <p className="mt-2 text-sm leading-relaxed text-white/70">Workouts, meals, your plan, weigh-ins, photos and G coins are cleared on this device and in your account. Your sign-in stays. This cannot be undone.</p>
                 <div className="mt-4 flex gap-2">
@@ -151,7 +151,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       await signOut();
                       router.replace("/signin");
                     }}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold text-white/80 transition hover:bg-white/[0.04]"
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-[14px] text-sm font-semibold text-white/80 transition hover:bg-white/[0.04]"
                   >
                     <LogOut className="size-4" aria-hidden /> Sign out
                   </button>
